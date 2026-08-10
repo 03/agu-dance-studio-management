@@ -1,0 +1,214 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import { useLanguage } from "@/lib/i18n"
+import {
+  sessions as allSessions,
+  teachers,
+  rooms,
+  weekdayKeys,
+  type ClassSession,
+  type StyleKey,
+} from "@/lib/mock-data"
+import { StyleDot } from "@/components/shared/style-dot"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Clock, MapPin, Users } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+const styleKeys: StyleKey[] = [
+  "style.jazz",
+  "style.hiphop",
+  "style.ballet",
+  "style.kpop",
+  "style.contemporary",
+  "style.latin",
+]
+
+export function StudentSchedule() {
+  const { t, lang } = useLanguage()
+  const [day, setDay] = useState(0)
+  const [styleFilter, setStyleFilter] = useState<string>("all")
+  const [teacherFilter, setTeacherFilter] = useState<string>("all")
+  // local booking state overlaying the mock data
+  const [states, setStates] = useState<Record<string, ClassSession["myState"]>>(
+    Object.fromEntries(allSessions.map((s) => [s.id, s.myState ?? "none"])),
+  )
+
+  const dayList = useMemo(
+    () => allSessions.filter((s) => s.day === day),
+    [day],
+  )
+
+  const filtered = dayList.filter((s) => {
+    if (styleFilter !== "all" && s.style !== styleFilter) return false
+    if (teacherFilter !== "all" && s.teacherId !== teacherFilter) return false
+    return true
+  })
+
+  const teacherName = (id: string) => {
+    const tc = teachers.find((x) => x.id === id)
+    return tc ? (lang === "zh" ? tc.name : tc.nameEn) : ""
+  }
+  const roomName = (id: string) => {
+    const r = rooms.find((x) => x.id === id)
+    return r ? (lang === "zh" ? r.name : r.nameEn) : ""
+  }
+
+  const toggle = (s: ClassSession) => {
+    const current = states[s.id] ?? "none"
+    const isFull = s.booked >= s.capacity
+    let next: ClassSession["myState"]
+    if (current === "none") next = isFull ? "waitlist" : "booked"
+    else next = "none"
+    setStates((prev) => ({ ...prev, [s.id]: next }))
+  }
+
+  return (
+    <div>
+      <header className="sticky top-0 z-10 bg-primary px-4 pb-4 pt-5 text-primary-foreground">
+        <h1 className="font-display text-xl font-bold">{t("stu.schedule.title")}</h1>
+        <p className="mt-0.5 text-xs text-primary-foreground/70">{t("stu.cancelRule")}</p>
+
+        {/* Day picker */}
+        <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {weekdayKeys.map((wk, i) => {
+            const active = i === day
+            const count = allSessions.filter((s) => s.day === i).length
+            return (
+              <button
+                key={wk}
+                onClick={() => setDay(i)}
+                className={cn(
+                  "flex min-w-[3.25rem] flex-col items-center rounded-xl py-2 text-xs transition-colors",
+                  active
+                    ? "bg-primary-foreground text-primary"
+                    : "bg-primary-foreground/10 text-primary-foreground/80",
+                )}
+              >
+                <span className="font-semibold">{t(wk)}</span>
+                <span className="mt-0.5 text-[10px] opacity-80">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      </header>
+
+      {/* Filters */}
+      <div className="flex gap-2 px-4 py-3">
+        <Select value={styleFilter} onValueChange={setStyleFilter}>
+          <SelectTrigger className="h-8 flex-1 text-xs">
+            <SelectValue placeholder={t("stu.filter.style")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("common.all")}</SelectItem>
+            {styleKeys.map((k) => (
+              <SelectItem key={k} value={k}>
+                {t(k)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+          <SelectTrigger className="h-8 flex-1 text-xs">
+            <SelectValue placeholder={t("stu.filter.teacher")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("common.all")}</SelectItem>
+            {teachers.map((tc) => (
+              <SelectItem key={tc.id} value={tc.id}>
+                {lang === "zh" ? tc.name : tc.nameEn}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Class list */}
+      <ul className="flex flex-col gap-3 px-4 pb-4">
+        {filtered.length === 0 && (
+          <li className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+            {t("common.all")} · {t("day." + ["mon", "tue", "wed", "thu", "fri", "sat", "sun"][day])}
+          </li>
+        )}
+        {filtered.map((s) => {
+          const st = states[s.id] ?? "none"
+          const isFull = s.booked >= s.capacity && st !== "booked"
+          const spotsLeft = Math.max(0, s.capacity - s.booked)
+          return (
+            <li
+              key={s.id}
+              className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <StyleDot style={s.style} />
+                    <span className="truncate font-display text-base font-bold text-card-foreground">
+                      {t(s.style)}
+                    </span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                      {lang === "zh" ? s.level.zh : s.level.en}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {s.start}–{s.end}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {roomName(s.roomId)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      {isFull ? (
+                        <span className="text-destructive">{t("common.full")}</span>
+                      ) : (
+                        <>
+                          {spotsLeft} {t("common.remaining")}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs font-medium text-foreground/80">
+                    {teacherName(s.teacherId)}
+                  </p>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant={
+                    st === "booked"
+                      ? "secondary"
+                      : st === "waitlist"
+                        ? "outline"
+                        : isFull
+                          ? "outline"
+                          : "default"
+                  }
+                  className="shrink-0"
+                  onClick={() => toggle(s)}
+                >
+                  {st === "booked"
+                    ? t("common.booked")
+                    : st === "waitlist"
+                      ? t("common.onWaitlist")
+                      : isFull
+                        ? t("common.waitlist")
+                        : t("common.book")}
+                </Button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
