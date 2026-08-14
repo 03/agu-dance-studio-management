@@ -1,15 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import {
-  sessions as allSessions,
-  teachers,
-  rooms,
-  weekdayKeys,
-  type ClassSession,
-  type StyleKey,
-} from "@/lib/mock-data"
+import { weekdayKeys, type ClassSession, type StyleKey, type Teacher, type Room } from "@/lib/types"
+import { bookClass, cancelBooking } from "@/lib/actions/bookings"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,19 +26,56 @@ const styleKeys: StyleKey[] = [
   "style.latin",
 ]
 
-export function StudentSchedule() {
+export function StudentSchedule({
+  sessions: allSessions,
+  teachers,
+  rooms,
+}: {
+  sessions: ClassSession[]
+  teachers: Teacher[]
+  rooms: Room[]
+}) {
   const { t, lang } = useLanguage()
-  const [day, setDay] = useState(0)
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const [styleFilter, setStyleFilter] = useState<string>("all")
   const [teacherFilter, setTeacherFilter] = useState<string>("all")
-  // local booking state overlaying the mock data
-  const [states, setStates] = useState<Record<string, ClassSession["myState"]>>(
-    Object.fromEntries(allSessions.map((s) => [s.id, s.myState ?? "none"])),
-  )
+
+  // Browsable window: the 2 days before today through the next 2 weeks
+  // (today counted as day 1 of those two weeks) — 16 real calendar dates
+  // total, today always at a fixed offset so it's the default selection.
+  const DAYS_BEFORE = 2
+  const DAYS_TOTAL = 16
+  const TODAY_INDEX = DAYS_BEFORE
+
+  const dates = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return Array.from({ length: DAYS_TOTAL }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(today.getDate() - DAYS_BEFORE + i)
+      return d
+    })
+  }, [])
+
+  const [selectedIndex, setSelectedIndex] = useState(TODAY_INDEX)
+
+  // ClassSession.day is a recurring weekly slot (0=Mon..6=Sun), not tied to
+  // a specific date — convert a real Date's weekday into that convention.
+  const toAppDay = (d: Date) => {
+    const jsDay = d.getDay() // 0 = Sun ... 6 = Sat
+    return jsDay === 0 ? 6 : jsDay - 1
+  }
+  const formatDate = (d: Date) => `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`
+
+  const selectedDate = dates[selectedIndex]
+  const selectedDayOfWeek = toAppDay(selectedDate)
+  const isPastDay = selectedIndex < TODAY_INDEX
 
   const dayList = useMemo(
-    () => allSessions.filter((s) => s.day === day),
-    [day],
+    () => allSessions.filter((s) => s.day === selectedDayOfWeek),
+    [allSessions, selectedDayOfWeek],
   )
 
   const filtered = dayList.filter((s) => {
@@ -62,12 +94,16 @@ export function StudentSchedule() {
   }
 
   const toggle = (s: ClassSession) => {
-    const current = states[s.id] ?? "none"
-    const isFull = s.booked >= s.capacity
-    let next: ClassSession["myState"]
-    if (current === "none") next = isFull ? "waitlist" : "booked"
-    else next = "none"
-    setStates((prev) => ({ ...prev, [s.id]: next }))
+    setPendingId(s.id)
+    startTransition(async () => {
+      if (s.myState === "none") {
+        await bookClass(s.id)
+      } else {
+        await cancelBooking(s.id)
+      }
+      router.refresh()
+      setPendingId(null)
+    })
   }
 
   return (
@@ -78,22 +114,33 @@ export function StudentSchedule() {
 
         {/* Day picker */}
         <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {weekdayKeys.map((wk, i) => {
-            const active = i === day
-            const count = allSessions.filter((s) => s.day === i).length
+          {dates.map((d, i) => {
+            const active = i === selectedIndex
+            const isToday = i === TODAY_INDEX
+            const dow = toAppDay(d)
+            const count = allSessions.filter((s) => s.day === dow).length
             return (
               <button
-                key={wk}
-                onClick={() => setDay(i)}
+                key={d.toISOString()}
+                onClick={() => setSelectedIndex(i)}
                 className={cn(
-                  "flex min-w-[3.25rem] flex-col items-center rounded-xl py-2 text-xs transition-colors",
+                  "relative flex min-w-[3.25rem] flex-col items-center rounded-xl py-2 text-xs transition-colors",
                   active
                     ? "bg-primary-foreground text-primary"
                     : "bg-primary-foreground/10 text-primary-foreground/80",
                 )}
               >
-                <span className="font-semibold">{t(wk)}</span>
-                <span className="mt-0.5 text-[10px] opacity-80">{count}</span>
+                {isToday && (
+                  <span
+                    className={cn(
+                      "absolute -top-1 -right-1 h-2 w-2 rounded-full",
+                      active ? "bg-accent" : "bg-accent-foreground",
+                    )}
+                  />
+                )}
+                <span className="font-semibold">{t(weekdayKeys[dow])}</span>
+                <span className="mt-0.5 text-[10px] opacity-80">{formatDate(d)}</span>
+                <span className="text-[10px] opacity-70">{count}</span>
               </button>
             )
           })}
@@ -104,7 +151,9 @@ export function StudentSchedule() {
       <div className="flex gap-2 px-4 py-3">
         <Select value={styleFilter} onValueChange={setStyleFilter}>
           <SelectTrigger className="h-8 flex-1 text-xs">
-            <SelectValue placeholder={t("stu.filter.style")} />
+            <SelectValue placeholder={t("stu.filter.style")}>
+              {(v: string) => (v === "all" ? t("common.all") : t(v))}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.all")}</SelectItem>
@@ -117,7 +166,9 @@ export function StudentSchedule() {
         </Select>
         <Select value={teacherFilter} onValueChange={setTeacherFilter}>
           <SelectTrigger className="h-8 flex-1 text-xs">
-            <SelectValue placeholder={t("stu.filter.teacher")} />
+            <SelectValue placeholder={t("stu.filter.teacher")}>
+              {(v: string) => (v === "all" ? t("common.all") : teacherName(v))}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.all")}</SelectItem>
@@ -134,11 +185,11 @@ export function StudentSchedule() {
       <ul className="flex flex-col gap-3 px-4 pb-4">
         {filtered.length === 0 && (
           <li className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-            {t("common.all")} · {t("day." + ["mon", "tue", "wed", "thu", "fri", "sat", "sun"][day])}
+            {t("common.all")} · {t(weekdayKeys[selectedDayOfWeek])} {formatDate(selectedDate)}
           </li>
         )}
         {filtered.map((s) => {
-          const st = states[s.id] ?? "none"
+          const st = s.myState ?? "none"
           const isFull = s.booked >= s.capacity && st !== "booked"
           const spotsLeft = Math.max(0, s.capacity - s.booked)
           return (
@@ -194,6 +245,7 @@ export function StudentSchedule() {
                           : "default"
                   }
                   className="shrink-0"
+                  disabled={isPastDay || (isPending && pendingId === s.id)}
                   onClick={() => toggle(s)}
                 >
                   {st === "booked"

@@ -9,6 +9,7 @@ import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
 import { AdminFinance } from "./admin-finance"
 import { AdminNotifications } from "./admin-notifications"
+import { AdminUsers } from "./admin-users"
 import {
   LayoutDashboard,
   CalendarRange,
@@ -16,11 +17,13 @@ import {
   CreditCard,
   LineChart,
   Bell,
+  ShieldCheck,
   ChevronLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { AdminAppData } from "@/lib/data"
 
-type Section = "overview" | "schedule" | "students" | "cards" | "finance" | "notifications"
+type Section = "overview" | "schedule" | "students" | "cards" | "finance" | "notifications" | "users"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
@@ -29,9 +32,16 @@ const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = 
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
   { key: "finance", labelKey: "adm.nav.finance", Icon: LineChart },
   { key: "notifications", labelKey: "adm.nav.notifications", Icon: Bell },
+  { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
 ]
 
-export function AdminApp({ onExit }: { onExit: () => void }) {
+export function AdminApp({
+  data,
+  onExit,
+}: {
+  data: AdminAppData
+  onExit: () => void | Promise<void>
+}) {
   const { t } = useLanguage()
   const [section, setSection] = useState<Section>("overview")
 
@@ -88,12 +98,17 @@ export function AdminApp({ onExit }: { onExit: () => void }) {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          {section === "overview" && <AdminOverview />}
-          {section === "schedule" && <AdminScheduling />}
-          {section === "students" && <AdminStudents />}
-          {section === "cards" && <AdminCards />}
-          {section === "finance" && <AdminFinance />}
-          {section === "notifications" && <AdminNotifications />}
+          {section === "overview" && <AdminOverview admin={data.admin} />}
+          {section === "schedule" && (
+            <AdminScheduling teachers={data.teachers} rooms={data.rooms} sessions={data.sessions} />
+          )}
+          {section === "students" && (
+            <AdminStudents students={data.students} cardProducts={data.cardProducts} />
+          )}
+          {section === "cards" && <AdminCards cardProducts={data.cardProducts} />}
+          {section === "finance" && <AdminFinance admin={data.admin} teachers={data.teachers} />}
+          {section === "notifications" && <AdminNotifications notificationRules={data.notificationRules} />}
+          {section === "users" && <AdminUsers users={data.users} />}
         </main>
       </div>
     </div>

@@ -1,9 +1,9 @@
 "use client"
 
 import { useLanguage } from "@/lib/i18n"
-import { cardProducts } from "@/lib/mock-data"
 import { Button } from "@/components/ui/button"
 import { Plus, Ticket, Infinity as InfinityIcon, Sparkles } from "lucide-react"
+import type { AdminAppData } from "@/lib/data"
 
 const typeIcon = {
   "stu.card.times": Ticket,
@@ -11,7 +11,7 @@ const typeIcon = {
   "stu.card.trial": Sparkles,
 }
 
-export function AdminCards() {
+export function AdminCards({ cardProducts }: { cardProducts: AdminAppData["cardProducts"] }) {
   const { t, lang } = useLanguage()
 
   // recent cashier transactions

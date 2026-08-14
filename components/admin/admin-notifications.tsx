@@ -1,17 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { notificationRules } from "@/lib/mock-data"
+import { toggleNotificationRule } from "@/lib/actions/notifications"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
+import type { AdminAppData } from "@/lib/data"
 
-export function AdminNotifications() {
+export function AdminNotifications({
+  notificationRules: rules,
+}: {
+  notificationRules: AdminAppData["notificationRules"]
+}) {
   const { t, lang } = useLanguage()
-  const [rules, setRules] = useState(notificationRules)
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   const toggle = (id: string) => {
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)))
+    startTransition(async () => {
+      await toggleNotificationRule(id)
+      router.refresh()
+    })
   }
 
   return (
@@ -35,7 +45,12 @@ export function AdminNotifications() {
                 {lang === "zh" ? rule.sample.zh : rule.sample.en}
               </p>
             </div>
-            <Switch checked={rule.enabled} onCheckedChange={() => toggle(rule.id)} aria-label={t(rule.key)} />
+            <Switch
+              checked={rule.enabled}
+              disabled={isPending}
+              onCheckedChange={() => toggle(rule.id)}
+              aria-label={t(rule.key)}
+            />
           </Card>
         ))}
       </div>

@@ -1,15 +1,20 @@
 "use client"
 
 import { useLanguage } from "@/lib/i18n"
-import { sessions, rooms, weekdayKeys } from "@/lib/mock-data"
+import { weekdayKeys, type ClassSession, type Room } from "@/lib/types"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Clock, MapPin, Users, ClipboardCheck } from "lucide-react"
 
-// Classes taught by the current teacher (t1)
-const myClasses = sessions.filter((s) => s.teacherId === "t1")
-
-export function TeacherSchedule({ onStartRollCall }: { onStartRollCall: (id: string) => void }) {
+export function TeacherSchedule({
+  sessions: myClasses,
+  rooms,
+  onStartRollCall,
+}: {
+  sessions: ClassSession[]
+  rooms: Room[]
+  onStartRollCall: (id: string) => void
+}) {
   const { t, lang } = useLanguage()
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn

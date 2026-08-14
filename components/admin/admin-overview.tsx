@@ -1,17 +1,14 @@
 "use client"
 
 import { useLanguage } from "@/lib/i18n"
-import {
-  adminKpis,
-  cashFlow,
-  consumptionByStyle,
-  styleColors,
-} from "@/lib/mock-data"
+import { styleColors } from "@/lib/types"
 import { StyleDot } from "@/components/shared/style-dot"
 import { TrendingUp, Flame, Users, UserCheck } from "lucide-react"
+import type { AdminAppData } from "@/lib/data"
 
-export function AdminOverview() {
+export function AdminOverview({ admin }: { admin: AdminAppData["admin"] }) {
   const { t, lang } = useLanguage()
+  const { kpis: adminKpis, cashFlow, consumptionByStyle } = admin
 
   const kpis = [
     { key: "adm.kpi.revenue", value: `¥${adminKpis.revenue.toLocaleString()}`, delta: "+12%", Icon: TrendingUp },
@@ -20,8 +17,8 @@ export function AdminOverview() {
     { key: "adm.kpi.activeStudents", value: adminKpis.activeStudents.toLocaleString(), delta: "+3%", Icon: Users },
   ]
 
-  const maxCash = Math.max(...cashFlow.map((c) => c.value))
-  const totalConsumption = consumptionByStyle.reduce((a, b) => a + b.value, 0)
+  const maxCash = Math.max(1, ...cashFlow.map((c) => c.value))
+  const totalConsumption = Math.max(1, consumptionByStyle.reduce((a, b) => a + b.value, 0))
 
   return (
     <div className="flex flex-col gap-6">

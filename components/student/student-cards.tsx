@@ -1,10 +1,10 @@
 "use client"
 
 import { useLanguage } from "@/lib/i18n"
-import { myCards, myLedger } from "@/lib/mock-data"
+import type { StudentCard as StudentCardType, LedgerEntry } from "@/lib/types"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
-import { ArrowDownRight, ArrowUpRight, Gift, RotateCcw } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, Gift, RotateCcw, SlidersHorizontal } from "lucide-react"
 
 const cardGradients: Record<string, string> = {
   "stu.card.times": "from-primary to-primary/70",
@@ -17,9 +17,10 @@ const ledgerMeta: Record<string, { Icon: typeof Gift; color: string }> = {
   "ledger.recharge": { Icon: ArrowUpRight, color: "text-chart-5" },
   "ledger.gift": { Icon: Gift, color: "text-accent" },
   "ledger.refund": { Icon: RotateCcw, color: "text-destructive" },
+  "ledger.adjust": { Icon: SlidersHorizontal, color: "text-muted-foreground" },
 }
 
-export function StudentCards() {
+export function StudentCards({ cards: myCards, ledger: myLedger }: { cards: StudentCardType[]; ledger: LedgerEntry[] }) {
   const { t, lang } = useLanguage()
 
   return (

@@ -1,4 +1,4 @@
-import { styleColors, type StyleKey } from "@/lib/mock-data"
+import { styleColors, type StyleKey } from "@/lib/types"
 
 export function StyleDot({ style, size = 10 }: { style: StyleKey; size?: number }) {
   return (

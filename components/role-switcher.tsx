@@ -1,6 +1,6 @@
 "use client"
 
-import type { Role } from "@/app/page"
+import type { Role } from "@/components/app-shell"
 import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
 import { GraduationCap, Presentation, LayoutDashboard, ArrowRight } from "lucide-react"

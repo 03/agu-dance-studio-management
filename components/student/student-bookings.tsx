@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { sessions, teachers, rooms, weekdayKeys } from "@/lib/mock-data"
+import { weekdayKeys, type ClassSession, type Teacher, type Room } from "@/lib/types"
+import { cancelBooking } from "@/lib/actions/bookings"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -14,18 +16,30 @@ const historyItems = [
   { id: "h3", style: "style.jazz" as const, teacherId: "t1", date: "12.07", start: "19:00", end: "20:00", roomId: "r1", day: 5 },
 ]
 
-export function StudentBookings() {
+export function StudentBookings({
+  upcoming,
+  teachers,
+  rooms,
+}: {
+  upcoming: ClassSession[]
+  teachers: Teacher[]
+  rooms: Room[]
+}) {
   const { t, lang } = useLanguage()
-  const [upcoming, setUpcoming] = useState(
-    sessions.filter((s) => s.myState === "booked" || s.myState === "waitlist"),
-  )
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   const teacherName = (id: string) =>
     lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  const cancel = (id: string) => setUpcoming((prev) => prev.filter((s) => s.id !== id))
+  const cancel = (id: string) => {
+    startTransition(async () => {
+      await cancelBooking(id)
+      router.refresh()
+    })
+  }
 
   return (
     <div>
@@ -79,7 +93,7 @@ export function StudentBookings() {
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">{teacherName(s.teacherId)}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">{t("stu.cancelRule")}</span>
-                    <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive" onClick={() => cancel(s.id)}>
+                    <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive" disabled={isPending} onClick={() => cancel(s.id)}>
                       {t("common.cancel")}
                     </Button>
                   </div>

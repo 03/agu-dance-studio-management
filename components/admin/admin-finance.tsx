@@ -1,16 +1,24 @@
 "use client"
 
 import { useLanguage } from "@/lib/i18n"
-import { cashFlow, consumptionByStyle, teacherStats, teachers, styleColors } from "@/lib/mock-data"
+import { styleColors } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { StyleDot } from "@/components/shared/style-dot"
+import type { AdminAppData } from "@/lib/data"
 
-export function AdminFinance() {
+export function AdminFinance({
+  admin,
+  teachers,
+}: {
+  admin: AdminAppData["admin"]
+  teachers: AdminAppData["teachers"]
+}) {
   const { t, lang } = useLanguage()
+  const { cashFlow, consumptionByStyle, teacherStats } = admin
 
-  const maxFlow = Math.max(...cashFlow.map((c) => c.value))
-  const totalConsumption = consumptionByStyle.reduce((s, c) => s + c.value, 0)
-  const maxHeads = Math.max(...teacherStats.map((s) => s.heads))
+  const maxFlow = Math.max(1, ...cashFlow.map((c) => c.value))
+  const totalConsumption = Math.max(1, consumptionByStyle.reduce((s, c) => s + c.value, 0))
+  const maxHeads = Math.max(1, ...teacherStats.map((s) => s.heads))
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +57,7 @@ export function AdminFinance() {
                 <div key={c.style} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 text-foreground">
-                      <StyleDot styleKey={c.style} />
+                      <StyleDot style={c.style} />
                       {t(c.style)}
                     </span>
                     <span className="text-muted-foreground">

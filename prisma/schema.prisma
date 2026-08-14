@@ -48,6 +48,7 @@ enum LedgerKind {
   RECHARGE
   GIFT
   REFUND
+  ADJUST
 }
 
 // Mirrors Student.status in lib/mock-data.ts
@@ -55,6 +56,12 @@ enum StudentStatus {
   ACTIVE
   EXPIRING
   INACTIVE
+}
+
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
 }
 
 model Teacher {
@@ -65,6 +72,7 @@ model Teacher {
   styles   DanceStyle[]
   sessions ClassSession[]
   stats    TeacherStat?
+  user     User?
 
   @@map("teachers")
 }
@@ -102,12 +110,15 @@ model Student {
   id            String        @id @default(cuid())
   name          String
   phone         String
+  wechat        String?
+  email         String?
   joined        String // display label, e.g. "2024-06"
   status        StudentStatus @default(ACTIVE)
   cards         StudentCard[]
   ledgerEntries LedgerEntry[]
   bookings      Booking[]
   payments      Payment[]
+  user          User?
 
   @@map("students")
 }
@@ -222,4 +233,34 @@ model Payment {
   paidAt    DateTime     @default(now())
 
   @@map("payments")
+}
+
+// A login account. Optionally linked 1:1 to the business record it acts as
+// (Student/Teacher) — ADMIN accounts have neither. passwordHash format is
+// "salt:hash" (scrypt, see lib/auth.ts) — not a bcrypt/argon2 string.
+model User {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  role               UserRole
+  mustChangePassword Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  student            Student?  @relation(fields: [studentId], references: [id])
+  studentId          String?   @unique
+  teacher            Teacher?  @relation(fields: [teacherId], references: [id])
+  teacherId          String?   @unique
+  sessions           Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
 }

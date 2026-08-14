@@ -7,14 +7,20 @@ import { MobileFrame } from "@/components/shared/mobile-frame"
 import { TeacherSchedule } from "./teacher-schedule"
 import { RollCall } from "./roll-call"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { teachers } from "@/lib/mock-data"
 import { ChevronLeft } from "lucide-react"
+import type { TeacherAppData } from "@/lib/data"
 
-export function TeacherApp({ onExit }: { onExit: () => void }) {
+export function TeacherApp({
+  data,
+  onExit,
+}: {
+  data: TeacherAppData
+  onExit: () => void | Promise<void>
+}) {
   const { t, lang } = useLanguage()
   // active roll-call session id, or null when viewing schedule
   const [rollCallId, setRollCallId] = useState<string | null>(null)
-  const me = teachers[0]
+  const me = data.teacher.me!
 
   return (
     <main className="min-h-screen bg-secondary/40 py-6">
@@ -50,9 +56,14 @@ export function TeacherApp({ onExit }: { onExit: () => void }) {
 
             <div className="flex-1 overflow-y-auto">
               {rollCallId ? (
-                <RollCall sessionId={rollCallId} onBack={() => setRollCallId(null)} />
+                <RollCall
+                  sessionId={rollCallId}
+                  sessions={data.teacher.sessions}
+                  rooms={data.rooms}
+                  onBack={() => setRollCallId(null)}
+                />
               ) : (
-                <TeacherSchedule onStartRollCall={setRollCallId} />
+                <TeacherSchedule sessions={data.teacher.sessions} rooms={data.rooms} onStartRollCall={setRollCallId} />
               )}
             </div>
           </div>

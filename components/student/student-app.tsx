@@ -10,6 +10,7 @@ import { StudentCards } from "./student-cards"
 import { StudentProfile } from "./student-profile"
 import { CalendarDays, Ticket, CreditCard, User, ChevronLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { StudentAppData } from "@/lib/data"
 
 type Tab = "schedule" | "bookings" | "cards" | "me"
 
@@ -20,7 +21,13 @@ const tabs: { key: Tab; labelKey: string; Icon: typeof CalendarDays }[] = [
   { key: "me", labelKey: "stu.nav.me", Icon: User },
 ]
 
-export function StudentApp({ onExit }: { onExit: () => void }) {
+export function StudentApp({
+  data,
+  onExit,
+}: {
+  data: StudentAppData
+  onExit: () => void | Promise<void>
+}) {
   const { t } = useLanguage()
   const [tab, setTab] = useState<Tab>("schedule")
 
@@ -41,10 +48,20 @@ export function StudentApp({ onExit }: { onExit: () => void }) {
         <MobileFrame>
           <div className="flex h-full flex-col bg-background">
             <div className="flex-1 overflow-y-auto pb-2">
-              {tab === "schedule" && <StudentSchedule />}
-              {tab === "bookings" && <StudentBookings />}
-              {tab === "cards" && <StudentCards />}
-              {tab === "me" && <StudentProfile />}
+              {tab === "schedule" && (
+                <StudentSchedule sessions={data.sessions} teachers={data.teachers} rooms={data.rooms} />
+              )}
+              {tab === "bookings" && (
+                <StudentBookings upcoming={data.student.upcoming} teachers={data.teachers} rooms={data.rooms} />
+              )}
+              {tab === "cards" && <StudentCards cards={data.student.cards} ledger={data.student.ledger} />}
+              {tab === "me" && (
+                <StudentProfile
+                  me={data.student.me!}
+                  upcomingCount={data.student.upcoming.length}
+                  attendanceRate={data.student.attendanceRate}
+                />
+              )}
             </div>
 
             <nav className="grid grid-cols-4 border-t border-border bg-card">

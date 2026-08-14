@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { students, cardProducts, type Student } from "@/lib/mock-data"
+import type { Student, StudentCard, CardProduct } from "@/lib/types"
+import { buyOrRenewCard, giftClasses, adjustBalance, refundCard } from "@/lib/actions/students"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,7 +47,25 @@ const statusLabel: Record<Student["status"], { zh: string; en: string }> = {
   inactive: { zh: "已停用", en: "Inactive" },
 }
 
-export function AdminStudents() {
+// Default target for gift/adjust/refund: the non-unlimited, non-expired
+// card closest to running out — the admin can still override via the
+// dropdown. Falls back to an unlimited card if no timed card qualifies.
+function pickDefaultCard(cards: StudentCard[]): StudentCard | undefined {
+  const now = Date.now()
+  const timed = cards
+    .filter((c) => c.balance !== "unlimited" && new Date(c.expiry).getTime() > now)
+    .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime())
+  if (timed.length) return timed[0]
+  return cards.find((c) => c.balance === "unlimited")
+}
+
+export function AdminStudents({
+  students,
+  cardProducts,
+}: {
+  students: Student[]
+  cardProducts: CardProduct[]
+}) {
   const { t, lang } = useLanguage()
   const [query, setQuery] = useState("")
   const [dialog, setDialog] = useState<{ student: Student; action: Action } | null>(null)
@@ -132,7 +152,13 @@ export function AdminStudents() {
       <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent>
           {dialog && (
-            <ActionForm student={dialog.student} action={dialog.action} onClose={() => setDialog(null)} />
+            <ActionForm
+              key={`${dialog.student.id}-${dialog.action}`}
+              student={dialog.student}
+              action={dialog.action}
+              cardProducts={cardProducts}
+              onClose={() => setDialog(null)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -149,9 +175,55 @@ function IconBtn({ children, label, onClick }: { children: React.ReactNode; labe
   )
 }
 
-function ActionForm({ student, action, onClose }: { student: Student; action: Action; onClose: () => void }) {
+function ActionForm({
+  student,
+  action,
+  cardProducts,
+  onClose,
+}: {
+  student: Student
+  action: Action
+  cardProducts: CardProduct[]
+  onClose: () => void
+}) {
   const { t, lang } = useLanguage()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const requiresReason = action === "adm.students.gift" || action === "adm.students.adjust" || action === "adm.students.refund"
+  const requiresCard = requiresReason
+
+  const cards = student.cardDetails ?? []
+  const [productId, setProductId] = useState(cardProducts[0]?.id ?? "")
+  const [cardId, setCardId] = useState(() => pickDefaultCard(cards)?.id ?? "")
+  const [amount, setAmount] = useState(action === "adm.students.gift" ? "2" : "1")
+  const [reason, setReason] = useState("")
+
+  const numericAmount = Number.parseInt(amount, 10)
+  const isValid =
+    action === "adm.students.addCard"
+      ? !!productId
+      : !!cardId &&
+        Number.isFinite(numericAmount) &&
+        numericAmount !== 0 &&
+        (action === "adm.students.adjust" || numericAmount > 0) &&
+        (!requiresReason || reason.trim() !== "")
+
+  const handleConfirm = () => {
+    if (!isValid || isPending) return
+    startTransition(async () => {
+      if (action === "adm.students.addCard") {
+        await buyOrRenewCard(student.id, productId)
+      } else if (action === "adm.students.gift") {
+        await giftClasses(student.id, cardId, numericAmount, reason.trim())
+      } else if (action === "adm.students.adjust") {
+        await adjustBalance(student.id, cardId, numericAmount, reason.trim())
+      } else {
+        await refundCard(student.id, cardId, numericAmount, reason.trim())
+      }
+      router.refresh()
+      onClose()
+    })
+  }
 
   return (
     <>
@@ -164,9 +236,14 @@ function ActionForm({ student, action, onClose }: { student: Student; action: Ac
         {action === "adm.students.addCard" ? (
           <div className="grid gap-2">
             <Label>{t("adm.cards.sold")}</Label>
-            <Select defaultValue={cardProducts[0].id}>
+            <Select value={productId} onValueChange={setProductId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(v: string) => {
+                    const p = cardProducts.find((x) => x.id === v)
+                    return p ? `${lang === "zh" ? p.name.zh : p.name.en} · ¥${p.price}` : ""
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {cardProducts.map((p) => (
@@ -178,24 +255,56 @@ function ActionForm({ student, action, onClose }: { student: Student; action: Ac
             </Select>
           </div>
         ) : (
-          <div className="grid gap-2">
-            <Label>{action === "adm.students.refund" ? t("adm.cards.price") : t("adm.cards.sessions")}</Label>
-            <Input type="number" defaultValue={action === "adm.students.gift" ? "2" : "1"} />
-          </div>
+          <>
+            <div className="grid gap-2">
+              <Label>{t("stu.nav.cards")}</Label>
+              {cards.length === 0 ? (
+                <p className="text-sm text-destructive">{t("adm.students.noCard")}</p>
+              ) : (
+                <Select value={cardId} onValueChange={setCardId}>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {(v: string) => {
+                        const c = cards.find((x) => x.id === v)
+                        return c ? `${lang === "zh" ? c.name.zh : c.name.en} · ${c.balance === "unlimited" ? t("stu.cards.unlimited") : c.balance}` : ""
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cards.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {lang === "zh" ? c.name.zh : c.name.en} · {c.balance === "unlimited" ? t("stu.cards.unlimited") : c.balance}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label>{action === "adm.students.refund" ? t("adm.cards.price") : t("adm.cards.sessions")}</Label>
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+          </>
         )}
 
         {requiresReason && (
           <div className="grid gap-2">
             <Label>{t("adm.reason")}</Label>
-            <Input placeholder={t("common.notes")} />
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("common.notes")} />
           </div>
         )}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={isPending}>
           {t("common.close")}
         </Button>
-        <Button onClick={onClose}>{t("common.confirm")}</Button>
+        <Button onClick={handleConfirm} disabled={!isValid || isPending || (requiresCard && cards.length === 0)}>
+          {t("common.confirm")}
+        </Button>
       </DialogFooter>
     </>
   )
