@@ -1,0 +1,225 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Mirrors StyleKey in lib/mock-data.ts
+enum DanceStyle {
+  JAZZ
+  HIPHOP
+  BALLET
+  KPOP
+  CONTEMPORARY
+  LATIN
+}
+
+// Mirrors CardType in lib/mock-data.ts
+enum CardType {
+  TIMES
+  PERIOD
+  TRIAL
+}
+
+// Mirrors ClassSession.status in lib/mock-data.ts
+enum SessionStatus {
+  NORMAL
+  CANCELED
+}
+
+// Mirrors ClassSession.myState / roster in lib/mock-data.ts
+enum BookingState {
+  BOOKED
+  WAITLIST
+  CANCELED
+}
+
+// Mirrors LedgerEntry.kind in lib/mock-data.ts
+enum LedgerKind {
+  CONSUME
+  RECHARGE
+  GIFT
+  REFUND
+}
+
+// Mirrors Student.status in lib/mock-data.ts
+enum StudentStatus {
+  ACTIVE
+  EXPIRING
+  INACTIVE
+}
+
+model Teacher {
+  id       String         @id @default(cuid())
+  name     String
+  nameEn   String
+  avatar   String
+  styles   DanceStyle[]
+  sessions ClassSession[]
+  stats    TeacherStat?
+
+  @@map("teachers")
+}
+
+model Room {
+  id       String         @id @default(cuid())
+  name     String
+  nameEn   String
+  sessions ClassSession[]
+
+  @@map("rooms")
+}
+
+model ClassSession {
+  id        String        @id @default(cuid())
+  style     DanceStyle
+  teacher   Teacher       @relation(fields: [teacherId], references: [id])
+  teacherId String
+  room      Room          @relation(fields: [roomId], references: [id])
+  roomId    String
+  day       Int // 0 = Mon ... 6 = Sun
+  date      String // display date label, e.g. "12.09"
+  start     String // display time, e.g. "19:00"
+  end       String
+  capacity  Int
+  levelZh   String
+  levelEn   String
+  status    SessionStatus @default(NORMAL)
+  bookings  Booking[]
+
+  @@map("class_sessions")
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  name          String
+  phone         String
+  joined        String // display label, e.g. "2024-06"
+  status        StudentStatus @default(ACTIVE)
+  cards         StudentCard[]
+  ledgerEntries LedgerEntry[]
+  bookings      Booking[]
+  payments      Payment[]
+
+  @@map("students")
+}
+
+// Replaces ClassSession.myState and the roll-call `roster` list: a booking
+// is one student's relationship to one session (booked/waitlisted, plus
+// roll-call check-in state).
+model Booking {
+  id          String       @id @default(cuid())
+  student     Student      @relation(fields: [studentId], references: [id])
+  studentId   String
+  session     ClassSession @relation(fields: [sessionId], references: [id])
+  sessionId   String
+  state       BookingState @default(BOOKED)
+  checkedIn   Boolean      @default(false)
+  proxy       Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  ledgerEntry LedgerEntry?
+
+  @@unique([studentId, sessionId])
+  @@map("bookings")
+}
+
+model CardProduct {
+  id           String        @id @default(cuid())
+  type         CardType
+  nameZh       String
+  nameEn       String
+  price        Int
+  sessions     Int? // null when isUnlimited
+  isUnlimited  Boolean       @default(false)
+  validityDays Int
+  studentCards StudentCard[]
+
+  @@map("card_products")
+}
+
+model StudentCard {
+  id            String        @id @default(cuid())
+  student       Student       @relation(fields: [studentId], references: [id])
+  studentId     String
+  product       CardProduct?  @relation(fields: [productId], references: [id])
+  productId     String?
+  type          CardType
+  nameZh        String
+  nameEn        String
+  balance       Int? // null when isUnlimited
+  isUnlimited   Boolean       @default(false)
+  total         Int?
+  expiry        DateTime
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+
+  @@map("student_cards")
+}
+
+model LedgerEntry {
+  id        String       @id @default(cuid())
+  student   Student      @relation(fields: [studentId], references: [id])
+  studentId String
+  card      StudentCard? @relation(fields: [cardId], references: [id])
+  cardId    String?
+  booking   Booking?     @relation(fields: [bookingId], references: [id])
+  bookingId String?      @unique
+  kind      LedgerKind
+  titleZh   String
+  titleEn   String
+  date      DateTime
+  delta     Int // classes; negative = consumed
+  noteZh    String?
+  noteEn    String?
+
+  @@map("ledger_entries")
+}
+
+model NotificationRule {
+  id        String  @id @default(cuid())
+  key       String  @unique
+  channelZh String
+  channelEn String
+  enabled   Boolean @default(true)
+  sampleZh  String
+  sampleEn  String
+
+  @@map("notification_rules")
+}
+
+// Denormalized per-teacher rollup (heads, commission) shown on the admin
+// finance dashboard. Kept as its own table rather than computed on the fly
+// so it can be recalculated on a schedule instead of aggregating Booking/
+// LedgerEntry on every page load.
+model TeacherStat {
+  id         String  @id @default(cuid())
+  teacher    Teacher @relation(fields: [teacherId], references: [id])
+  teacherId  String  @unique
+  heads      Int
+  commission Int
+
+  @@map("teacher_stats")
+}
+
+// Money actually paid by a student (card purchase/top-up). Needed because
+// LedgerEntry.delta only tracks class counts, not CNY — this is what backs
+// adminKpis.revenue and the monthly cashFlow chart (group by month, sum amount).
+model Payment {
+  id        String       @id @default(cuid())
+  student   Student      @relation(fields: [studentId], references: [id])
+  studentId String
+  card      StudentCard? @relation(fields: [cardId], references: [id])
+  cardId    String?
+  amount    Int // CNY
+  paidAt    DateTime     @default(now())
+
+  @@map("payments")
+}
