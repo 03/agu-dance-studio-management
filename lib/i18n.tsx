@@ -19,6 +19,17 @@ export const dict: Dict = {
   "app.enter": { zh: "进入", en: "Enter" },
   "app.backHome": { zh: "退出登录", en: "Log out" },
 
+  // Public homepage schedule
+  "home.schedule.title": { zh: "循环课程表", en: "Weekly Class Schedule" },
+  "home.schedule.week": { zh: "周视图", en: "Week" },
+  "home.schedule.month": { zh: "月视图", en: "Month" },
+  "home.schedule.prevMonth": { zh: "上一月", en: "Previous month" },
+  "home.schedule.nextMonth": { zh: "下一月", en: "Next month" },
+  "home.schedule.thisMonth": { zh: "本月", en: "This month" },
+  "home.contact.title": { zh: "联系方式", en: "Contact Us" },
+  "home.contact.wechat": { zh: "微信号", en: "WeChat" },
+  "home.contact.xiaohongshu": { zh: "小红书", en: "Xiaohongshu" },
+
   // Auth
   "auth.username": { zh: "用户名", en: "Username" },
   "auth.password": { zh: "密码", en: "Password" },
@@ -203,6 +214,20 @@ export const dict: Dict = {
   "adm.students.adjust": { zh: "调整课时", en: "Adjust" },
   "adm.students.refund": { zh: "退费", en: "Refund" },
   "adm.students.noCard": { zh: "该学员没有可用卡项", en: "This student has no card to target" },
+  "adm.students.internalId": { zh: "内部ID", en: "Internal ID" },
+  "adm.students.code": { zh: "用户代码", en: "User code" },
+  "adm.students.deleteDesc": {
+    zh: "仅当该学员没有预约、卡包、账单或收支记录时才能删除；若有关联登录账号也会一并移除",
+    en: "Only deletable when the student has no bookings, cards, ledger entries, or payments; a linked login account is removed too",
+  },
+  "adm.students.err.invalidName": { zh: "请填写姓名", en: "Please enter a name" },
+  "adm.students.err.invalidPhone": { zh: "请填写手机号", en: "Please enter a phone number" },
+  "adm.students.err.invalidJoined": { zh: "请填写入会时间", en: "Please enter a join date" },
+  "adm.students.err.phoneTaken": { zh: "该手机号已被其他账号使用", en: "This phone number is already used by another account" },
+  "adm.students.err.hasHistory": {
+    zh: "该学员存在预约、卡包、账单或收支记录，无法删除",
+    en: "This student has bookings, cards, ledger entries, or payments — can't be deleted",
+  },
   "adm.cards.sold": { zh: "在售卡种", en: "Card products" },
   "adm.cards.price": { zh: "价格", en: "Price" },
   "adm.cards.validity": { zh: "有效期", en: "Validity" },

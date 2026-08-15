@@ -103,6 +103,8 @@ export const bookingStateToMyState = (state: BookingState | undefined): ClassSes
 
 export const studentStatusDbToKey = (status: StudentStatus): Student["status"] =>
   status === "ACTIVE" ? "active" : status === "EXPIRING" ? "expiring" : "inactive"
+export const studentStatusKeyToDb = (status: Student["status"]): StudentStatus =>
+  status === "active" ? "ACTIVE" : status === "expiring" ? "EXPIRING" : "INACTIVE"
 
 const USER_ROLE_TO_KEY: Record<DbUserRole, AppUserRole> = {
   STUDENT: "student",
@@ -234,6 +236,7 @@ export function mapStudent(
     phone: s.phone,
     wechat: s.wechat,
     email: s.email,
+    code: s.code,
     cards: s.cards.length,
     totalBalance,
     joined: s.joined,

@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
+import { studentStatusKeyToDb } from "@/lib/mappers"
+import type { Student } from "@/lib/types"
 
 export async function buyOrRenewCard(studentId: string, productId: string) {
   await requireRole("ADMIN")
@@ -72,6 +74,78 @@ export async function adjustBalance(studentId: string, cardId: string, delta: nu
         noteEn: reason,
       },
     })
+  })
+}
+
+// Every editable field on the student business profile except `id`. Keeps
+// a linked login account's username in sync with phone (same invariant the
+// self-service profile.ts:updateMyProfile maintains) since phone doubles
+// as the username app-wide.
+export async function updateStudent(
+  id: string,
+  input: {
+    name: string
+    phone: string
+    wechat: string
+    email: string
+    code: string
+    joined: string
+    status: Student["status"]
+  },
+) {
+  await requireRole("ADMIN")
+  const name = input.name.trim()
+  const phone = input.phone.trim()
+  const joined = input.joined.trim()
+  if (!name) throw new Error("INVALID_NAME")
+  if (!phone) throw new Error("INVALID_PHONE")
+  if (!joined) throw new Error("INVALID_JOINED")
+
+  const linkedUser = await prisma.user.findUnique({ where: { studentId: id } })
+  if (linkedUser && linkedUser.username !== phone) {
+    const taken = await prisma.user.findUnique({ where: { username: phone } })
+    if (taken && taken.id !== linkedUser.id) throw new Error("PHONE_TAKEN")
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.student.update({
+      where: { id },
+      data: {
+        name,
+        phone,
+        wechat: input.wechat.trim() || null,
+        email: input.email.trim() || null,
+        code: input.code.trim() || null,
+        joined,
+        status: studentStatusKeyToDb(input.status),
+      },
+    })
+    if (linkedUser && linkedUser.username !== phone) {
+      await tx.user.update({ where: { id: linkedUser.id }, data: { username: phone } })
+    }
+  })
+}
+
+// Only allowed when the student has no booking/card/ledger/payment history
+// — deleting those would mean discarding real business records, so this
+// rejects with a clear error instead of silently cascading. A linked login
+// account (if any) is removed as part of the same deletion since there's no
+// profile left for it to sign in as.
+export async function deleteStudent(id: string) {
+  await requireRole("ADMIN")
+  const [bookingsCount, cardsCount, ledgerCount, paymentsCount, linkedUser] = await Promise.all([
+    prisma.booking.count({ where: { studentId: id } }),
+    prisma.studentCard.count({ where: { studentId: id } }),
+    prisma.ledgerEntry.count({ where: { studentId: id } }),
+    prisma.payment.count({ where: { studentId: id } }),
+    prisma.user.findUnique({ where: { studentId: id } }),
+  ])
+  if (bookingsCount > 0 || cardsCount > 0 || ledgerCount > 0 || paymentsCount > 0) {
+    throw new Error("STUDENT_HAS_HISTORY")
+  }
+  await prisma.$transaction(async (tx) => {
+    if (linkedUser) await tx.user.delete({ where: { id: linkedUser.id } })
+    await tx.student.delete({ where: { id } })
   })
 }
 

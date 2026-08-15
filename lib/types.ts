@@ -78,6 +78,7 @@ export type Student = {
   phone: string
   wechat: string | null
   email: string | null
+  code: string | null
   cards: number
   totalBalance: number
   joined: string

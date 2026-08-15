@@ -101,15 +101,15 @@ async function main() {
   // roster-only names with no backing Student row at all) ----
   await prisma.student.createMany({
     data: [
-      { id: "s1", name: "王梓涵", phone: "138****2201", joined: "2024-06", status: "ACTIVE" },
-      { id: "s2", name: "赵敏", phone: "139****8834", joined: "2025-01", status: "EXPIRING" },
-      { id: "s3", name: "Emily Zhang", phone: "137****4590", joined: "2023-11", status: "INACTIVE" },
-      { id: "s4", name: "刘一诺", phone: "150****7712", joined: "2024-09", status: "ACTIVE" },
-      { id: "s5", name: "孙悦", phone: "188****3345", joined: "2025-03", status: "ACTIVE" },
-      { id: "s6", name: "周子墨", phone: "136****1198", joined: "2024-02", status: "EXPIRING" },
-      { id: "s7", name: "李思远", phone: "133****5566", joined: "2025-05", status: "ACTIVE" },
-      { id: "s8", name: "陈露", phone: "135****7788", joined: "2025-02", status: "ACTIVE" },
-      { id: "s9", name: "Nina", phone: "186****9900", joined: "2024-11", status: "ACTIVE" },
+      { id: "s1", name: "王梓涵", phone: "138****2201", code: "M0001", joined: "2024-06", status: "ACTIVE" },
+      { id: "s2", name: "赵敏", phone: "139****8834", code: "M0002", joined: "2025-01", status: "EXPIRING" },
+      { id: "s3", name: "Emily Zhang", phone: "137****4590", code: "M0003", joined: "2023-11", status: "INACTIVE" },
+      { id: "s4", name: "刘一诺", phone: "150****7712", code: "M0004", joined: "2024-09", status: "ACTIVE" },
+      { id: "s5", name: "孙悦", phone: "188****3345", code: "M0005", joined: "2025-03", status: "ACTIVE" },
+      { id: "s6", name: "周子墨", phone: "136****1198", code: "M0006", joined: "2024-02", status: "EXPIRING" },
+      { id: "s7", name: "李思远", phone: "133****5566", code: "M0007", joined: "2025-05", status: "ACTIVE" },
+      { id: "s8", name: "陈露", phone: "135****7788", code: "M0008", joined: "2025-02", status: "ACTIVE" },
+      { id: "s9", name: "Nina", phone: "186****9900", code: "M0009", joined: "2024-11", status: "ACTIVE" },
     ],
   })
 
@@ -146,6 +146,7 @@ async function main() {
       id,
       name: `${surnames[i % surnames.length]}${givenNames[i % givenNames.length]}`,
       phone: `1${(30 + i).toString().padStart(2, "0")}****${(1000 + i * 37).toString().slice(-4)}`,
+      code: `M${String(10 + i).padStart(4, "0")}`,
       joined: `202${4 + (i % 3)}-${String(1 + (i % 12)).padStart(2, "0")}`,
       status: "ACTIVE",
     })),

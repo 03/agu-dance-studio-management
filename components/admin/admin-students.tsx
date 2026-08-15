@@ -4,7 +4,14 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import type { Student, StudentCard, CardProduct } from "@/lib/types"
-import { buyOrRenewCard, giftClasses, adjustBalance, refundCard } from "@/lib/actions/students"
+import {
+  buyOrRenewCard,
+  giftClasses,
+  adjustBalance,
+  refundCard,
+  updateStudent,
+  deleteStudent,
+} from "@/lib/actions/students"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,10 +38,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, CreditCard, Gift, SlidersHorizontal, RotateCcw } from "lucide-react"
+import {
+  Search,
+  CreditCard,
+  Gift,
+  SlidersHorizontal,
+  RotateCcw,
+  Pencil,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type Action = "adm.students.addCard" | "adm.students.gift" | "adm.students.adjust" | "adm.students.refund"
+type CardAction = "adm.students.addCard" | "adm.students.gift" | "adm.students.adjust" | "adm.students.refund"
+
+type DialogState =
+  | { mode: "card"; student: Student; action: CardAction }
+  | { mode: "edit"; student: Student }
+  | { mode: "delete"; student: Student }
+  | null
 
 const statusStyles: Record<Student["status"], string> = {
   active: "bg-chart-5/10 text-chart-5",
@@ -46,6 +70,16 @@ const statusLabel: Record<Student["status"], { zh: string; en: string }> = {
   expiring: { zh: "即将到期", en: "Expiring" },
   inactive: { zh: "已停用", en: "Inactive" },
 }
+
+// Maps known thrown Error messages from lib/actions/students.ts to i18n keys.
+const ERROR_KEY: Record<string, string> = {
+  INVALID_NAME: "adm.students.err.invalidName",
+  INVALID_PHONE: "adm.students.err.invalidPhone",
+  INVALID_JOINED: "adm.students.err.invalidJoined",
+  PHONE_TAKEN: "adm.students.err.phoneTaken",
+  STUDENT_HAS_HISTORY: "adm.students.err.hasHistory",
+}
+const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
 
 // Default target for gift/adjust/refund: the non-unlimited, non-expired
 // card closest to running out — the admin can still override via the
@@ -59,6 +93,36 @@ function pickDefaultCard(cards: StudentCard[]): StudentCard | undefined {
   return cards.find((c) => c.balance === "unlimited")
 }
 
+type SortField = "id" | "name" | "phone" | "wechat" | "code" | "cards" | "totalBalance" | "status"
+type SortDir = "asc" | "desc"
+
+const STATUS_ORDER: Record<Student["status"], number> = { active: 0, expiring: 1, inactive: 2 }
+
+function getSortValue(s: Student, field: SortField): string | number {
+  switch (field) {
+    case "cards":
+      return s.cards
+    case "totalBalance":
+      return s.totalBalance
+    case "status":
+      return STATUS_ORDER[s.status]
+    case "wechat":
+      return s.wechat ?? ""
+    case "code":
+      return s.code ?? ""
+    default:
+      return s[field]
+  }
+}
+
+function compareStudents(a: Student, b: Student, field: SortField, dir: SortDir): number {
+  const av = getSortValue(a, field)
+  const bv = getSortValue(b, field)
+  const mul = dir === "asc" ? 1 : -1
+  if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul
+  return String(av).localeCompare(String(bv)) * mul
+}
+
 export function AdminStudents({
   students,
   cardProducts,
@@ -68,11 +132,17 @@ export function AdminStudents({
 }) {
   const { t, lang } = useLanguage()
   const [query, setQuery] = useState("")
-  const [dialog, setDialog] = useState<{ student: Student; action: Action } | null>(null)
+  const [dialog, setDialog] = useState<DialogState>(null)
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "name", dir: "asc" })
+
+  const handleSort = (field: SortField) => {
+    setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
+  }
 
   const filtered = students.filter(
     (s) => s.name.toLowerCase().includes(query.toLowerCase()) || s.phone.includes(query),
   )
+  const sorted = [...filtered].sort((a, b) => compareStudents(a, b, sort.field, sort.dir))
 
   return (
     <div>
@@ -94,20 +164,23 @@ export function AdminStudents({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("common.name")}</TableHead>
-              <TableHead>{t("common.phone")}</TableHead>
-              <TableHead>{t("stu.nav.cards")}</TableHead>
-              <TableHead>{t("stu.cards.balance")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
+              <SortableHead field="name" label={t("common.name")} sort={sort} onSort={handleSort} />
+              <SortableHead field="phone" label={t("common.phone")} sort={sort} onSort={handleSort} />
+              <SortableHead field="wechat" label={t("auth.wechat")} sort={sort} onSort={handleSort} />
+              <SortableHead field="id" label={t("adm.students.internalId")} sort={sort} onSort={handleSort} />
+              <SortableHead field="code" label={t("adm.students.code")} sort={sort} onSort={handleSort} />
+              <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />
+              <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
+              <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((s) => (
+            {sorted.map((s) => (
               <TableRow key={s.id}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
@@ -120,6 +193,16 @@ export function AdminStudents({
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{s.phone}</TableCell>
+                <TableCell className="text-muted-foreground">{s.wechat ?? "—"}</TableCell>
+                <TableCell>
+                  <span
+                    className="block max-w-[8rem] truncate font-mono text-[11px] text-muted-foreground"
+                    title={s.id}
+                  >
+                    {s.id}
+                  </span>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{s.code ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{s.cards}</TableCell>
                 <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
                 <TableCell>
@@ -129,17 +212,23 @@ export function AdminStudents({
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
-                    <IconBtn label={t("adm.students.addCard")} onClick={() => setDialog({ student: s, action: "adm.students.addCard" })}>
+                    <IconBtn label={t("adm.students.addCard")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.addCard" })}>
                       <CreditCard className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn label={t("adm.students.gift")} onClick={() => setDialog({ student: s, action: "adm.students.gift" })}>
+                    <IconBtn label={t("adm.students.gift")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.gift" })}>
                       <Gift className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn label={t("adm.students.adjust")} onClick={() => setDialog({ student: s, action: "adm.students.adjust" })}>
+                    <IconBtn label={t("adm.students.adjust")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.adjust" })}>
                       <SlidersHorizontal className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn label={t("adm.students.refund")} onClick={() => setDialog({ student: s, action: "adm.students.refund" })}>
+                    <IconBtn label={t("adm.students.refund")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.refund" })}>
                       <RotateCcw className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn label={t("common.edit")} onClick={() => setDialog({ mode: "edit", student: s })}>
+                      <Pencil className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn label={t("common.delete")} onClick={() => setDialog({ mode: "delete", student: s })}>
+                      <Trash2 className="h-4 w-4" />
                     </IconBtn>
                   </div>
                 </TableCell>
@@ -151,7 +240,7 @@ export function AdminStudents({
 
       <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent>
-          {dialog && (
+          {dialog?.mode === "card" && (
             <ActionForm
               key={`${dialog.student.id}-${dialog.action}`}
               student={dialog.student}
@@ -160,9 +249,47 @@ export function AdminStudents({
               onClose={() => setDialog(null)}
             />
           )}
+          {dialog?.mode === "edit" && (
+            <EditStudentForm key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
+          )}
+          {dialog?.mode === "delete" && (
+            <DeleteStudentConfirm key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
+          )}
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function SortableHead({
+  field,
+  label,
+  sort,
+  onSort,
+}: {
+  field: SortField
+  label: string
+  sort: { field: SortField; dir: SortDir }
+  onSort: (field: SortField) => void
+}) {
+  const active = sort.field === field
+  return (
+    <TableHead>
+      <button
+        onClick={() => onSort(field)}
+        className={cn(
+          "inline-flex items-center gap-1 whitespace-nowrap font-medium transition-colors hover:text-foreground",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {label}
+        {active ? (
+          sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </button>
+    </TableHead>
   )
 }
 
@@ -175,6 +302,143 @@ function IconBtn({ children, label, onClick }: { children: React.ReactNode; labe
   )
 }
 
+function EditStudentForm({ student, onClose }: { student: Student; onClose: () => void }) {
+  const { t, lang } = useLanguage()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [name, setName] = useState(student.name)
+  const [phone, setPhone] = useState(student.phone)
+  const [wechat, setWechat] = useState(student.wechat ?? "")
+  const [email, setEmail] = useState(student.email ?? "")
+  const [code, setCode] = useState(student.code ?? "")
+  const [joined, setJoined] = useState(student.joined)
+  const [status, setStatus] = useState<Student["status"]>(student.status)
+  const [error, setError] = useState<string | null>(null)
+
+  const isValid = name.trim() !== "" && phone.trim() !== "" && joined.trim() !== ""
+
+  const handleConfirm = () => {
+    if (!isValid || isPending) return
+    setError(null)
+    startTransition(async () => {
+      try {
+        await updateStudent(student.id, { name, phone, wechat, email, code, joined, status })
+        router.refresh()
+        onClose()
+      } catch (e) {
+        setError(errorKeyFor(e))
+      }
+    })
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">
+          {t("common.edit")} · {student.name}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 py-2">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("common.name")}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("common.phone")}</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("auth.wechat")}</Label>
+            <Input value={wechat} onChange={(e) => setWechat(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("auth.email")}</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.students.code")}</Label>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("common.date")}</Label>
+            <Input value={joined} onChange={(e) => setJoined(e.target.value)} placeholder="2024-06" />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <Label>{t("common.status")}</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as Student["status"])}>
+            <SelectTrigger>
+              <SelectValue>
+                {(v: Student["status"]) => (lang === "zh" ? statusLabel[v].zh : statusLabel[v].en)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">{lang === "zh" ? statusLabel.active.zh : statusLabel.active.en}</SelectItem>
+              <SelectItem value="expiring">{lang === "zh" ? statusLabel.expiring.zh : statusLabel.expiring.en}</SelectItem>
+              <SelectItem value="inactive">{lang === "zh" ? statusLabel.inactive.zh : statusLabel.inactive.en}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isPending}>
+          {t("common.close")}
+        </Button>
+        <Button onClick={handleConfirm} disabled={!isValid || isPending}>
+          {t("common.save")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+function DeleteStudentConfirm({ student, onClose }: { student: Student; onClose: () => void }) {
+  const { t } = useLanguage()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      try {
+        await deleteStudent(student.id)
+        router.refresh()
+        onClose()
+      } catch (e) {
+        setError(errorKeyFor(e))
+      }
+    })
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">
+          {t("common.delete")} · {student.name}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 py-2">
+        <p className="text-sm text-muted-foreground">{t("adm.students.deleteDesc")}</p>
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isPending}>
+          {t("common.close")}
+        </Button>
+        <Button variant="destructive" onClick={handleConfirm} disabled={isPending}>
+          {t("common.delete")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
 function ActionForm({
   student,
   action,
@@ -182,7 +446,7 @@ function ActionForm({
   onClose,
 }: {
   student: Student
-  action: Action
+  action: CardAction
   cardProducts: CardProduct[]
   onClose: () => void
 }) {

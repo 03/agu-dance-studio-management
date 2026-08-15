@@ -1,8 +1,10 @@
 "use client"
 
 import type { Role } from "@/components/app-shell"
+import type { PublicScheduleData } from "@/lib/data"
 import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
+import { PublicSchedule } from "@/components/public-schedule"
 import { GraduationCap, Presentation, LayoutDashboard, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -17,11 +19,18 @@ const roles: {
   { key: "admin", titleKey: "role.admin", descKey: "role.admin.desc", Icon: LayoutDashboard },
 ]
 
-export function RoleSwitcher({ onSelect }: { onSelect: (r: Role) => void }) {
+export function RoleSwitcher({
+  onSelect,
+  publicData,
+}: {
+  onSelect: (r: Role) => void
+  publicData: PublicScheduleData
+}) {
   const { t } = useLanguage()
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background">
+    <>
+      <main className="relative min-h-screen overflow-hidden bg-background">
       {/* Hero background */}
       <div className="absolute inset-0">
         <img
@@ -82,6 +91,8 @@ export function RoleSwitcher({ onSelect }: { onSelect: (r: Role) => void }) {
           </div>
         </div>
       </div>
-    </main>
+      </main>
+      <PublicSchedule sessions={publicData.sessions} teachers={publicData.teachers} rooms={publicData.rooms} />
+    </>
   )
 }

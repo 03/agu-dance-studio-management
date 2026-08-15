@@ -29,6 +29,28 @@ function startOfMonth(now = new Date()) {
   return new Date(now.getFullYear(), now.getMonth(), 1)
 }
 
+// Public, pre-login landing page data — just the recurring weekly class
+// template (style/time/teacher/room), safe to show to anyone. No student
+// PII, no per-student booking state (mapClassSession without a studentId
+// leaves myState as "none" for every session).
+export async function getPublicScheduleData() {
+  const [teachers, rooms, sessionsRaw] = await Promise.all([
+    prisma.teacher.findMany({ orderBy: { id: "asc" } }),
+    prisma.room.findMany({ orderBy: { id: "asc" } }),
+    prisma.classSession.findMany({
+      where: { status: "NORMAL" },
+      orderBy: [{ day: "asc" }, { start: "asc" }],
+      include: { bookings: { select: { state: true, studentId: true } } },
+    }),
+  ])
+
+  return {
+    teachers: teachers.map(mapTeacher),
+    rooms: rooms.map(mapRoom),
+    sessions: sessionsRaw.map((s) => mapClassSession(s)),
+  }
+}
+
 // Everything the student app needs for one specific logged-in student —
 // deliberately excludes admin financials, the full student roster, card
 // products and notification rules, none of which student/*.tsx reads.
@@ -175,3 +197,4 @@ async function getAdminAnalytics(teacherStatsRaw: { teacherId: string; heads: nu
 export type StudentAppData = Awaited<ReturnType<typeof getStudentAppData>>
 export type TeacherAppData = Awaited<ReturnType<typeof getTeacherAppData>>
 export type AdminAppData = Awaited<ReturnType<typeof getAdminAppData>>
+export type PublicScheduleData = Awaited<ReturnType<typeof getPublicScheduleData>>
