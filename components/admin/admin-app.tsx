@@ -5,6 +5,7 @@ import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
 import { AdminOverview } from "./admin-overview"
 import { AdminScheduling } from "./admin-scheduling"
+import { AdminStudios } from "./admin-studios"
 import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
 import { AdminFinance } from "./admin-finance"
@@ -13,6 +14,7 @@ import { AdminUsers } from "./admin-users"
 import {
   LayoutDashboard,
   CalendarRange,
+  Building2,
   Users,
   CreditCard,
   LineChart,
@@ -23,11 +25,12 @@ import {
 import { cn } from "@/lib/utils"
 import type { AdminAppData } from "@/lib/data"
 
-type Section = "overview" | "schedule" | "students" | "cards" | "finance" | "notifications" | "users"
+type Section = "overview" | "schedule" | "studios" | "students" | "cards" | "finance" | "notifications" | "users"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
   { key: "schedule", labelKey: "adm.nav.schedule", Icon: CalendarRange },
+  { key: "studios", labelKey: "adm.nav.studios", Icon: Building2 },
   { key: "students", labelKey: "adm.nav.students", Icon: Users },
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
   { key: "finance", labelKey: "adm.nav.finance", Icon: LineChart },
@@ -102,6 +105,7 @@ export function AdminApp({
           {section === "schedule" && (
             <AdminScheduling teachers={data.teachers} rooms={data.rooms} sessions={data.sessions} />
           )}
+          {section === "studios" && <AdminStudios studios={data.studios} />}
           {section === "students" && (
             <AdminStudents students={data.students} cardProducts={data.cardProducts} />
           )}

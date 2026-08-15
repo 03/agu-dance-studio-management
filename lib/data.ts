@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import {
   mapTeacher,
   mapRoom,
+  mapStudio,
   mapClassSession,
   mapStudent,
   mapStudentCard,
@@ -135,6 +136,7 @@ export async function getAdminAppData() {
   return {
     teachers: teachers.map(mapTeacher),
     rooms: rooms.map(mapRoom),
+    studios: rooms.map(mapStudio),
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     cardProducts: cardProducts.map(mapCardProduct),
     notificationRules: notificationRules.map(mapNotificationRule),

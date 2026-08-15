@@ -78,10 +78,14 @@ model Teacher {
 }
 
 model Room {
-  id       String         @id @default(cuid())
-  name     String
-  nameEn   String
-  sessions ClassSession[]
+  id         String         @id @default(cuid())
+  code       String?
+  name       String
+  nameEn     String
+  address    String?
+  postalCode String?
+  notes      String?
+  sessions   ClassSession[]
 
   @@map("rooms")
 }

@@ -27,6 +27,7 @@ import type {
   StyleKey,
   Teacher,
   Room,
+  Studio,
   ClassSession,
   CardType,
   StudentCard,
@@ -147,6 +148,16 @@ export const mapRoom = (r: DbRoom): Room => ({
   id: r.id,
   name: r.name,
   nameEn: r.nameEn,
+})
+
+export const mapStudio = (r: DbRoom): Studio => ({
+  id: r.id,
+  code: r.code,
+  name: r.name,
+  nameEn: r.nameEn,
+  address: r.address,
+  postalCode: r.postalCode,
+  notes: r.notes,
 })
 
 /**

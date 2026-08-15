@@ -44,9 +44,9 @@ async function main() {
   })
   await prisma.room.createMany({
     data: [
-      { id: "r1", name: "1 号厅", nameEn: "Studio A" },
-      { id: "r2", name: "2 号厅", nameEn: "Studio B" },
-      { id: "r3", name: "3 号厅", nameEn: "Studio C" },
+      { id: "r1", code: "STU-01", name: "Glen", nameEn: "Studio Glen", address: "Glen Waverley", postalCode: "3150", notes: "主力厅，含镜墙与把杆" },
+      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "MC Square", postalCode: "3108", notes: "适合大班课" },
+      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "Mitcham", postalCode: "3132", notes: "多功能厅" },
     ],
   })
 
@@ -69,8 +69,8 @@ async function main() {
   // ---- Card products (on sale) ----
   await prisma.cardProduct.createMany({
     data: [
-      { id: "p1", type: "TIMES", nameZh: "12 次卡", nameEn: "12-class card", price: 1680, sessions: 12, isUnlimited: false, validityDays: 180 },
-      { id: "p2", type: "TIMES", nameZh: "48 次通卡", nameEn: "48-class pack", price: 5760, sessions: 48, isUnlimited: false, validityDays: 365 },
+      { id: "p1", type: "TIMES", nameZh: "10 次卡", nameEn: "12-class card", price: 400, sessions: 10, isUnlimited: false, validityDays: 180 },
+      { id: "p2", type: "TIMES", nameZh: "21 次通卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
       { id: "p3", type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", price: 3980, sessions: null, isUnlimited: true, validityDays: 90 },
       { id: "p4", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 99, sessions: 3, isUnlimited: false, validityDays: 30 },
     ],

@@ -35,6 +35,19 @@ export type Room = {
   nameEn: string
 }
 
+// Admin-only view of a Room, with the extra business fields
+// (code/address/postalCode/notes) that student/teacher/public payloads
+// never need to receive.
+export type Studio = {
+  id: string
+  code: string | null
+  name: string
+  nameEn: string
+  address: string | null
+  postalCode: string | null
+  notes: string | null
+}
+
 export type ClassSession = {
   id: string
   style: StyleKey
