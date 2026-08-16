@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "students" ADD COLUMN     "email" TEXT,
-ADD COLUMN     "wechat" TEXT;
