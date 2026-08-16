@@ -20,6 +20,7 @@ import type {
   StudentCard as DbStudentCard,
   CardProduct as DbCardProduct,
   LedgerEntry as DbLedgerEntry,
+  Payment as DbPayment,
   NotificationRule as DbNotificationRule,
   User as DbUser,
 } from "@/lib/generated/prisma/client"
@@ -34,6 +35,7 @@ import type {
   LedgerEntry,
   Student,
   CardProduct,
+  CashierEntry,
   NotificationRule,
   AppUser,
   AppUserRole,
@@ -217,6 +219,16 @@ export const mapCardProduct = (p: DbCardProduct): CardProduct => ({
   validityDays: p.validityDays,
 })
 
+export const mapCashierEntry = (
+  p: DbPayment & { student: { name: string }; card: { nameZh: string; nameEn: string } | null },
+): CashierEntry => ({
+  id: p.id,
+  studentName: p.student.name,
+  cardName: p.card ? { zh: p.card.nameZh, en: p.card.nameEn } : null,
+  amount: p.amount,
+  paidAt: formatLedgerDate(p.paidAt),
+})
+
 export const mapNotificationRule = (n: DbNotificationRule): NotificationRule => ({
   id: n.id,
   key: n.key,
@@ -237,10 +249,11 @@ export function mapUser(u: DbUser & { student: { name: string } | null; teacher:
 }
 
 export function mapStudent(
-  s: DbStudent & { cards: DbStudentCard[] },
-  opts: { includeCardDetails?: boolean } = {},
+  s: DbStudent & { cards: DbStudentCard[]; ledgerEntries?: DbLedgerEntry[] },
+  opts: { includeCardDetails?: boolean; includeUsageHistory?: boolean } = {},
 ): Student {
   const totalBalance = s.cards.reduce((sum, c) => (c.isUnlimited ? sum : sum + (c.balance ?? 0)), 0)
+  const usageHistory = opts.includeUsageHistory ? (s.ledgerEntries ?? []).map(mapLedgerEntry) : undefined
   return {
     id: s.id,
     name: s.name,
@@ -253,5 +266,9 @@ export function mapStudent(
     joined: s.joined,
     status: studentStatusDbToKey(s.status),
     cardDetails: opts.includeCardDetails ? s.cards.map(mapStudentCard) : undefined,
+    usedSessions: opts.includeUsageHistory
+      ? (s.ledgerEntries ?? []).reduce((sum, e) => sum + Math.abs(e.delta), 0)
+      : undefined,
+    usageHistory,
   }
 }

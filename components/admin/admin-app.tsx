@@ -9,6 +9,7 @@ import { AdminStudios } from "./admin-studios"
 import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
 import { AdminFinance } from "./admin-finance"
+import { AdminSessionStats } from "./admin-session-stats"
 import { AdminNotifications } from "./admin-notifications"
 import { AdminUsers } from "./admin-users"
 import {
@@ -18,6 +19,7 @@ import {
   Users,
   CreditCard,
   LineChart,
+  BarChart3,
   Bell,
   ShieldCheck,
   ChevronLeft,
@@ -25,7 +27,16 @@ import {
 import { cn } from "@/lib/utils"
 import type { AdminAppData } from "@/lib/data"
 
-type Section = "overview" | "schedule" | "studios" | "students" | "cards" | "finance" | "notifications" | "users"
+type Section =
+  | "overview"
+  | "schedule"
+  | "studios"
+  | "students"
+  | "cards"
+  | "finance"
+  | "sessionStats"
+  | "notifications"
+  | "users"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
@@ -34,6 +45,7 @@ const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = 
   { key: "students", labelKey: "adm.nav.students", Icon: Users },
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
   { key: "finance", labelKey: "adm.nav.finance", Icon: LineChart },
+  { key: "sessionStats", labelKey: "adm.nav.sessionStats", Icon: BarChart3 },
   { key: "notifications", labelKey: "adm.nav.notifications", Icon: Bell },
   { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
 ]
@@ -109,8 +121,9 @@ export function AdminApp({
           {section === "students" && (
             <AdminStudents students={data.students} cardProducts={data.cardProducts} />
           )}
-          {section === "cards" && <AdminCards cardProducts={data.cardProducts} />}
+          {section === "cards" && <AdminCards cardProducts={data.cardProducts} cashier={data.cashier} />}
           {section === "finance" && <AdminFinance admin={data.admin} teachers={data.teachers} />}
+          {section === "sessionStats" && <AdminSessionStats initial={data.sessionStats} />}
           {section === "notifications" && <AdminNotifications notificationRules={data.notificationRules} />}
           {section === "users" && <AdminUsers users={data.users} />}
         </main>

@@ -99,6 +99,10 @@ export type Student = {
   // Populated for the admin students view only — the full card list a
   // gift/adjust/refund action can target. Absent elsewhere.
   cardDetails?: StudentCard[]
+  // Populated for the admin students view only — count of consumed
+  // class-hours and the detail list behind the "已用课时" link, newest first.
+  usedSessions?: number
+  usageHistory?: LedgerEntry[]
 }
 
 export type CardProduct = {
@@ -108,6 +112,15 @@ export type CardProduct = {
   price: number
   sessions: number | "unlimited"
   validityDays: number
+}
+
+// A real Payment row, for the admin cashier feed.
+export type CashierEntry = {
+  id: string
+  studentName: string
+  cardName: { zh: string; en: string } | null
+  amount: number
+  paidAt: string // display date, e.g. "12.08 14:20"
 }
 
 // Roster for teacher roll-call view

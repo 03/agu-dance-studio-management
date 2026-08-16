@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import jsPDF from "jspdf"
+import html2canvas from "html2canvas"
 import { useLanguage } from "@/lib/i18n"
 import type { Student, StudentCard, CardProduct } from "@/lib/types"
 import {
@@ -49,6 +51,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Download,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -58,6 +61,7 @@ type DialogState =
   | { mode: "card"; student: Student; action: CardAction }
   | { mode: "edit"; student: Student }
   | { mode: "delete"; student: Student }
+  | { mode: "usage"; student: Student }
   | null
 
 const statusStyles: Record<Student["status"], string> = {
@@ -93,7 +97,7 @@ function pickDefaultCard(cards: StudentCard[]): StudentCard | undefined {
   return cards.find((c) => c.balance === "unlimited")
 }
 
-type SortField = "id" | "name" | "phone" | "wechat" | "code" | "cards" | "totalBalance" | "status"
+type SortField = "id" | "name" | "phone" | "wechat" | "code" | "cards" | "totalBalance" | "usedSessions" | "status"
 type SortDir = "asc" | "desc"
 
 const STATUS_ORDER: Record<Student["status"], number> = { active: 0, expiring: 1, inactive: 2 }
@@ -104,6 +108,8 @@ function getSortValue(s: Student, field: SortField): string | number {
       return s.cards
     case "totalBalance":
       return s.totalBalance
+    case "usedSessions":
+      return s.usedSessions ?? 0
     case "status":
       return STATUS_ORDER[s.status]
     case "wechat":
@@ -175,6 +181,7 @@ export function AdminStudents({
               <SortableHead field="code" label={t("adm.students.code")} sort={sort} onSort={handleSort} />
               <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />
               <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
+              <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
               <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
@@ -205,6 +212,14 @@ export function AdminStudents({
                 <TableCell className="text-muted-foreground">{s.code ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{s.cards}</TableCell>
                 <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => setDialog({ mode: "usage", student: s })}
+                    className="font-display font-bold text-primary underline-offset-2 hover:underline"
+                  >
+                    {s.usedSessions ?? 0}
+                  </button>
+                </TableCell>
                 <TableCell>
                   <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
                     {lang === "zh" ? statusLabel[s.status].zh : statusLabel[s.status].en}
@@ -254,6 +269,9 @@ export function AdminStudents({
           )}
           {dialog?.mode === "delete" && (
             <DeleteStudentConfirm key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
+          )}
+          {dialog?.mode === "usage" && (
+            <UsageHistoryDialog key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
           )}
         </DialogContent>
       </Dialog>
@@ -433,6 +451,119 @@ function DeleteStudentConfirm({ student, onClose }: { student: Student; onClose:
         </Button>
         <Button variant="destructive" onClick={handleConfirm} disabled={isPending}>
           {t("common.delete")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+// Renders the history into a blank, same-origin iframe and rasterizes it
+// with html2canvas directly (not jsPDF's html() convenience wrapper, which
+// ignores the target element's own document/window and always captures the
+// top-level page). jsPDF's built-in fonts have no CJK glyphs, so text drawn
+// directly would come out blank; rasterizing real DOM text sidesteps that.
+// The iframe matters too: html2canvas walks up the full ancestor chain to
+// resolve inherited styles, and this app's global stylesheet defines its
+// whole theme in oklch() — a color space html2canvas's parser can't read.
+// A div in the real page would still drag those ancestors in; an iframe
+// with its own blank document has none.
+async function downloadUsagePdf(student: Student, lang: "zh" | "en") {
+  const history = student.usageHistory ?? []
+  const rows = history
+    .map(
+      (e) =>
+        `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">${e.date}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${lang === "zh" ? e.title.zh : e.title.en}</td></tr>`,
+    )
+    .join("")
+  const iframe = document.createElement("iframe")
+  iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:700px;height:1000px;border:0;"
+  document.body.appendChild(iframe)
+  try {
+    const idoc = iframe.contentDocument
+    if (!idoc) return
+    idoc.open()
+    idoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;font-family:sans-serif;background:#fff;color:#111;">
+      <div style="padding:24px;">
+        <h2 style="margin:0 0 4px;font-size:18px;">${student.name} · ${lang === "zh" ? "已用课时记录" : "Used Sessions"}</h2>
+        <p style="margin:0 0 16px;color:#666;font-size:12px;">${lang === "zh" ? "共" : "Total"} ${history.length} ${lang === "zh" ? "课时" : "sessions"}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:6px 12px;border-bottom:2px solid #333;">${lang === "zh" ? "时间" : "Time"}</th>
+              <th style="text-align:left;padding:6px 12px;border-bottom:2px solid #333;">${lang === "zh" ? "班级" : "Class"}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </body></html>`)
+    idoc.close()
+
+    const canvas = await html2canvas(idoc.body, { backgroundColor: "#ffffff" })
+    const imgData = canvas.toDataURL("image/png")
+    const doc = new jsPDF({ unit: "pt", format: "a4" })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const imgWidth = pageWidth - 48
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    doc.addImage(imgData, "PNG", 24, 24, imgWidth, imgHeight)
+    doc.save(`${student.name}-usage.pdf`)
+  } finally {
+    document.body.removeChild(iframe)
+  }
+}
+
+function UsageHistoryDialog({ student, onClose }: { student: Student; onClose: () => void }) {
+  const { t, lang } = useLanguage()
+  const [isDownloading, setIsDownloading] = useState(false)
+  const history = student.usageHistory ?? []
+
+  const handleDownload = async () => {
+    setIsDownloading(true)
+    try {
+      await downloadUsagePdf(student, lang)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">
+          {t("adm.students.usedSessions")} · {student.name}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-3 py-2">
+        {history.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("adm.students.noUsage")}</p>
+        ) : (
+          <div className="max-h-80 overflow-y-auto rounded-xl border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("common.time")}</TableHead>
+                  <TableHead>{t("adm.students.usageClass")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="text-muted-foreground">{e.date}</TableCell>
+                    <TableCell className="text-card-foreground">{lang === "zh" ? e.title.zh : e.title.en}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+        <Button onClick={handleDownload} disabled={isDownloading || history.length === 0}>
+          <Download className="mr-1.5 h-4 w-4" />
+          {t("adm.students.downloadPdf")}
         </Button>
       </DialogFooter>
     </>

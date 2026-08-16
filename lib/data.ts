@@ -8,6 +8,7 @@ import {
   mapStudentCard,
   mapLedgerEntry,
   mapCardProduct,
+  mapCashierEntry,
   mapNotificationRule,
   mapUser,
   styleDbToKey,
@@ -113,7 +114,7 @@ export async function getTeacherAppData(teacherId: string) {
 // Everything the admin app needs — the only role that legitimately sees
 // every student's PII, all payments/financials, and the account list.
 export async function getAdminAppData() {
-  const [teachers, rooms, sessionsRaw, cardProducts, notificationRules, studentsRaw, teacherStatsRaw, usersRaw] =
+  const [teachers, rooms, sessionsRaw, cardProducts, notificationRules, studentsRaw, teacherStatsRaw, usersRaw, cashierRaw] =
     await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
@@ -123,15 +124,29 @@ export async function getAdminAppData() {
       }),
       prisma.cardProduct.findMany({ orderBy: { id: "asc" } }),
       prisma.notificationRule.findMany({ orderBy: { id: "asc" } }),
-      prisma.student.findMany({ include: { cards: true }, orderBy: { id: "asc" } }),
+      prisma.student.findMany({
+        include: {
+          cards: true,
+          ledgerEntries: { where: { kind: "CONSUME" }, orderBy: { date: "desc" } },
+        },
+        orderBy: { id: "asc" },
+      }),
       prisma.teacherStat.findMany(),
       prisma.user.findMany({
         include: { student: { select: { name: true } }, teacher: { select: { name: true } } },
         orderBy: { createdAt: "asc" },
       }),
+      prisma.payment.findMany({
+        include: { student: { select: { name: true } }, card: { select: { nameZh: true, nameEn: true } } },
+        orderBy: { paidAt: "desc" },
+        take: 20,
+      }),
     ])
 
-  const admin = await getAdminAnalytics(teacherStatsRaw)
+  const [admin, sessionStats] = await Promise.all([
+    getAdminAnalytics(teacherStatsRaw),
+    getYearlyStyleStats(new Date().getFullYear()),
+  ])
 
   return {
     teachers: teachers.map(mapTeacher),
@@ -140,11 +155,52 @@ export async function getAdminAppData() {
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     cardProducts: cardProducts.map(mapCardProduct),
     notificationRules: notificationRules.map(mapNotificationRule),
-    students: studentsRaw.map((s) => mapStudent(s, { includeCardDetails: true })),
+    students: studentsRaw.map((s) => mapStudent(s, { includeCardDetails: true, includeUsageHistory: true })),
     users: usersRaw.map(mapUser),
+    cashier: cashierRaw.map(mapCashierEntry),
     admin,
+    sessionStats,
   }
 }
+
+// Monthly, per-style breakdown of consumed class-hours for one calendar
+// year — backs both the admin overview's default (current year) and the
+// on-demand year navigation in lib/actions/analytics.ts. Entries without a
+// linked booking (older synthetic seed data) are skipped, same as
+// getAdminAnalytics()'s consumptionByStyle above.
+export async function getYearlyStyleStats(year: number) {
+  const start = new Date(year, 0, 1)
+  const end = new Date(year + 1, 0, 1)
+  const [entries, earliest] = await Promise.all([
+    prisma.ledgerEntry.findMany({
+      where: { kind: "CONSUME", date: { gte: start, lt: end } },
+      select: { delta: true, date: true, booking: { select: { session: { select: { style: true } } } } },
+    }),
+    prisma.ledgerEntry.aggregate({ where: { kind: "CONSUME" }, _min: { date: true } }),
+  ])
+
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: `${i + 1}月`,
+    en: MONTH_EN[i],
+    total: 0,
+    byStyle: {} as Partial<Record<StyleKey, number>>,
+  }))
+  for (const e of entries) {
+    const style = e.booking?.session?.style
+    if (!style) continue
+    const key = styleDbToKey(style)
+    const amt = Math.abs(e.delta)
+    const m = months[e.date.getMonth()]
+    m.total += amt
+    m.byStyle[key] = (m.byStyle[key] ?? 0) + amt
+  }
+
+  const minYear = earliest._min.date ? earliest._min.date.getFullYear() : year
+  const maxYear = new Date().getFullYear()
+  return { year, months, minYear, maxYear }
+}
+
+export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
 
 async function getAdminAnalytics(teacherStatsRaw: { teacherId: string; heads: number; commission: number }[]) {
   const monthRanges = lastNMonthRanges(6)
