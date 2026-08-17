@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel } from "@/lib/mappers"
+import { parseISODate } from "@/lib/schedule-dates"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
 // Picks which of the student's cards a booking should draw a credit from:
@@ -19,9 +20,13 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
   return tx.studentCard.findFirst({ where: { studentId, isUnlimited: true, expiry: { gt: now } } })
 }
 
-export async function bookClass(sessionId: string) {
+// `date` is the specific calendar occurrence being booked (ISO
+// "YYYY-MM-DD") — a student books one date's instance of a recurring
+// session at a time, not the whole weekly series.
+export async function bookClass(sessionId: string, date: string) {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) throw new Error("NO_LINKED_STUDENT")
+  const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
     // Row-lock the session so concurrent bookers of the same session
     // serialize instead of racing past capacity.
@@ -31,12 +36,12 @@ export async function bookClass(sessionId: string) {
       where: { id: sessionId },
       include: { teacher: true },
     })
-    const bookedCount = await tx.booking.count({ where: { sessionId, state: "BOOKED" } })
+    const bookedCount = await tx.booking.count({ where: { sessionId, date: occurrenceDate, state: "BOOKED" } })
     const state = bookedCount < session.capacity ? "BOOKED" : "WAITLIST"
 
     const booking = await tx.booking.upsert({
-      where: { studentId_sessionId: { studentId, sessionId } },
-      create: { studentId, sessionId, state },
+      where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
+      create: { studentId, sessionId, date: occurrenceDate, state },
       update: { state, checkedIn: false, proxy: false },
     })
 
@@ -67,13 +72,16 @@ export async function bookClass(sessionId: string) {
   })
 }
 
-export async function cancelBooking(sessionId: string) {
+export async function cancelBooking(sessionId: string, date: string) {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) throw new Error("NO_LINKED_STUDENT")
+  const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT id FROM class_sessions WHERE id = ${sessionId} FOR UPDATE`
 
-    const booking = await tx.booking.findUnique({ where: { studentId_sessionId: { studentId, sessionId } } })
+    const booking = await tx.booking.findUnique({
+      where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
+    })
     if (!booking || booking.state === "CANCELED") return booking
 
     if (booking.state === "BOOKED") {

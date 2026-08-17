@@ -35,6 +35,7 @@ export type Room = {
   id: string
   name: string
   nameEn: string
+  address: string | null
 }
 
 // Admin-only view of a Room, with the extra business fields
@@ -50,6 +51,9 @@ export type Studio = {
   notes: string | null
 }
 
+// A recurring weekly slot — a template, not tied to any specific calendar
+// date. How many people are booked, and whether "I" am booked, only make
+// sense for one specific occurrence of this slot (see Occurrence below).
 export type ClassSession = {
   id: string
   style: StyleKey
@@ -59,10 +63,35 @@ export type ClassSession = {
   start: string
   end: string
   capacity: number
-  booked: number
   level: { zh: string; en: string }
   status?: "normal" | "canceled"
-  myState?: "none" | "booked" | "waitlist"
+}
+
+// One specific calendar occurrence of a ClassSession — how many are booked
+// and (for a logged-in student) their own booking state, both scoped to
+// that exact date. Keyed by `${sessionId}__${date}` (lib/schedule-dates.ts
+// occurrenceKey) so a flat array from the server becomes an O(1) lookup map
+// on the client.
+export type Occurrence = {
+  sessionId: string
+  date: string // ISO "YYYY-MM-DD"
+  booked: number
+  myState: "none" | "booked" | "waitlist"
+}
+
+// A student's own booking, materialized with the session's display fields
+// and the real occurrence date — used for the "upcoming classes" list.
+export type UpcomingBooking = {
+  bookingId: string
+  sessionId: string
+  style: StyleKey
+  teacherId: string
+  roomId: string
+  day: number
+  date: string // ISO "YYYY-MM-DD"
+  start: string
+  end: string
+  myState: "booked" | "waitlist"
 }
 
 export type CardType = "stu.card.times" | "stu.card.period" | "stu.card.trial"

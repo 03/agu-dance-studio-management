@@ -31,6 +31,8 @@ import type {
   Room,
   Studio,
   ClassSession,
+  Occurrence,
+  UpcomingBooking,
   CardType,
   StudentCard,
   LedgerEntry,
@@ -42,6 +44,7 @@ import type {
   AppUser,
   AppUserRole,
 } from "@/lib/types"
+import { toISODate } from "@/lib/schedule-dates"
 
 // ---- enum <-> view-model key conversions ----
 
@@ -113,7 +116,7 @@ export const sessionStatusDbToKey = (status: SessionStatus): "normal" | "cancele
 export const sessionStatusKeyToDb = (status: "normal" | "canceled"): SessionStatus =>
   status === "canceled" ? "CANCELED" : "NORMAL"
 
-export const bookingStateToMyState = (state: BookingState | undefined): ClassSession["myState"] => {
+export const bookingStateToMyState = (state: BookingState | undefined): Occurrence["myState"] => {
   if (state === "BOOKED") return "booked"
   if (state === "WAITLIST") return "waitlist"
   return "none"
@@ -165,6 +168,7 @@ export const mapRoom = (r: DbRoom): Room => ({
   id: r.id,
   name: r.name,
   nameEn: r.nameEn,
+  address: r.address,
 })
 
 export const mapStudio = (r: DbRoom): Studio => ({
@@ -177,18 +181,10 @@ export const mapStudio = (r: DbRoom): Studio => ({
   notes: r.notes,
 })
 
-/**
- * `booked` is derived from BOOKED bookings, not a stored column, so callers
- * must include a `bookings` relation (at least the `state` field) on the
- * Prisma query. `myState` is only populated when `forStudentId` is given and
- * a matching booking is present in that relation.
- */
-export function mapClassSession(
-  s: DbClassSession & { bookings: Pick<DbBooking, "state" | "studentId">[] },
-  forStudentId?: string,
-): ClassSession {
-  const booked = s.bookings.filter((b) => b.state === "BOOKED").length
-  const mine = forStudentId ? s.bookings.find((b) => b.studentId === forStudentId) : undefined
+// Pure template mapping — no booking data. Occurrence-level fields
+// (booked count, myState) are computed separately per calendar date; see
+// lib/data.ts's buildOccurrences.
+export function mapClassSession(s: DbClassSession): ClassSession {
   return {
     id: s.id,
     style: styleDbToKey(s.style),
@@ -198,10 +194,26 @@ export function mapClassSession(
     start: s.start,
     end: s.end,
     capacity: s.capacity,
-    booked,
     level: { zh: s.levelZh, en: s.levelEn },
     status: sessionStatusDbToKey(s.status),
-    myState: mine ? bookingStateToMyState(mine.state) : "none",
+  }
+}
+
+// A student's own booking for one real occurrence, with the session's
+// display fields folded in. `b.state` is expected to already be filtered to
+// BOOKED/WAITLIST by the caller's query — never pass a CANCELED booking in.
+export function mapUpcomingBooking(b: DbBooking & { session: DbClassSession }): UpcomingBooking {
+  return {
+    bookingId: b.id,
+    sessionId: b.sessionId,
+    style: styleDbToKey(b.session.style),
+    teacherId: b.session.teacherId,
+    roomId: b.session.roomId,
+    day: b.session.day,
+    date: toISODate(b.date),
+    start: b.session.start,
+    end: b.session.end,
+    myState: b.state === "BOOKED" ? "booked" : "waitlist",
   }
 }
 

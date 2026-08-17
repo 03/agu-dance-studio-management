@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { requireAnyRole } from "@/lib/auth"
+import { parseISODate } from "@/lib/schedule-dates"
 import type { RosterEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
@@ -16,11 +17,13 @@ async function assertOwnsSession(sessionId: string) {
 
 // `RosterEntry.id` is the Booking id (roll-call check-in writes target a
 // specific booking, not a student — a student could in principle have more
-// than one booking across different sessions).
-export async function getRosterForSession(sessionId: string): Promise<RosterEntry[]> {
+// than one booking across different sessions). `date` scopes the roster to
+// the one occurrence being taught right now, not every date this recurring
+// slot has ever run.
+export async function getRosterForSession(sessionId: string, date: string): Promise<RosterEntry[]> {
   await assertOwnsSession(sessionId)
   const bookings = await prisma.booking.findMany({
-    where: { sessionId, state: { in: ["BOOKED", "WAITLIST"] } },
+    where: { sessionId, date: parseISODate(date), state: { in: ["BOOKED", "WAITLIST"] } },
     include: { student: { select: { name: true } } },
     orderBy: { createdAt: "asc" },
   })

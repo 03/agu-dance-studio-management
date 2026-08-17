@@ -3,9 +3,9 @@
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, type ClassSession, type Teacher, type Room } from "@/lib/types"
+import { weekdayKeys, type UpcomingBooking, type Teacher, type Room } from "@/lib/types"
 import { cancelBooking } from "@/lib/actions/bookings"
-import { nextOccurrence, formatAppDate } from "@/lib/schedule-dates"
+import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -22,7 +22,7 @@ export function StudentBookings({
   teachers,
   rooms,
 }: {
-  upcoming: ClassSession[]
+  upcoming: UpcomingBooking[]
   teachers: Teacher[]
   rooms: Room[]
 }) {
@@ -35,9 +35,9 @@ export function StudentBookings({
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  const cancel = (id: string) => {
+  const cancel = (sessionId: string, date: string) => {
     startTransition(async () => {
-      await cancelBooking(id)
+      await cancelBooking(sessionId, date)
       router.refresh()
     })
   }
@@ -62,7 +62,7 @@ export function StudentBookings({
           ) : (
             <ul className="flex flex-col gap-3">
               {upcoming.map((s) => (
-                <li key={s.id} className="rounded-2xl border border-border bg-card p-4">
+                <li key={s.bookingId} className="rounded-2xl border border-border bg-card p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <StyleDot style={s.style} />
@@ -81,7 +81,7 @@ export function StudentBookings({
                     )}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>{t(weekdayKeys[s.day])} {formatAppDate(nextOccurrence(s.day))}</span>
+                    <span>{t(weekdayKeys[s.day])} {formatAppDate(parseISODate(s.date))}</span>
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       {s.start}–{s.end}
@@ -94,7 +94,13 @@ export function StudentBookings({
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">{teacherName(s.teacherId)}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">{t("stu.cancelRule")}</span>
-                    <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive" disabled={isPending} onClick={() => cancel(s.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-destructive hover:text-destructive"
+                      disabled={isPending}
+                      onClick={() => cancel(s.sessionId, s.date)}
+                    >
                       {t("common.cancel")}
                     </Button>
                   </div>

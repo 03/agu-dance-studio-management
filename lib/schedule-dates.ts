@@ -22,3 +22,29 @@ export function nextOccurrence(day: number, from = new Date()): Date {
   result.setDate(base.getDate() + diff)
   return result
 }
+
+// Bookings are scoped to one specific calendar occurrence of a recurring
+// session (see Booking.date in schema.prisma). These pair up to move that
+// date across the client/server boundary without the classic
+// `new Date("YYYY-MM-DD")` bug — that parses as UTC midnight, which can
+// silently shift a day depending on the reader's local timezone offset.
+// Always go through toISODate/parseISODate together, never bare Date(iso).
+export function toISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+export function parseISODate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// Lookup key for a (session, occurrence date) pair — same key on client and
+// server so Occurrence data fetched separately from ClassSession templates
+// can be joined by simple map lookup.
+export function occurrenceKey(sessionId: string, date: Date | string): string {
+  const iso = typeof date === "string" ? date : toISODate(date)
+  return `${sessionId}__${iso}`
+}

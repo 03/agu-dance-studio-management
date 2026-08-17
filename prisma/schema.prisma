@@ -133,22 +133,25 @@ model Student {
   @@map("students")
 }
 
-// Replaces ClassSession.myState and the roll-call `roster` list: a booking
-// is one student's relationship to one session (booked/waitlisted, plus
-// roll-call check-in state).
+// A booking is one student's relationship to one specific calendar
+// occurrence of a session — ClassSession is a recurring weekly template
+// (Monday 7pm Jazz), `date` picks out which real date's instance of that
+// slot this booking is for. A student books/cancels per occurrence, not
+// once-and-forever for the whole recurring series.
 model Booking {
   id          String       @id @default(cuid())
   student     Student      @relation(fields: [studentId], references: [id])
   studentId   String
   session     ClassSession @relation(fields: [sessionId], references: [id])
   sessionId   String
+  date        DateTime // the specific occurrence date, always normalized to midnight
   state       BookingState @default(BOOKED)
   checkedIn   Boolean      @default(false)
   proxy       Boolean      @default(false)
   createdAt   DateTime     @default(now())
   ledgerEntry LedgerEntry?
 
-  @@unique([studentId, sessionId])
+  @@unique([studentId, sessionId, date])
   @@map("bookings")
 }
 

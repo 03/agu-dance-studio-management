@@ -26,6 +26,7 @@ export const dict: Dict = {
   "home.schedule.prevMonth": { zh: "上一月", en: "Previous month" },
   "home.schedule.nextMonth": { zh: "下一月", en: "Next month" },
   "home.schedule.thisMonth": { zh: "本月", en: "This month" },
+  "home.schedule.enrolled": { zh: "已报名", en: "enrolled" },
   "home.contact.title": { zh: "联系方式", en: "Contact Us" },
   "home.contact.wechat": { zh: "微信号", en: "WeChat" },
   "home.contact.xiaohongshu": { zh: "小红书", en: "Xiaohongshu" },

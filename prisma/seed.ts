@@ -10,6 +10,7 @@
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../lib/generated/prisma/client"
 import { hashPassword } from "../lib/password"
+import { nextOccurrence } from "../lib/schedule-dates"
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
@@ -32,6 +33,20 @@ function mulberry32(seed: number) {
 }
 const rand = mulberry32(20260814)
 
+// day (0=Mon..6=Sun) per seeded ClassSession — used to anchor seeded
+// Bookings to that session's next real occurrence date, same as the app
+// itself would compute via nextOccurrence().
+const SESSION_DAY: Record<string, number> = {
+  c1: 1,
+  c2: 3,
+  c3: 5,
+  c4: 6,
+  c5: 2,
+  c6: 3,
+  c7: 4,
+  c8: 6,
+}
+
 async function main() {
   // ---- Teachers / Rooms ----
   await prisma.teacher.createMany({
@@ -44,9 +59,9 @@ async function main() {
   })
   await prisma.room.createMany({
     data: [
-      { id: "r1", code: "STU-01", name: "Glen Waverley", nameEn: "Studio Glen Waverley", address: "6D Aristoc Rd, Glen Waverley", postalCode: "3150", notes: "大班课" },
-      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "Doncaster Library", postalCode: "3108", notes: "大班课" },
-      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "21 Rooks Rd, Mitcham", postalCode: "3132", notes: "大班课（成人，少儿）" },
+      { id: "r1", code: "STU-01", name: "Glen Waverley", nameEn: "Glen Waverley", address: "6D Aristoc Rd, Glen Waverley", postalCode: "3150", notes: "大班课" },
+      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Doncaster", address: "Doncaster Library", postalCode: "3108", notes: "大班课" },
+      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Mitcham", address: "21 Rooks Rd, Mitcham", postalCode: "3132", notes: "大班课（成人，少儿）" },
     ],
   })
 
@@ -215,6 +230,7 @@ async function main() {
     data: c1Roster.map((r) => ({
       studentId: r.studentId,
       sessionId: "c1",
+      date: nextOccurrence(SESSION_DAY.c1),
       state: "BOOKED",
       checkedIn: r.checkedIn,
       proxy: r.proxy ?? false,
@@ -243,14 +259,15 @@ async function main() {
   ]
 
   for (const s of otherSessions) {
+    const occurrenceDate = nextOccurrence(SESSION_DAY[s.id])
     const pool = shuffledPool(s.count)
     const chosen = pool.slice(0, Math.min(s.count, pool.length))
     await prisma.booking.createMany({
-      data: chosen.map((studentId) => ({ studentId, sessionId: s.id, state: "BOOKED" as const })),
+      data: chosen.map((studentId) => ({ studentId, sessionId: s.id, date: occurrenceDate, state: "BOOKED" as const })),
     })
     if (s.extra) {
       await prisma.booking.create({
-        data: { studentId: s.extra.studentId, sessionId: s.id, state: s.extra.state },
+        data: { studentId: s.extra.studentId, sessionId: s.id, date: occurrenceDate, state: s.extra.state },
       })
     }
   }

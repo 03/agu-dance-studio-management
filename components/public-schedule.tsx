@@ -1,29 +1,56 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type Teacher, type Room } from "@/lib/types"
-import { toAppDay } from "@/lib/schedule-dates"
+import { weekdayKeys, styleColors, type ClassSession, type Occurrence, type Room } from "@/lib/types"
+import { toAppDay, toISODate, occurrenceKey, nextOccurrence } from "@/lib/schedule-dates"
+import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
-import { MessageCircle, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
+import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
 
 type ViewMode = "week" | "month"
 
+function occurrenceMapFrom(list: Occurrence[]): Map<string, Occurrence> {
+  const map = new Map<string, Occurrence>()
+  for (const o of list) map.set(occurrenceKey(o.sessionId, o.date), o)
+  return map
+}
+
 export function PublicSchedule({
   sessions,
-  teachers,
+  occurrences,
+  rooms,
 }: {
   sessions: ClassSession[]
-  teachers: Teacher[]
+  occurrences: Occurrence[]
   rooms: Room[]
 }) {
   const { t } = useLanguage()
   const [view, setView] = useState<ViewMode>("week")
 
-  const teacherName = (id: string) => {
-    const tc = teachers.find((x) => x.id === id)
-    return tc ? tc.name : ""
-  }
+  // Occurrence data (booked counts) grows as the visitor navigates the
+  // month view — start with what the server eagerly sent (this month +
+  // next 7 days), fetch further months on demand, merge and keep forever
+  // rather than re-fetching a month we've already seen.
+  const [occurrenceMap, setOccurrenceMap] = useState(() => occurrenceMapFrom(occurrences))
+  const loadedMonths = useRef(new Set<string>([`${new Date().getFullYear()}-${new Date().getMonth()}`]))
+
+  const ensureMonth = useCallback(async (year: number, month: number) => {
+    const key = `${year}-${month}`
+    if (loadedMonths.current.has(key)) return
+    loadedMonths.current.add(key)
+    const fetched = await getOccurrencesForMonth(year, month)
+    setOccurrenceMap((prev) => {
+      const next = new Map(prev)
+      for (const o of fetched) next.set(occurrenceKey(o.sessionId, o.date), o)
+      return next
+    })
+  }, [])
+
+  const bookedFor = useCallback(
+    (sessionId: string, date: Date) => occurrenceMap.get(occurrenceKey(sessionId, toISODate(date)))?.booked ?? 0,
+    [occurrenceMap],
+  )
 
   return (
     <section className="border-t border-border bg-background px-6 py-14">
@@ -58,7 +85,11 @@ export function PublicSchedule({
           </div>
         </div>
 
-        {view === "week" ? <WeekView sessions={sessions} teacherName={teacherName} /> : <MonthView sessions={sessions} />}
+        {view === "week" ? (
+          <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} />
+        ) : (
+          <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} />
+        )}
       </div>
 
       {/* Contact */}
@@ -81,12 +112,15 @@ export function PublicSchedule({
 
 function WeekView({
   sessions,
-  teacherName,
+  bookedFor,
+  rooms,
 }: {
   sessions: ClassSession[]
-  teacherName: (id: string) => string
+  bookedFor: (sessionId: string, date: Date) => number
+  rooms: Room[]
 }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+  const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
       <div className="grid min-w-[840px] grid-cols-7">
@@ -98,17 +132,32 @@ function WeekView({
             <div className="flex flex-col gap-2">
               {sessions
                 .filter((s) => s.day === day)
-                .map((s) => (
-                  <div
-                    key={s.id}
-                    className="rounded-xl border-l-4 bg-secondary/40 p-2 text-left"
-                    style={{ borderLeftColor: styleColors[s.style] }}
-                  >
-                    <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
-                    <p className="text-xs font-bold text-card-foreground">{t(s.style)}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{teacherName(s.teacherId)}</p>
-                  </div>
-                ))}
+                .map((s) => {
+                  const booked = bookedFor(s.id, nextOccurrence(s.day))
+                  const nameEn = roomNameEn(s.roomId)
+                  return (
+                    <div
+                      key={s.id}
+                      className="rounded-xl border-l-4 bg-secondary/40 p-2 text-left"
+                      style={{ borderLeftColor: styleColors[s.style] }}
+                    >
+                      <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
+                      <p className="text-xs font-bold text-card-foreground">{t(s.style)}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {lang === "zh" ? s.level.zh : s.level.en}
+                      </p>
+                      {nameEn && (
+                        <p className="mt-1 flex items-start gap-1 text-[11px] text-muted-foreground">
+                          <MapPin className="mt-[1px] h-3 w-3 shrink-0" />
+                          <span className="truncate">{nameEn}</span>
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        {booked}/{s.capacity} {t("home.schedule.enrolled")}
+                      </p>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         ))}
@@ -117,11 +166,19 @@ function WeekView({
   )
 }
 
-function MonthView({ sessions }: { sessions: ClassSession[] }) {
+function MonthView({
+  sessions,
+  bookedFor,
+  ensureMonth,
+}: {
+  sessions: ClassSession[]
+  bookedFor: (sessionId: string, date: Date) => number
+  ensureMonth: (year: number, month: number) => void
+}) {
   const { t, lang } = useLanguage()
   const [monthOffset, setMonthOffset] = useState(0)
 
-  const { weeks, monthLabel } = useMemo(() => {
+  const { weeks, monthLabel, year, month } = useMemo(() => {
     const now = new Date()
     const base = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
     const year = base.getFullYear()
@@ -138,8 +195,14 @@ function MonthView({ sessions }: { sessions: ClassSession[] }) {
       lang === "zh"
         ? `${year} 年 ${month + 1} 月`
         : base.toLocaleDateString("en-US", { year: "numeric", month: "long" })
-    return { weeks, monthLabel }
+    return { weeks, monthLabel, year, month }
   }, [lang, monthOffset])
+
+  // Fetch this month's occurrence data as soon as it's the one on screen —
+  // cheap no-op if we've already loaded it (ensureMonth dedupes internally).
+  useEffect(() => {
+    ensureMonth(year, month)
+  }, [year, month, ensureMonth])
 
   const today = new Date()
   const isToday = (d: Date) =>
@@ -199,16 +262,19 @@ function MonthView({ sessions }: { sessions: ClassSession[] }) {
                   {d.getDate()}
                 </span>
                 <div className="flex w-full flex-col gap-0.5">
-                  {visible.map((s) => (
-                    <div
-                      key={s.id}
-                      className="w-full truncate rounded-sm border-l-2 bg-secondary/50 px-1 py-0.5 text-left text-[9px] leading-tight font-medium text-card-foreground"
-                      style={{ borderLeftColor: styleColors[s.style] }}
-                      title={`${s.start} · ${t(s.style)}`}
-                    >
-                      {s.start} {t(s.style)}
-                    </div>
-                  ))}
+                  {visible.map((s) => {
+                    const booked = bookedFor(s.id, d)
+                    return (
+                      <div
+                        key={s.id}
+                        className="w-full truncate rounded-sm border-l-2 bg-secondary/50 px-1 py-0.5 text-left text-[9px] leading-tight font-medium text-card-foreground"
+                        style={{ borderLeftColor: styleColors[s.style] }}
+                        title={`${s.start} · ${t(s.style)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${booked}/${s.capacity} ${t("home.schedule.enrolled")}`}
+                      >
+                        {s.start} {booked}/{s.capacity}
+                      </div>
+                    )
+                  })}
                   {overflow > 0 && (
                     <span className="text-[9px] text-muted-foreground">+{overflow}</span>
                   )}

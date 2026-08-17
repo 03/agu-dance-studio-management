@@ -85,6 +85,7 @@ CREATE TABLE "bookings" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
     "state" "BookingState" NOT NULL DEFAULT 'BOOKED',
     "checkedIn" BOOLEAN NOT NULL DEFAULT false,
     "proxy" BOOLEAN NOT NULL DEFAULT false,
@@ -201,7 +202,7 @@ CREATE TABLE "sessions" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bookings_studentId_sessionId_key" ON "bookings"("studentId", "sessionId");
+CREATE UNIQUE INDEX "bookings_studentId_sessionId_date_key" ON "bookings"("studentId", "sessionId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ledger_entries_bookingId_key" ON "ledger_entries"("bookingId");

@@ -49,7 +49,12 @@ export function StudentApp({
           <div className="flex h-full flex-col bg-background">
             <div className="flex-1 overflow-y-auto pb-2">
               {tab === "schedule" && (
-                <StudentSchedule sessions={data.sessions} teachers={data.teachers} rooms={data.rooms} />
+                <StudentSchedule
+                  sessions={data.sessions}
+                  occurrences={data.occurrences}
+                  teachers={data.teachers}
+                  rooms={data.rooms}
+                />
               )}
               {tab === "bookings" && (
                 <StudentBookings upcoming={data.student.upcoming} teachers={data.teachers} rooms={data.rooms} />

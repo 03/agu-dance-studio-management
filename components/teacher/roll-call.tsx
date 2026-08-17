@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
 import type { ClassSession, Room, RosterEntry } from "@/lib/types"
 import { getRosterForSession, setCheckedIn } from "@/lib/actions/rollcall"
-import { nextOccurrence, formatAppDate } from "@/lib/schedule-dates"
+import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -13,11 +13,13 @@ import { cn } from "@/lib/utils"
 
 export function RollCall({
   sessionId,
+  date,
   sessions,
   rooms,
   onBack,
 }: {
   sessionId: string
+  date: string
   sessions: ClassSession[]
   rooms: Room[]
   onBack: () => void
@@ -31,7 +33,7 @@ export function RollCall({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getRosterForSession(sessionId).then((r) => {
+    getRosterForSession(sessionId, date).then((r) => {
       if (!cancelled) {
         setRoster(r)
         setLoading(false)
@@ -40,7 +42,7 @@ export function RollCall({
     return () => {
       cancelled = true
     }
-  }, [sessionId])
+  }, [sessionId, date])
 
   const checkedIn = roster.filter((r) => r.checkedIn).length
   const roomName = lang === "zh" ? rooms.find((x) => x.id === session.roomId)?.name : rooms.find((x) => x.id === session.roomId)?.nameEn
@@ -71,7 +73,7 @@ export function RollCall({
           <span className="font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatAppDate(nextOccurrence(session.day))} · {session.start}–{session.end} · {roomName}
+          {formatAppDate(parseISODate(date))} · {session.start}–{session.end} · {roomName}
         </p>
       </div>
 

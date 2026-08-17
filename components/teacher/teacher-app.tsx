@@ -18,8 +18,9 @@ export function TeacherApp({
   onExit: () => void | Promise<void>
 }) {
   const { t, lang } = useLanguage()
-  // active roll-call session id, or null when viewing schedule
-  const [rollCallId, setRollCallId] = useState<string | null>(null)
+  // active roll-call (which session, which real occurrence date), or null
+  // when viewing the schedule
+  const [rollCall, setRollCall] = useState<{ sessionId: string; date: string } | null>(null)
   const me = data.teacher.me!
 
   return (
@@ -55,15 +56,21 @@ export function TeacherApp({
             </header>
 
             <div className="flex-1 overflow-y-auto">
-              {rollCallId ? (
+              {rollCall ? (
                 <RollCall
-                  sessionId={rollCallId}
+                  sessionId={rollCall.sessionId}
+                  date={rollCall.date}
                   sessions={data.teacher.sessions}
                   rooms={data.rooms}
-                  onBack={() => setRollCallId(null)}
+                  onBack={() => setRollCall(null)}
                 />
               ) : (
-                <TeacherSchedule sessions={data.teacher.sessions} rooms={data.rooms} onStartRollCall={setRollCallId} />
+                <TeacherSchedule
+                  sessions={data.teacher.sessions}
+                  occurrences={data.occurrences}
+                  rooms={data.rooms}
+                  onStartRollCall={(sessionId, date) => setRollCall({ sessionId, date })}
+                />
               )}
             </div>
           </div>

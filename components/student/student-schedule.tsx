@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, type ClassSession, type StyleKey, type Teacher, type Room } from "@/lib/types"
+import { weekdayKeys, type ClassSession, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
 import { bookClass, cancelBooking } from "@/lib/actions/bookings"
-import { toAppDay, formatAppDate as formatDate } from "@/lib/schedule-dates"
+import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,10 +30,12 @@ const styleKeys: StyleKey[] = [
 
 export function StudentSchedule({
   sessions: allSessions,
+  occurrences,
   teachers,
   rooms,
 }: {
   sessions: ClassSession[]
+  occurrences: Occurrence[]
   teachers: Teacher[]
   rooms: Room[]
 }) {
@@ -64,13 +66,28 @@ export function StudentSchedule({
   const [selectedIndex, setSelectedIndex] = useState(TODAY_INDEX)
 
   const selectedDate = dates[selectedIndex]
+  const selectedDateISO = toISODate(selectedDate)
   const selectedDayOfWeek = toAppDay(selectedDate)
   const isPastDay = selectedIndex < TODAY_INDEX
 
-  const dayList = useMemo(
-    () => allSessions.filter((s) => s.day === selectedDayOfWeek),
-    [allSessions, selectedDayOfWeek],
-  )
+  // Occurrence data (booked count, my own booking state) is fetched
+  // separately from the recurring session templates and only makes sense
+  // paired with a specific date — look it up per session for whichever
+  // date is currently selected in the picker.
+  const occurrenceMap = useMemo(() => {
+    const map = new Map<string, Occurrence>()
+    for (const o of occurrences) map.set(occurrenceKey(o.sessionId, o.date), o)
+    return map
+  }, [occurrences])
+
+  const dayList = useMemo(() => {
+    return allSessions
+      .filter((s) => s.day === selectedDayOfWeek)
+      .map((s) => {
+        const occ = occurrenceMap.get(occurrenceKey(s.id, selectedDateISO))
+        return { ...s, booked: occ?.booked ?? 0, myState: occ?.myState ?? "none" }
+      })
+  }, [allSessions, selectedDayOfWeek, occurrenceMap, selectedDateISO])
 
   const filtered = dayList.filter((s) => {
     if (styleFilter !== "all" && s.style !== styleFilter) return false
@@ -87,13 +104,13 @@ export function StudentSchedule({
     return r ? (lang === "zh" ? r.name : r.nameEn) : ""
   }
 
-  const toggle = (s: ClassSession) => {
+  const toggle = (s: ClassSession & { myState: Occurrence["myState"] }) => {
     setPendingId(s.id)
     startTransition(async () => {
       if (s.myState === "none") {
-        await bookClass(s.id)
+        await bookClass(s.id, selectedDateISO)
       } else {
-        await cancelBooking(s.id)
+        await cancelBooking(s.id, selectedDateISO)
       }
       router.refresh()
       setPendingId(null)
