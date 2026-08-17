@@ -98,7 +98,6 @@ model ClassSession {
   room      Room          @relation(fields: [roomId], references: [id])
   roomId    String
   day       Int // 0 = Mon ... 6 = Sun
-  date      String // display date label, e.g. "12.09"
   start     String // display time, e.g. "19:00"
   end       String
   capacity  Int

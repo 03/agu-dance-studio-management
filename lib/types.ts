@@ -54,7 +54,6 @@ export type ClassSession = {
   teacherId: string
   roomId: string
   day: number // 0 = Mon ... 6 = Sun
-  date: string // display date label
   start: string
   end: string
   capacity: number

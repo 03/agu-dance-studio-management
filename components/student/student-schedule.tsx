@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type ClassSession, type StyleKey, type Teacher, type Room } from "@/lib/types"
 import { bookClass, cancelBooking } from "@/lib/actions/bookings"
+import { toAppDay, formatAppDate as formatDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -60,14 +61,6 @@ export function StudentSchedule({
   }, [])
 
   const [selectedIndex, setSelectedIndex] = useState(TODAY_INDEX)
-
-  // ClassSession.day is a recurring weekly slot (0=Mon..6=Sun), not tied to
-  // a specific date — convert a real Date's weekday into that convention.
-  const toAppDay = (d: Date) => {
-    const jsDay = d.getDay() // 0 = Sun ... 6 = Sat
-    return jsDay === 0 ? 6 : jsDay - 1
-  }
-  const formatDate = (d: Date) => `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`
 
   const selectedDate = dates[selectedIndex]
   const selectedDayOfWeek = toAppDay(selectedDate)

@@ -180,7 +180,6 @@ export function mapClassSession(
     teacherId: s.teacherId,
     roomId: s.roomId,
     day: s.day,
-    date: s.date,
     start: s.start,
     end: s.end,
     capacity: s.capacity,

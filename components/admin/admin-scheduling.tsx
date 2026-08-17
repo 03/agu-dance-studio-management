@@ -166,7 +166,6 @@ function AddForm({
   const [day, setDay] = useState("0")
   const teacherLabel = (id: string) => (lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn)
   const roomLabel = (id: string) => (lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn)
-  const [date, setDate] = useState("")
   const [start, setStart] = useState("")
   const [end, setEnd] = useState("")
   const [capacity, setCapacity] = useState("12")
@@ -175,7 +174,6 @@ function AddForm({
 
   const capacityNum = Number.parseInt(capacity, 10)
   const isValid =
-    date.trim() !== "" &&
     start.trim() !== "" &&
     end.trim() !== "" &&
     levelZh.trim() !== "" &&
@@ -190,7 +188,6 @@ function AddForm({
       teacherId,
       roomId,
       day: Number.parseInt(day, 10),
-      date: date.trim(),
       start: start.trim(),
       end: end.trim(),
       capacity: capacityNum,
@@ -252,26 +249,20 @@ function AddForm({
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <Label>{t("adm.schedule.day")}</Label>
-            <Select value={day} onValueChange={setDay}>
-              <SelectTrigger>
-                <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {weekdayKeys.map((wk, i) => (
-                  <SelectItem key={wk} value={String(i)}>
-                    {t(wk)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>{t("common.date")}</Label>
-            <Input value={date} onChange={(e) => setDate(e.target.value)} placeholder="12.09" />
-          </div>
+        <div className="grid gap-2">
+          <Label>{t("adm.schedule.day")}</Label>
+          <Select value={day} onValueChange={setDay}>
+            <SelectTrigger>
+              <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {weekdayKeys.map((wk, i) => (
+                <SelectItem key={wk} value={String(i)}>
+                  {t(wk)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">

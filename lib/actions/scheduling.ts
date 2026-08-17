@@ -10,7 +10,6 @@ export async function createClassSession(input: {
   teacherId: string
   roomId: string
   day: number
-  date: string
   start: string
   end: string
   capacity: number
@@ -24,7 +23,6 @@ export async function createClassSession(input: {
       teacherId: input.teacherId,
       roomId: input.roomId,
       day: input.day,
-      date: input.date,
       start: input.start,
       end: input.end,
       capacity: input.capacity,

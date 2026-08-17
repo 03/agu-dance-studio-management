@@ -3,17 +3,11 @@
 import { useMemo, useState } from "react"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, styleColors, type ClassSession, type Teacher, type Room } from "@/lib/types"
+import { toAppDay } from "@/lib/schedule-dates"
 import { cn } from "@/lib/utils"
 import { MessageCircle, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 
 type ViewMode = "week" | "month"
-
-// ClassSession.day is a recurring weekly slot (0=Mon..6=Sun), not tied to a
-// specific date — convert a real Date's weekday into that convention.
-function toAppDay(d: Date) {
-  const jsDay = d.getDay() // 0 = Sun ... 6 = Sat
-  return jsDay === 0 ? 6 : jsDay - 1
-}
 
 export function PublicSchedule({
   sessions,

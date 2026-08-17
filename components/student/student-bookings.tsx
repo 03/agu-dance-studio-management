@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type ClassSession, type Teacher, type Room } from "@/lib/types"
 import { cancelBooking } from "@/lib/actions/bookings"
+import { nextOccurrence, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -80,7 +81,7 @@ export function StudentBookings({
                     )}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>{t(weekdayKeys[s.day])} {s.date}</span>
+                    <span>{t(weekdayKeys[s.day])} {formatAppDate(nextOccurrence(s.day))}</span>
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       {s.start}–{s.end}

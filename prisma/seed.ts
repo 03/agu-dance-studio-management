@@ -36,7 +36,7 @@ async function main() {
   // ---- Teachers / Rooms ----
   await prisma.teacher.createMany({
     data: [
-      { id: "t1", name: "林薇", nameEn: "Wei Lin", avatar: "/teacher-wei.jpg", styles: ["JAZZ", "KPOP"] },
+      { id: "t1", name: "阿古", nameEn: "Agu", avatar: "/teacher-agu.jpg", styles: ["JAZZ", "KPOP"] },
       { id: "t2", name: "陈曜", nameEn: "Yao Chen", avatar: "/teacher-yao.jpg", styles: ["HIPHOP"] },
       { id: "t3", name: "苏晴", nameEn: "Qing Su", avatar: "/teacher-qing.jpg", styles: ["BALLET", "CONTEMPORARY"] },
       { id: "t4", name: "Marco", nameEn: "Marco", avatar: "/teacher-marco.jpg", styles: ["LATIN"] },
@@ -44,25 +44,25 @@ async function main() {
   })
   await prisma.room.createMany({
     data: [
-      { id: "r1", code: "STU-01", name: "Glen", nameEn: "Studio Glen", address: "Glen Waverley", postalCode: "3150", notes: "主力厅，含镜墙与把杆" },
-      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "MC Square", postalCode: "3108", notes: "适合大班课" },
-      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "Mitcham", postalCode: "3132", notes: "多功能厅" },
+      { id: "r1", code: "STU-01", name: "Glen Waverley", nameEn: "Studio Glen Waverley", address: "6D Aristoc Rd, Glen Waverley", postalCode: "3150", notes: "大班课" },
+      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "MC Square / Doncaster Library", postalCode: "3108", notes: "大班课" },
+      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "21 Rooks Rd, Mitcham", postalCode: "3132", notes: "大小教室" },
     ],
   })
 
   // ---- Class sessions (fixed demo-week schedule, matches old mock) ----
   await prisma.classSession.createMany({
     data: [
-      { id: "c1", style: "JAZZ", teacherId: "t1", roomId: "r1", day: 0, date: "12.09", start: "19:00", end: "20:00", capacity: 12, levelZh: "初级", levelEn: "Beginner" },
-      { id: "c2", style: "HIPHOP", teacherId: "t2", roomId: "r2", day: 0, date: "12.09", start: "20:15", end: "21:15", capacity: 15, levelZh: "中级", levelEn: "Intermediate" },
-      { id: "c3", style: "BALLET", teacherId: "t3", roomId: "r3", day: 1, date: "12.10", start: "10:00", end: "11:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
-      { id: "c4", style: "KPOP", teacherId: "t1", roomId: "r1", day: 1, date: "12.10", start: "19:30", end: "20:30", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
-      { id: "c5", style: "CONTEMPORARY", teacherId: "t3", roomId: "r2", day: 2, date: "12.11", start: "19:00", end: "20:30", capacity: 12, levelZh: "进阶", levelEn: "Advanced" },
-      { id: "c6", style: "LATIN", teacherId: "t4", roomId: "r1", day: 3, date: "12.12", start: "20:00", end: "21:00", capacity: 14, levelZh: "零基础", levelEn: "Intro" },
-      { id: "c7", style: "HIPHOP", teacherId: "t2", roomId: "r3", day: 4, date: "12.13", start: "18:30", end: "19:30", capacity: 15, levelZh: "初级", levelEn: "Beginner" },
-      { id: "c8", style: "JAZZ", teacherId: "t1", roomId: "r2", day: 5, date: "12.14", start: "14:00", end: "15:00", capacity: 12, levelZh: "中级", levelEn: "Intermediate" },
-      { id: "c9", style: "KPOP", teacherId: "t1", roomId: "r1", day: 5, date: "12.14", start: "16:00", end: "17:00", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
-      { id: "c10", style: "BALLET", teacherId: "t3", roomId: "r3", day: 6, date: "12.15", start: "11:00", end: "12:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
+      { id: "c1", style: "JAZZ", teacherId: "t1", roomId: "r1", day: 0, start: "19:00", end: "20:00", capacity: 12, levelZh: "初级", levelEn: "Beginner" },
+      { id: "c2", style: "HIPHOP", teacherId: "t2", roomId: "r2", day: 0, start: "20:15", end: "21:15", capacity: 15, levelZh: "中级", levelEn: "Intermediate" },
+      { id: "c3", style: "BALLET", teacherId: "t3", roomId: "r3", day: 1, start: "10:00", end: "11:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
+      { id: "c4", style: "KPOP", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "20:30", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
+      { id: "c5", style: "CONTEMPORARY", teacherId: "t3", roomId: "r2", day: 2, start: "19:00", end: "20:30", capacity: 12, levelZh: "进阶", levelEn: "Advanced" },
+      { id: "c6", style: "LATIN", teacherId: "t4", roomId: "r1", day: 3, start: "20:00", end: "21:00", capacity: 14, levelZh: "零基础", levelEn: "Intro" },
+      { id: "c7", style: "HIPHOP", teacherId: "t2", roomId: "r3", day: 4, start: "18:30", end: "19:30", capacity: 15, levelZh: "初级", levelEn: "Beginner" },
+      { id: "c8", style: "JAZZ", teacherId: "t1", roomId: "r2", day: 5, start: "14:00", end: "15:00", capacity: 12, levelZh: "中级", levelEn: "Intermediate" },
+      { id: "c9", style: "KPOP", teacherId: "t1", roomId: "r1", day: 5, start: "16:00", end: "17:00", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
+      { id: "c10", style: "BALLET", teacherId: "t3", roomId: "r3", day: 6, start: "11:00", end: "12:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
     ],
   })
 

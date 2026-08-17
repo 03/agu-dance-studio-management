@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
 import type { ClassSession, Room, RosterEntry } from "@/lib/types"
 import { getRosterForSession, setCheckedIn } from "@/lib/actions/rollcall"
+import { nextOccurrence, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -70,7 +71,7 @@ export function RollCall({
           <span className="font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {session.date} · {session.start}–{session.end} · {roomName}
+          {formatAppDate(nextOccurrence(session.day))} · {session.start}–{session.end} · {roomName}
         </p>
       </div>
 
