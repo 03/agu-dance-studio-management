@@ -11,6 +11,7 @@ export type StyleKey =
   | "style.kpop"
   | "style.contemporary"
   | "style.latin"
+  | "style.jazzKpop"
 
 export const styleColors: Record<StyleKey, string> = {
   "style.jazz": "var(--chart-1)",
@@ -19,6 +20,7 @@ export const styleColors: Record<StyleKey, string> = {
   "style.kpop": "var(--chart-2)",
   "style.contemporary": "var(--chart-5)",
   "style.latin": "var(--accent)",
+  "style.jazzKpop": "var(--chart-6)",
 }
 
 export type Teacher = {
@@ -64,6 +66,8 @@ export type ClassSession = {
 }
 
 export type CardType = "stu.card.times" | "stu.card.period" | "stu.card.trial"
+
+export type PaymentMethod = "payment.transfer" | "payment.cash"
 
 export type StudentCard = {
   id: string
@@ -119,6 +123,7 @@ export type CashierEntry = {
   studentName: string
   cardName: { zh: string; en: string } | null
   amount: number
+  method: PaymentMethod
   paidAt: string // display date, e.g. "12.08 14:20"
 }
 

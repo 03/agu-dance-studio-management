@@ -20,6 +20,7 @@ enum DanceStyle {
   KPOP
   CONTEMPORARY
   LATIN
+  JAZZ_KPOP
 }
 
 // Mirrors CardType in lib/mock-data.ts
@@ -27,6 +28,11 @@ enum CardType {
   TIMES
   PERIOD
   TRIAL
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
 }
 
 // Mirrors ClassSession.status in lib/mock-data.ts
@@ -228,13 +234,14 @@ model TeacherStat {
 // LedgerEntry.delta only tracks class counts, not CNY — this is what backs
 // adminKpis.revenue and the monthly cashFlow chart (group by month, sum amount).
 model Payment {
-  id        String       @id @default(cuid())
-  student   Student      @relation(fields: [studentId], references: [id])
+  id        String        @id @default(cuid())
+  student   Student       @relation(fields: [studentId], references: [id])
   studentId String
-  card      StudentCard? @relation(fields: [cardId], references: [id])
+  card      StudentCard?  @relation(fields: [cardId], references: [id])
   cardId    String?
   amount    Int // CNY
-  paidAt    DateTime     @default(now())
+  method    PaymentMethod @default(TRANSFER)
+  paidAt    DateTime      @default(now())
 
   @@map("payments")
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import jsPDF from "jspdf"
 import html2canvas from "html2canvas"
 import { useLanguage } from "@/lib/i18n"
-import type { Student, StudentCard, CardProduct } from "@/lib/types"
+import type { Student, StudentCard, CardProduct, PaymentMethod } from "@/lib/types"
 import {
   buyOrRenewCard,
   giftClasses,
@@ -589,6 +589,7 @@ function ActionForm({
 
   const cards = student.cardDetails ?? []
   const [productId, setProductId] = useState(cardProducts[0]?.id ?? "")
+  const [method, setMethod] = useState<PaymentMethod>("payment.transfer")
   const [cardId, setCardId] = useState(() => pickDefaultCard(cards)?.id ?? "")
   const [amount, setAmount] = useState(action === "adm.students.gift" ? "2" : "1")
   const [reason, setReason] = useState("")
@@ -607,7 +608,7 @@ function ActionForm({
     if (!isValid || isPending) return
     startTransition(async () => {
       if (action === "adm.students.addCard") {
-        await buyOrRenewCard(student.id, productId)
+        await buyOrRenewCard(student.id, productId, method)
       } else if (action === "adm.students.gift") {
         await giftClasses(student.id, cardId, numericAmount, reason.trim())
       } else if (action === "adm.students.adjust") {
@@ -646,6 +647,20 @@ function ActionForm({
                     {lang === "zh" ? p.name.zh : p.name.en} · ¥{p.price}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {action === "adm.students.addCard" ? (
+          <div className="grid gap-2">
+            <Label>{t("adm.cards.paymentMethod")}</Label>
+            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+              <SelectTrigger>
+                <SelectValue>{(v: PaymentMethod) => t(v)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payment.transfer">{t("payment.transfer")}</SelectItem>
+                <SelectItem value="payment.cash">{t("payment.cash")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

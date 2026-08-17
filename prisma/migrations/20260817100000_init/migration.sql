@@ -2,10 +2,13 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "DanceStyle" AS ENUM ('JAZZ', 'HIPHOP', 'BALLET', 'KPOP', 'CONTEMPORARY', 'LATIN');
+CREATE TYPE "DanceStyle" AS ENUM ('JAZZ', 'HIPHOP', 'BALLET', 'KPOP', 'CONTEMPORARY', 'LATIN', 'JAZZ_KPOP');
 
 -- CreateEnum
 CREATE TYPE "CardType" AS ENUM ('TIMES', 'PERIOD', 'TRIAL');
+
+-- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('TRANSFER', 'CASH');
 
 -- CreateEnum
 CREATE TYPE "SessionStatus" AS ENUM ('NORMAL', 'CANCELED');
@@ -166,6 +169,7 @@ CREATE TABLE "payments" (
     "studentId" TEXT NOT NULL,
     "cardId" TEXT,
     "amount" INTEGER NOT NULL,
+    "method" "PaymentMethod" NOT NULL DEFAULT 'TRANSFER',
     "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "payments_pkey" PRIMARY KEY ("id")

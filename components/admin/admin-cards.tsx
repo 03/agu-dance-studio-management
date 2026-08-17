@@ -101,7 +101,7 @@ export function AdminCards({ cardProducts, cashier }: { cardProducts: CardProduc
                 <div>
                   <p className="text-sm font-medium text-card-foreground">{c.studentName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {c.cardName ? (lang === "zh" ? c.cardName.zh : c.cardName.en) : "—"} · {c.paidAt}
+                    {c.cardName ? (lang === "zh" ? c.cardName.zh : c.cardName.en) : "—"} · {t(c.method)} · {c.paidAt}
                   </p>
                 </div>
                 <span className="font-display text-base font-bold text-chart-5">+¥{c.amount.toLocaleString()}</span>

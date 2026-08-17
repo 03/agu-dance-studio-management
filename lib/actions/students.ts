@@ -2,10 +2,10 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { studentStatusKeyToDb } from "@/lib/mappers"
-import type { Student } from "@/lib/types"
+import { studentStatusKeyToDb, paymentMethodToDb } from "@/lib/mappers"
+import type { Student, PaymentMethod } from "@/lib/types"
 
-export async function buyOrRenewCard(studentId: string, productId: string) {
+export async function buyOrRenewCard(studentId: string, productId: string, method: PaymentMethod) {
   await requireRole("ADMIN")
   const product = await prisma.cardProduct.findUniqueOrThrow({ where: { id: productId } })
   const expiry = new Date(Date.now() + product.validityDays * 86_400_000)
@@ -23,7 +23,9 @@ export async function buyOrRenewCard(studentId: string, productId: string) {
         expiry,
       },
     })
-    await tx.payment.create({ data: { studentId, cardId: card.id, amount: product.price, paidAt: new Date() } })
+    await tx.payment.create({
+      data: { studentId, cardId: card.id, amount: product.price, method: paymentMethodToDb(method), paidAt: new Date() },
+    })
   })
 }
 

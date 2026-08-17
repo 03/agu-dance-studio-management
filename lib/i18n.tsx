@@ -107,6 +107,7 @@ export const dict: Dict = {
   "style.kpop": { zh: "韩舞", en: "K-Pop" },
   "style.contemporary": { zh: "现代舞", en: "Contemporary" },
   "style.latin": { zh: "拉丁舞", en: "Latin" },
+  "style.jazzKpop": { zh: "爵士舞/韩舞", en: "Jazz/Kpop" },
 
   // Student nav
   "stu.nav.schedule": { zh: "课表", en: "Schedule" },
@@ -259,6 +260,9 @@ export const dict: Dict = {
   "adm.cards.price": { zh: "价格", en: "Price" },
   "adm.cards.validity": { zh: "有效期", en: "Validity" },
   "adm.cards.sessions": { zh: "课时", en: "Sessions" },
+  "adm.cards.paymentMethod": { zh: "付款方式", en: "Payment method" },
+  "payment.transfer": { zh: "转账", en: "Transfer" },
+  "payment.cash": { zh: "现金", en: "Cash" },
   "adm.cards.noCashier": { zh: "暂无收银记录", en: "No cashier records yet" },
   "adm.cards.deleteDesc": {
     zh: "仅当没有学员持有该卡种的卡包时才能删除",

@@ -45,24 +45,34 @@ async function main() {
   await prisma.room.createMany({
     data: [
       { id: "r1", code: "STU-01", name: "Glen Waverley", nameEn: "Studio Glen Waverley", address: "6D Aristoc Rd, Glen Waverley", postalCode: "3150", notes: "大班课" },
-      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "MC Square / Doncaster Library", postalCode: "3108", notes: "大班课" },
-      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "21 Rooks Rd, Mitcham", postalCode: "3132", notes: "大小教室" },
+      { id: "r2", code: "STU-02", name: "Doncaster", nameEn: "Studio Doncaster", address: "Doncaster Library", postalCode: "3108", notes: "大班课" },
+      { id: "r3", code: "STU-03", name: "Mitcham", nameEn: "Studio Mitcham", address: "21 Rooks Rd, Mitcham", postalCode: "3132", notes: "大班课（成人，少儿）" },
     ],
   })
 
   // ---- Class sessions (fixed demo-week schedule, matches old mock) ----
   await prisma.classSession.createMany({
     data: [
-      { id: "c1", style: "JAZZ", teacherId: "t1", roomId: "r1", day: 0, start: "19:00", end: "20:00", capacity: 12, levelZh: "初级", levelEn: "Beginner" },
-      { id: "c2", style: "HIPHOP", teacherId: "t2", roomId: "r2", day: 0, start: "20:15", end: "21:15", capacity: 15, levelZh: "中级", levelEn: "Intermediate" },
-      { id: "c3", style: "BALLET", teacherId: "t3", roomId: "r3", day: 1, start: "10:00", end: "11:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
-      { id: "c4", style: "KPOP", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "20:30", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
-      { id: "c5", style: "CONTEMPORARY", teacherId: "t3", roomId: "r2", day: 2, start: "19:00", end: "20:30", capacity: 12, levelZh: "进阶", levelEn: "Advanced" },
-      { id: "c6", style: "LATIN", teacherId: "t4", roomId: "r1", day: 3, start: "20:00", end: "21:00", capacity: 14, levelZh: "零基础", levelEn: "Intro" },
-      { id: "c7", style: "HIPHOP", teacherId: "t2", roomId: "r3", day: 4, start: "18:30", end: "19:30", capacity: 15, levelZh: "初级", levelEn: "Beginner" },
-      { id: "c8", style: "JAZZ", teacherId: "t1", roomId: "r2", day: 5, start: "14:00", end: "15:00", capacity: 12, levelZh: "中级", levelEn: "Intermediate" },
-      { id: "c9", style: "KPOP", teacherId: "t1", roomId: "r1", day: 5, start: "16:00", end: "17:00", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
-      { id: "c10", style: "BALLET", teacherId: "t3", roomId: "r3", day: 6, start: "11:00", end: "12:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
+      { id: "c1", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "21:30", capacity: 20, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c2", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r1", day: 3, start: "19:30", end: "21:30", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
+      { id: "c3", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r1", day: 5, start: "19:15", end: "21:15", capacity: 20, levelZh: "入门班", levelEn: "Beginner" },
+      { id: "c4", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r3", day: 6, start: "19:00", end: "21:00", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
+
+      { id: "c5", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r2", day: 2, start: "10:30", end: "12:30", capacity: 20, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c6", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r2", day: 3, start: "10:30", end: "12:30", capacity: 20, levelZh: "入门班", levelEn: "Beginner" },
+      { id: "c7", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r2", day: 4, start: "10:00", end: "12:00", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
+      { id: "c8", style: "JAZZ_KPOP", teacherId: "t1", roomId: "r3", day: 6, start: "11:30", end: "13:00", capacity: 20, levelZh: "少儿（7+）基础班", levelEn: "Teens(7+) Beginner" },
+
+      // { id: "c1", style: "JAZZ", teacherId: "t1", roomId: "r1", day: 0, start: "19:00", end: "20:00", capacity: 12, levelZh: "初级", levelEn: "Beginner" },
+      // { id: "c2", style: "HIPHOP", teacherId: "t2", roomId: "r2", day: 0, start: "20:15", end: "21:15", capacity: 15, levelZh: "中级", levelEn: "Intermediate" },
+      // { id: "c3", style: "BALLET", teacherId: "t3", roomId: "r3", day: 1, start: "10:00", end: "11:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
+      // { id: "c4", style: "KPOP", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "20:30", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
+      // { id: "c5", style: "CONTEMPORARY", teacherId: "t3", roomId: "r2", day: 2, start: "19:00", end: "20:30", capacity: 12, levelZh: "进阶", levelEn: "Advanced" },
+      // { id: "c6", style: "LATIN", teacherId: "t4", roomId: "r1", day: 3, start: "20:00", end: "21:00", capacity: 14, levelZh: "零基础", levelEn: "Intro" },
+      // { id: "c7", style: "HIPHOP", teacherId: "t2", roomId: "r3", day: 4, start: "18:30", end: "19:30", capacity: 15, levelZh: "初级", levelEn: "Beginner" },
+      // { id: "c8", style: "JAZZ", teacherId: "t1", roomId: "r2", day: 5, start: "14:00", end: "15:00", capacity: 12, levelZh: "中级", levelEn: "Intermediate" },
+      // { id: "c9", style: "KPOP", teacherId: "t1", roomId: "r1", day: 5, start: "16:00", end: "17:00", capacity: 16, levelZh: "编舞", levelEn: "Choreo" },
+      // { id: "c10", style: "BALLET", teacherId: "t3", roomId: "r3", day: 6, start: "11:00", end: "12:00", capacity: 10, levelZh: "形体基础", levelEn: "Foundation" },
     ],
   })
 
@@ -70,9 +80,9 @@ async function main() {
   await prisma.cardProduct.createMany({
     data: [
       { id: "p1", type: "TIMES", nameZh: "10 次卡", nameEn: "12-class card", price: 400, sessions: 10, isUnlimited: false, validityDays: 180 },
-      { id: "p2", type: "TIMES", nameZh: "21 次通卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
+      { id: "p2", type: "TIMES", nameZh: "21 次卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
       { id: "p3", type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", price: 3980, sessions: null, isUnlimited: true, validityDays: 90 },
-      { id: "p4", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 99, sessions: 3, isUnlimited: false, validityDays: 30 },
+      { id: "p4", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 40, sessions: 3, isUnlimited: false, validityDays: 30 },
     ],
   })
 
@@ -154,10 +164,10 @@ async function main() {
 
   const products = ["p1", "p2", "p3", "p4"] as const
   const productMeta: Record<(typeof products)[number], { type: "TIMES" | "PERIOD" | "TRIAL"; nameZh: string; nameEn: string; price: number; sessions: number | null; isUnlimited: boolean; validityDays: number }> = {
-    p1: { type: "TIMES", nameZh: "12 次卡", nameEn: "12-class card", price: 1680, sessions: 12, isUnlimited: false, validityDays: 180 },
-    p2: { type: "TIMES", nameZh: "48 次通卡", nameEn: "48-class pack", price: 5760, sessions: 48, isUnlimited: false, validityDays: 365 },
+    p1: { type: "TIMES", nameZh: "10 次卡", nameEn: "12-class card", price: 400, sessions: 10, isUnlimited: false, validityDays: 180 },
+    p2: { type: "TIMES", nameZh: "21 次卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
     p3: { type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", price: 3980, sessions: null, isUnlimited: true, validityDays: 90 },
-    p4: { type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 99, sessions: 3, isUnlimited: false, validityDays: 30 },
+    p4: { type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 40, sessions: 1, isUnlimited: false, validityDays: 30 },
   }
 
   // Each synthetic student buys one card, purchased at a random point in the
@@ -230,8 +240,6 @@ async function main() {
     { id: "c6", count: 6 },
     { id: "c7", count: 15 },
     { id: "c8", count: 6, extra: { studentId: "s1", state: "BOOKED" } }, // s1 booked here too
-    { id: "c9", count: 13 },
-    { id: "c10", count: 5 },
   ]
 
   for (const s of otherSessions) {
@@ -257,6 +265,7 @@ async function main() {
     include: { session: { include: { teacher: true } } },
   })
   const STYLE_LABEL: Record<string, { zh: string; en: string }> = {
+    JAZZ_KPOP: { zh: "爵士舞", en: "Jazz/Kpop" },
     JAZZ: { zh: "爵士舞", en: "Jazz" },
     HIPHOP: { zh: "嘻哈街舞", en: "Hip-Hop" },
     BALLET: { zh: "芭蕾形体", en: "Ballet" },

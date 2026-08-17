@@ -7,6 +7,7 @@
 import type {
   DanceStyle,
   CardType as DbCardType,
+  PaymentMethod as DbPaymentMethod,
   SessionStatus,
   BookingState,
   LedgerKind as DbLedgerKind,
@@ -36,6 +37,7 @@ import type {
   Student,
   CardProduct,
   CashierEntry,
+  PaymentMethod,
   NotificationRule,
   AppUser,
   AppUserRole,
@@ -50,6 +52,7 @@ const STYLE_TO_KEY: Record<DanceStyle, StyleKey> = {
   KPOP: "style.kpop",
   CONTEMPORARY: "style.contemporary",
   LATIN: "style.latin",
+  JAZZ_KPOP: "style.jazzKpop",
 }
 const KEY_TO_STYLE = Object.fromEntries(
   Object.entries(STYLE_TO_KEY).map(([db, key]) => [key, db]),
@@ -69,6 +72,7 @@ const STYLE_LABEL: Record<StyleKey, { zh: string; en: string }> = {
   "style.kpop": { zh: "韩舞", en: "K-Pop" },
   "style.contemporary": { zh: "现代舞", en: "Contemporary" },
   "style.latin": { zh: "拉丁舞", en: "Latin" },
+  "style.jazzKpop": { zh: "爵士舞/韩舞", en: "Jazz/Kpop" },
 }
 export const styleLabel = (key: StyleKey): { zh: string; en: string } => STYLE_LABEL[key]
 
@@ -83,6 +87,17 @@ const KEY_TO_CARD_TYPE = Object.fromEntries(
 
 export const cardTypeToDb = (key: CardType): DbCardType => KEY_TO_CARD_TYPE[key]
 export const cardTypeDbToKey = (type: DbCardType): CardType => CARD_TYPE_TO_KEY[type]
+
+const PAYMENT_METHOD_TO_KEY: Record<DbPaymentMethod, PaymentMethod> = {
+  TRANSFER: "payment.transfer",
+  CASH: "payment.cash",
+}
+const KEY_TO_PAYMENT_METHOD = Object.fromEntries(
+  Object.entries(PAYMENT_METHOD_TO_KEY).map(([db, key]) => [key, db]),
+) as Record<PaymentMethod, DbPaymentMethod>
+
+export const paymentMethodToDb = (key: PaymentMethod): DbPaymentMethod => KEY_TO_PAYMENT_METHOD[key]
+export const paymentMethodDbToKey = (method: DbPaymentMethod): PaymentMethod => PAYMENT_METHOD_TO_KEY[method]
 
 const LEDGER_KIND_TO_KEY: Record<DbLedgerKind, LedgerEntry["kind"]> = {
   CONSUME: "ledger.consume",
@@ -225,6 +240,7 @@ export const mapCashierEntry = (
   studentName: p.student.name,
   cardName: p.card ? { zh: p.card.nameZh, en: p.card.nameEn } : null,
   amount: p.amount,
+  method: paymentMethodDbToKey(p.method),
   paidAt: formatLedgerDate(p.paidAt),
 })
 

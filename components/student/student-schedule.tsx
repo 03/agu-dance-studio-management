@@ -25,6 +25,7 @@ const styleKeys: StyleKey[] = [
   "style.kpop",
   "style.contemporary",
   "style.latin",
+  "style.jazzKpop",
 ]
 
 export function StudentSchedule({
