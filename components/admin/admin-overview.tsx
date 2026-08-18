@@ -3,12 +3,19 @@
 import { useLanguage } from "@/lib/i18n"
 import { styleColors } from "@/lib/types"
 import { StyleDot } from "@/components/shared/style-dot"
+import { CashFlowChart } from "./cash-flow-chart"
 import { TrendingUp, Flame, Users, UserCheck } from "lucide-react"
-import type { AdminAppData } from "@/lib/data"
+import type { AdminAppData, YearlyCashFlow } from "@/lib/data"
 
-export function AdminOverview({ admin }: { admin: AdminAppData["admin"] }) {
-  const { t, lang } = useLanguage()
-  const { kpis: adminKpis, cashFlow, consumptionByStyle } = admin
+export function AdminOverview({
+  admin,
+  cashFlow,
+}: {
+  admin: AdminAppData["admin"]
+  cashFlow: YearlyCashFlow
+}) {
+  const { t } = useLanguage()
+  const { kpis: adminKpis, consumptionByStyle } = admin
 
   const kpis = [
     { key: "adm.kpi.revenue", value: `$${adminKpis.revenue.toLocaleString()}`, delta: "+12%", Icon: TrendingUp },
@@ -17,7 +24,6 @@ export function AdminOverview({ admin }: { admin: AdminAppData["admin"] }) {
     { key: "adm.kpi.activeStudents", value: adminKpis.activeStudents.toLocaleString(), delta: "+3%", Icon: Users },
   ]
 
-  const maxCash = Math.max(1, ...cashFlow.map((c) => c.value))
   const totalConsumption = Math.max(1, consumptionByStyle.reduce((a, b) => a + b.value, 0))
 
   return (
@@ -43,21 +49,7 @@ export function AdminOverview({ admin }: { admin: AdminAppData["admin"] }) {
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Cash flow bar chart */}
         <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-3">
-          <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.chart.cashflow")}</h2>
-          <div className="mt-6 flex h-52 items-end justify-between gap-3">
-            {cashFlow.map((c) => (
-              <div key={c.month} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  {Math.round(c.value / 1000)}k
-                </span>
-                <div
-                  className="w-full rounded-t-lg bg-primary transition-all"
-                  style={{ height: `${(c.value / maxCash) * 160}px` }}
-                />
-                <span className="text-[11px] text-muted-foreground">{lang === "zh" ? c.month : c.en}</span>
-              </div>
-            ))}
-          </div>
+          <CashFlowChart initial={cashFlow} />
         </div>
 
         {/* Consumption by style */}

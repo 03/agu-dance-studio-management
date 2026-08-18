@@ -148,29 +148,6 @@ CREATE TABLE "ledger_entries" (
 );
 
 -- CreateTable
-CREATE TABLE "notification_rules" (
-    "id" TEXT NOT NULL,
-    "key" TEXT NOT NULL,
-    "channelZh" TEXT NOT NULL,
-    "channelEn" TEXT NOT NULL,
-    "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "sampleZh" TEXT NOT NULL,
-    "sampleEn" TEXT NOT NULL,
-
-    CONSTRAINT "notification_rules_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "teacher_stats" (
-    "id" TEXT NOT NULL,
-    "teacherId" TEXT NOT NULL,
-    "heads" INTEGER NOT NULL,
-    "commission" INTEGER NOT NULL,
-
-    CONSTRAINT "teacher_stats_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "payments" (
     "id" TEXT NOT NULL,
     "studentId" TEXT NOT NULL,
@@ -227,12 +204,6 @@ CREATE UNIQUE INDEX "bookings_studentId_sessionId_date_key" ON "bookings"("stude
 CREATE UNIQUE INDEX "ledger_entries_bookingId_key" ON "ledger_entries"("bookingId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "notification_rules_key_key" ON "notification_rules"("key");
-
--- CreateIndex
-CREATE UNIQUE INDEX "teacher_stats_teacherId_key" ON "teacher_stats"("teacherId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
@@ -270,9 +241,6 @@ ALTER TABLE "ledger_entries" ADD CONSTRAINT "ledger_entries_cardId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "ledger_entries" ADD CONSTRAINT "ledger_entries_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "teacher_stats" ADD CONSTRAINT "teacher_stats_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "teachers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "payments" ADD CONSTRAINT "payments_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

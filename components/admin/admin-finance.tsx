@@ -4,19 +4,21 @@ import { useLanguage } from "@/lib/i18n"
 import { styleColors } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { StyleDot } from "@/components/shared/style-dot"
-import type { AdminAppData } from "@/lib/data"
+import { CashFlowChart } from "./cash-flow-chart"
+import type { AdminAppData, YearlyCashFlow } from "@/lib/data"
 
 export function AdminFinance({
   admin,
   teachers,
+  cashFlow,
 }: {
   admin: AdminAppData["admin"]
   teachers: AdminAppData["teachers"]
+  cashFlow: YearlyCashFlow
 }) {
   const { t, lang } = useLanguage()
-  const { cashFlow, consumptionByStyle, teacherStats } = admin
+  const { consumptionByStyle, teacherStats } = admin
 
-  const maxFlow = Math.max(1, ...cashFlow.map((c) => c.value))
   const totalConsumption = Math.max(1, consumptionByStyle.reduce((s, c) => s + c.value, 0))
   const maxHeads = Math.max(1, ...teacherStats.map((s) => s.heads))
 
@@ -28,22 +30,7 @@ export function AdminFinance({
 
       {/* Cash flow bar chart */}
       <Card className="p-6">
-        <h3 className="mb-6 text-sm font-medium text-muted-foreground">{t("adm.chart.cashflow")}</h3>
-        <div className="flex items-end justify-between gap-3" style={{ height: 200 }}>
-          {cashFlow.map((c) => (
-            <div key={c.month} className="flex flex-1 flex-col items-center gap-2">
-              <span className="text-xs font-medium text-foreground">
-                {t("unit.currency")}
-                {(c.value / 1000).toFixed(0)}k
-              </span>
-              <div
-                className="w-full rounded-t-md bg-primary transition-all"
-                style={{ height: `${(c.value / maxFlow) * 150}px` }}
-              />
-              <span className="text-xs text-muted-foreground">{lang === "zh" ? c.month : c.en}</span>
-            </div>
-          ))}
-        </div>
+        <CashFlowChart initial={cashFlow} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -87,8 +74,7 @@ export function AdminFinance({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-foreground">{lang === "zh" ? teacher.name : teacher.nameEn}</span>
                     <span className="text-muted-foreground">
-                      {s.heads} {t("unit.people")} · {t("unit.currency")}
-                      {s.commission.toLocaleString()}
+                      {s.heads} {t("unit.people")}
                     </span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">

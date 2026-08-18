@@ -10,7 +10,6 @@ import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
 import { AdminFinance } from "./admin-finance"
 import { AdminSessionStats } from "./admin-session-stats"
-import { AdminNotifications } from "./admin-notifications"
 import { AdminUsers } from "./admin-users"
 import { AdminBackup } from "./admin-backup"
 import {
@@ -21,7 +20,6 @@ import {
   CreditCard,
   LineChart,
   BarChart3,
-  Bell,
   ShieldCheck,
   DatabaseBackup,
   ChevronLeft,
@@ -37,7 +35,6 @@ type Section =
   | "cards"
   | "finance"
   | "sessionStats"
-  | "notifications"
   | "users"
   | "backup"
 
@@ -49,7 +46,6 @@ const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = 
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
   { key: "finance", labelKey: "adm.nav.finance", Icon: LineChart },
   { key: "sessionStats", labelKey: "adm.nav.sessionStats", Icon: BarChart3 },
-  { key: "notifications", labelKey: "adm.nav.notifications", Icon: Bell },
   { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
   { key: "backup", labelKey: "adm.nav.backup", Icon: DatabaseBackup },
 ]
@@ -117,7 +113,7 @@ export function AdminApp({
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          {section === "overview" && <AdminOverview admin={data.admin} />}
+          {section === "overview" && <AdminOverview admin={data.admin} cashFlow={data.cashFlow} />}
           {section === "schedule" && (
             <AdminScheduling teachers={data.teachers} rooms={data.rooms} sessions={data.sessions} />
           )}
@@ -126,9 +122,10 @@ export function AdminApp({
             <AdminStudents students={data.students} cardProducts={data.cardProducts} />
           )}
           {section === "cards" && <AdminCards cardProducts={data.cardProducts} cashier={data.cashier} />}
-          {section === "finance" && <AdminFinance admin={data.admin} teachers={data.teachers} />}
+          {section === "finance" && (
+            <AdminFinance admin={data.admin} teachers={data.teachers} cashFlow={data.cashFlow} />
+          )}
           {section === "sessionStats" && <AdminSessionStats initial={data.sessionStats} />}
-          {section === "notifications" && <AdminNotifications notificationRules={data.notificationRules} />}
           {section === "users" && <AdminUsers users={data.users} />}
           {section === "backup" && <AdminBackup backupRecords={data.backupRecords} />}
         </main>

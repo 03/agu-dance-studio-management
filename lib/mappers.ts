@@ -22,7 +22,6 @@ import type {
   CardProduct as DbCardProduct,
   LedgerEntry as DbLedgerEntry,
   Payment as DbPayment,
-  NotificationRule as DbNotificationRule,
   User as DbUser,
   BackupRecord as DbBackupRecord,
 } from "@/lib/generated/prisma/client"
@@ -41,7 +40,6 @@ import type {
   CardProduct,
   CashierEntry,
   PaymentMethod,
-  NotificationRule,
   AppUser,
   AppUserRole,
   BackupRecordEntry,
@@ -256,14 +254,6 @@ export const mapCashierEntry = (
   amount: p.amount,
   method: paymentMethodDbToKey(p.method),
   paidAt: formatLedgerDate(p.paidAt),
-})
-
-export const mapNotificationRule = (n: DbNotificationRule): NotificationRule => ({
-  id: n.id,
-  key: n.key,
-  channel: { zh: n.channelZh, en: n.channelEn },
-  enabled: n.enabled,
-  sample: { zh: n.sampleZh, en: n.sampleEn },
 })
 
 export function mapUser(u: DbUser & { student: { name: string } | null; teacher: { name: string } | null }): AppUser {

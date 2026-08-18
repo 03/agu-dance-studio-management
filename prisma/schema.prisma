@@ -77,7 +77,6 @@ model Teacher {
   avatar   String
   styles   DanceStyle[]
   sessions ClassSession[]
-  stats    TeacherStat?
   user     User?
 
   @@map("teachers")
@@ -118,10 +117,10 @@ model ClassSession {
 model Student {
   id            String        @id @default(cuid())
   name          String
-  phone         String
+  phone         String?
   wechat        String?
   email         String?
-  code          String? // admin-facing student/member code, distinct from the internal id
+  code          String // admin-facing student/member code, distinct from the internal id
   joined        String // display label, e.g. "2024-06"
   status        StudentStatus @default(ACTIVE)
   cards         StudentCard[]
@@ -205,32 +204,6 @@ model LedgerEntry {
   noteEn    String?
 
   @@map("ledger_entries")
-}
-
-model NotificationRule {
-  id        String  @id @default(cuid())
-  key       String  @unique
-  channelZh String
-  channelEn String
-  enabled   Boolean @default(true)
-  sampleZh  String
-  sampleEn  String
-
-  @@map("notification_rules")
-}
-
-// Denormalized per-teacher rollup (heads, commission) shown on the admin
-// finance dashboard. Kept as its own table rather than computed on the fly
-// so it can be recalculated on a schedule instead of aggregating Booking/
-// LedgerEntry on every page load.
-model TeacherStat {
-  id         String  @id @default(cuid())
-  teacher    Teacher @relation(fields: [teacherId], references: [id])
-  teacherId  String  @unique
-  heads      Int
-  commission Int
-
-  @@map("teacher_stats")
 }
 
 // Money actually paid by a student (card purchase/top-up). Needed because

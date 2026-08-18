@@ -159,14 +159,6 @@ export type CashierEntry = {
 // Roster for teacher roll-call view
 export type RosterEntry = { id: string; name: string; checkedIn: boolean; proxy?: boolean }
 
-export type NotificationRule = {
-  id: string
-  key: string
-  channel: { zh: string; en: string }
-  enabled: boolean
-  sample: { zh: string; en: string }
-}
-
 export const weekdayKeys = ["day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"]
 
 export type AppUserRole = "student" | "teacher" | "admin"

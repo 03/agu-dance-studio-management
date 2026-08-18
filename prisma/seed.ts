@@ -52,9 +52,9 @@ async function main() {
   await prisma.teacher.createMany({
     data: [
       { id: "t1", name: "阿古", nameEn: "Agu", avatar: "/teacher-agu.jpg", styles: ["JAZZ", "KPOP"] },
-      { id: "t2", name: "陈曜", nameEn: "Yao Chen", avatar: "/teacher-yao.jpg", styles: ["HIPHOP"] },
-      { id: "t3", name: "苏晴", nameEn: "Qing Su", avatar: "/teacher-qing.jpg", styles: ["BALLET", "CONTEMPORARY"] },
-      { id: "t4", name: "Marco", nameEn: "Marco", avatar: "/teacher-marco.jpg", styles: ["LATIN"] },
+      // { id: "t2", name: "陈曜", nameEn: "Yao Chen", avatar: "/teacher-yao.jpg", styles: ["HIPHOP"] },
+      // { id: "t3", name: "苏晴", nameEn: "Qing Su", avatar: "/teacher-qing.jpg", styles: ["BALLET", "CONTEMPORARY"] },
+      // { id: "t4", name: "Marco", nameEn: "Marco", avatar: "/teacher-marco.jpg", styles: ["LATIN"] },
     ],
   })
   await prisma.room.createMany({
@@ -91,39 +91,16 @@ async function main() {
     ],
   })
 
-  // ---- Card products (on sale) ----
+  // ---- Card products ----
   await prisma.cardProduct.createMany({
     data: [
       { id: "p1", type: "TIMES", nameZh: "10 次卡", nameEn: "12-class card", price: 400, sessions: 10, isUnlimited: false, validityDays: 180 },
       { id: "p2", type: "TIMES", nameZh: "21 次卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
-      { id: "p3", type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", price: 3980, sessions: null, isUnlimited: true, validityDays: 90 },
-      { id: "p4", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 40, sessions: 3, isUnlimited: false, validityDays: 30 },
+      { id: "p3", type: "TRIAL", nameZh: "体验卡", nameEn: "Trial card", price: 40, sessions: 1, isUnlimited: false, validityDays: 30 },
     ],
   })
 
-  // ---- Notification rules ----
-  await prisma.notificationRule.createMany({
-    data: [
-      { id: "n1", key: "notif.bookSuccess", channelZh: "微信 · 短信", channelEn: "WeChat · SMS", enabled: true, sampleZh: "您已成功预约 12/09 19:00 爵士舞（林薇）", sampleEn: "Booked: Jazz w/ Wei Lin, Dec 9 19:00" },
-      { id: "n2", key: "notif.waitlistSuccess", channelZh: "微信", channelEn: "WeChat", enabled: true, sampleZh: "候补成功！12/09 20:15 嘻哈街舞 已为您占位", sampleEn: "Promoted from waitlist: Hip-Hop, Dec 9 20:15" },
-      { id: "n3", key: "notif.classReminder", channelZh: "微信 · 推送", channelEn: "WeChat · Push", enabled: true, sampleZh: "距离上课还有 2 小时，记得提前到场热身～", sampleEn: "Class in 2 hours — arrive early to warm up." },
-      { id: "n4", key: "notif.lowBalance", channelZh: "短信", channelEn: "SMS", enabled: true, sampleZh: "您的次卡仅剩 2 节，续费享 9 折", sampleEn: "Only 2 classes left — renew for 10% off." },
-      { id: "n5", key: "notif.expiring", channelZh: "微信", channelEn: "WeChat", enabled: false, sampleZh: "体验卡将于 12/25 到期，别浪费额度哦", sampleEn: "Trial card expires Dec 25 — use it up!" },
-    ],
-  })
-
-  // ---- Teacher stats (fixed rollup, not recomputed live) ----
-  await prisma.teacherStat.createMany({
-    data: [
-      { teacherId: "t1", heads: 412, commission: 12360 },
-      { teacherId: "t2", heads: 286, commission: 8580 },
-      { teacherId: "t3", heads: 244, commission: 7320 },
-      { teacherId: "t4", heads: 118, commission: 3540 },
-    ],
-  })
-
-  // ---- Named students (s1-s6 from the old mock table, s7-s9 previously
-  // roster-only names with no backing Student row at all) ----
+  // ---- Named students ----
   await prisma.student.createMany({
     data: [
       { id: "s1", name: "王梓涵", phone: "138****2201", code: "M0001", joined: "2024-06", status: "ACTIVE" },
@@ -144,7 +121,7 @@ async function main() {
     data: [
       { id: "sc1", studentId: "s1", productId: "p2", type: "TIMES", nameZh: "48 次通卡", nameEn: "48-class pack", balance: 21, isUnlimited: false, total: 48, expiry: daysFromNow(234) },
       { id: "sc2", studentId: "s1", productId: "p3", type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", balance: null, isUnlimited: true, total: null, expiry: daysFromNow(158) },
-      { id: "sc3", studentId: "s1", productId: "p4", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", balance: 1, isUnlimited: false, total: 3, expiry: daysFromNow(15) },
+      { id: "sc3", studentId: "s1", productId: "p3", type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", balance: 1, isUnlimited: false, total: 3, expiry: daysFromNow(15) },
     ],
   })
   await prisma.ledgerEntry.createMany({
@@ -177,12 +154,11 @@ async function main() {
     })),
   })
 
-  const products = ["p1", "p2", "p3", "p4"] as const
+  const products = ["p1", "p2", "p3"] as const
   const productMeta: Record<(typeof products)[number], { type: "TIMES" | "PERIOD" | "TRIAL"; nameZh: string; nameEn: string; price: number; sessions: number | null; isUnlimited: boolean; validityDays: number }> = {
     p1: { type: "TIMES", nameZh: "10 次卡", nameEn: "12-class card", price: 400, sessions: 10, isUnlimited: false, validityDays: 180 },
     p2: { type: "TIMES", nameZh: "21 次卡", nameEn: "48-class pack", price: 800, sessions: 21, isUnlimited: false, validityDays: 365 },
-    p3: { type: "PERIOD", nameZh: "季度不限卡", nameEn: "Quarterly unlimited", price: 3980, sessions: null, isUnlimited: true, validityDays: 90 },
-    p4: { type: "TRIAL", nameZh: "新人体验卡", nameEn: "Trial card", price: 40, sessions: 1, isUnlimited: false, validityDays: 30 },
+    p3: { type: "TRIAL", nameZh: "体验卡", nameEn: "Trial card", price: 40, sessions: 1, isUnlimited: false, validityDays: 30 },
   }
 
   // Each synthetic student buys one card, purchased at a random point in the
@@ -263,7 +239,17 @@ async function main() {
     const pool = shuffledPool(s.count)
     const chosen = pool.slice(0, Math.min(s.count, pool.length))
     await prisma.booking.createMany({
-      data: chosen.map((studentId) => ({ studentId, sessionId: s.id, date: occurrenceDate, state: "BOOKED" as const })),
+      // checkedIn is randomized (not just left at the default false) so
+      // the admin finance page's "教师上课人次" chart — computed live from
+      // real checked-in bookings — has a realistic spread across teachers
+      // instead of only ever showing whichever teacher owns c1.
+      data: chosen.map((studentId) => ({
+        studentId,
+        sessionId: s.id,
+        date: occurrenceDate,
+        state: "BOOKED" as const,
+        checkedIn: rand() > 0.35,
+      })),
     })
     if (s.extra) {
       await prisma.booking.create({
@@ -325,7 +311,6 @@ async function main() {
       { username: "wangzihan", passwordHash: demoPasswordHash, role: "STUDENT", studentId: "s1" },
       { username: "zhaomin", passwordHash: demoPasswordHash, role: "STUDENT", studentId: "s2" },
       { username: "linwei", passwordHash: demoPasswordHash, role: "TEACHER", teacherId: "t1" },
-      { username: "chenyao", passwordHash: demoPasswordHash, role: "TEACHER", teacherId: "t2" },
     ],
   })
 

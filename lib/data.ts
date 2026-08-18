@@ -9,7 +9,6 @@ import {
   mapLedgerEntry,
   mapCardProduct,
   mapCashierEntry,
-  mapNotificationRule,
   mapUser,
   mapBackupRecord,
   mapUpcomingBooking,
@@ -43,16 +42,6 @@ export function buildOccurrences(
     if (forStudentId && b.studentId === forStudentId) entry.myState = bookingStateToMyState(b.state)
   }
   return Array.from(map.values())
-}
-
-function lastNMonthRanges(n: number, now = new Date()) {
-  const ranges: { start: Date; end: Date; month: string; en: string }[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-    ranges.push({ start, end, month: `${start.getMonth() + 1}月`, en: MONTH_EN[start.getMonth()] })
-  }
-  return ranges
 }
 
 function startOfMonth(now = new Date()) {
@@ -194,9 +183,7 @@ export async function getAdminAppData() {
     rooms,
     sessionsRaw,
     cardProducts,
-    notificationRules,
     studentsRaw,
-    teacherStatsRaw,
     usersRaw,
     cashierRaw,
     backupRecordsRaw,
@@ -205,7 +192,6 @@ export async function getAdminAppData() {
       prisma.room.findMany({ orderBy: { id: "asc" } }),
       prisma.classSession.findMany({ orderBy: [{ day: "asc" }, { start: "asc" }] }),
       prisma.cardProduct.findMany({ orderBy: { id: "asc" } }),
-      prisma.notificationRule.findMany({ orderBy: { id: "asc" } }),
       prisma.student.findMany({
         include: {
           cards: true,
@@ -213,7 +199,6 @@ export async function getAdminAppData() {
         },
         orderBy: { id: "asc" },
       }),
-      prisma.teacherStat.findMany(),
       prisma.user.findMany({
         include: { student: { select: { name: true } }, teacher: { select: { name: true } } },
         orderBy: { createdAt: "asc" },
@@ -226,9 +211,10 @@ export async function getAdminAppData() {
       prisma.backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     ])
 
-  const [admin, sessionStats] = await Promise.all([
-    getAdminAnalytics(teacherStatsRaw),
+  const [admin, sessionStats, cashFlow] = await Promise.all([
+    getAdminAnalytics(),
     getYearlyStyleStats(new Date().getFullYear()),
+    getYearlyCashFlow(new Date().getFullYear()),
   ])
 
   return {
@@ -237,13 +223,13 @@ export async function getAdminAppData() {
     studios: rooms.map(mapStudio),
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     cardProducts: cardProducts.map(mapCardProduct),
-    notificationRules: notificationRules.map(mapNotificationRule),
     students: studentsRaw.map((s) => mapStudent(s, { includeCardDetails: true, includeUsageHistory: true })),
     users: usersRaw.map(mapUser),
     cashier: cashierRaw.map(mapCashierEntry),
     backupRecords: backupRecordsRaw.map(mapBackupRecord),
     admin,
     sessionStats,
+    cashFlow,
   }
 }
 
@@ -286,31 +272,43 @@ export async function getYearlyStyleStats(year: number) {
 
 export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
 
-async function getAdminAnalytics(teacherStatsRaw: { teacherId: string; heads: number; commission: number }[]) {
-  const monthRanges = lastNMonthRanges(6)
-  const rangeStart = monthRanges[0].start
+// Full-year, per-month cash flow (sum of real Payment.amount rows) — backs
+// the admin finance page's cash flow chart with the same on-demand
+// year-navigation pattern as getYearlyStyleStats/getSessionStatsForYear.
+export async function getYearlyCashFlow(year: number) {
+  const start = new Date(year, 0, 1)
+  const end = new Date(year + 1, 0, 1)
+  const [payments, earliest] = await Promise.all([
+    prisma.payment.findMany({ where: { paidAt: { gte: start, lt: end } }, select: { amount: true, paidAt: true } }),
+    prisma.payment.aggregate({ _min: { paidAt: true } }),
+  ])
 
-  const [payments, consumeEntries, checkedInCount, activeStudents, monthConsumed] = await Promise.all([
-    prisma.payment.findMany({ where: { paidAt: { gte: rangeStart } }, select: { amount: true, paidAt: true } }),
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: `${i + 1}月`, en: MONTH_EN[i], value: 0 }))
+  for (const p of payments) {
+    months[p.paidAt.getMonth()].value += p.amount
+  }
+
+  const minYear = earliest._min.paidAt ? earliest._min.paidAt.getFullYear() : year
+  const maxYear = new Date().getFullYear()
+  return { year, months, minYear, maxYear }
+}
+
+export type YearlyCashFlow = Awaited<ReturnType<typeof getYearlyCashFlow>>
+
+async function getAdminAnalytics() {
+  const [thisMonthPayments, consumeEntries, checkedInBookings, activeStudents, monthConsumed] = await Promise.all([
+    prisma.payment.findMany({ where: { paidAt: { gte: startOfMonth() } }, select: { amount: true } }),
     prisma.ledgerEntry.findMany({
       where: { kind: "CONSUME" },
       select: { delta: true, booking: { select: { session: { select: { style: true } } } } },
     }),
-    prisma.booking.count({ where: { checkedIn: true } }),
+    prisma.booking.findMany({ where: { checkedIn: true }, select: { session: { select: { teacherId: true } } } }),
     prisma.student.count({ where: { status: "ACTIVE" } }),
     prisma.ledgerEntry.aggregate({
       where: { kind: "CONSUME", date: { gte: startOfMonth() } },
       _sum: { delta: true },
     }),
   ])
-
-  const cashFlow = monthRanges.map(({ start, end, month, en }) => ({
-    month,
-    en,
-    value: payments
-      .filter((p) => p.paidAt >= start && p.paidAt < end)
-      .reduce((sum, p) => sum + p.amount, 0),
-  }))
 
   const consumptionMap = new Map<StyleKey, number>()
   for (const entry of consumeEntries) {
@@ -323,17 +321,23 @@ async function getAdminAnalytics(teacherStatsRaw: { teacherId: string; heads: nu
     .map(([style, value]) => ({ style, value }))
     .sort((a, b) => b.value - a.value)
 
-  const thisMonthPayments = payments.filter((p) => p.paidAt >= startOfMonth())
   const kpis = {
     revenue: thisMonthPayments.reduce((sum, p) => sum + p.amount, 0),
     consumed: Math.abs(monthConsumed._sum.delta ?? 0),
-    headcount: checkedInCount,
+    headcount: checkedInBookings.length,
     activeStudents,
   }
 
-  const teacherStats = teacherStatsRaw.map((t) => ({ teacherId: t.teacherId, heads: t.heads, commission: t.commission }))
+  const headsMap = new Map<string, number>()
+  for (const b of checkedInBookings) {
+    const teacherId = b.session.teacherId
+    headsMap.set(teacherId, (headsMap.get(teacherId) ?? 0) + 1)
+  }
+  const teacherStats = Array.from(headsMap.entries())
+    .map(([teacherId, heads]) => ({ teacherId, heads }))
+    .sort((a, b) => b.heads - a.heads)
 
-  return { kpis, cashFlow, consumptionByStyle, teacherStats }
+  return { kpis, consumptionByStyle, teacherStats }
 }
 
 export type StudentAppData = Awaited<ReturnType<typeof getStudentAppData>>
