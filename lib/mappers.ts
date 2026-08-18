@@ -24,6 +24,7 @@ import type {
   Payment as DbPayment,
   NotificationRule as DbNotificationRule,
   User as DbUser,
+  BackupRecord as DbBackupRecord,
 } from "@/lib/generated/prisma/client"
 import type {
   StyleKey,
@@ -43,6 +44,7 @@ import type {
   NotificationRule,
   AppUser,
   AppUserRole,
+  BackupRecordEntry,
 } from "@/lib/types"
 import { toISODate } from "@/lib/schedule-dates"
 
@@ -272,6 +274,18 @@ export function mapUser(u: DbUser & { student: { name: string } | null; teacher:
     linkedName: u.student?.name ?? u.teacher?.name ?? null,
     mustChangePassword: u.mustChangePassword,
     createdAt: formatDateISO(u.createdAt),
+  }
+}
+
+export function mapBackupRecord(r: DbBackupRecord): BackupRecordEntry {
+  return {
+    id: r.id,
+    action: r.action === "BACKUP" ? "backup" : "restore",
+    filename: r.filename,
+    status: r.status === "SUCCESS" ? "success" : "failed",
+    message: r.message,
+    createdBy: r.createdBy,
+    createdAt: formatLedgerDate(r.createdAt),
   }
 }
 

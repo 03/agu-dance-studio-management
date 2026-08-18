@@ -278,3 +278,27 @@ model Session {
 
   @@map("sessions")
 }
+
+enum BackupAction {
+  BACKUP
+  RESTORE
+}
+
+enum BackupStatus {
+  SUCCESS
+  FAILED
+}
+
+// Audit log for the admin 备份/还原 feature (lib/backup.ts) — never itself
+// touched by a restore, so the log survives the operation it's recording.
+model BackupRecord {
+  id        String       @id @default(cuid())
+  action    BackupAction
+  filename  String
+  status    BackupStatus
+  message   String?
+  createdBy String
+  createdAt DateTime     @default(now())
+
+  @@map("backup_records")
+}

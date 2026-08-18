@@ -11,6 +11,7 @@ import {
   mapCashierEntry,
   mapNotificationRule,
   mapUser,
+  mapBackupRecord,
   mapUpcomingBooking,
   styleDbToKey,
   bookingStateToMyState,
@@ -188,8 +189,18 @@ export async function getTeacherAppData(teacherId: string) {
 // Everything the admin app needs — the only role that legitimately sees
 // every student's PII, all payments/financials, and the account list.
 export async function getAdminAppData() {
-  const [teachers, rooms, sessionsRaw, cardProducts, notificationRules, studentsRaw, teacherStatsRaw, usersRaw, cashierRaw] =
-    await Promise.all([
+  const [
+    teachers,
+    rooms,
+    sessionsRaw,
+    cardProducts,
+    notificationRules,
+    studentsRaw,
+    teacherStatsRaw,
+    usersRaw,
+    cashierRaw,
+    backupRecordsRaw,
+  ] = await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
       prisma.classSession.findMany({ orderBy: [{ day: "asc" }, { start: "asc" }] }),
@@ -212,6 +223,7 @@ export async function getAdminAppData() {
         orderBy: { paidAt: "desc" },
         take: 20,
       }),
+      prisma.backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     ])
 
   const [admin, sessionStats] = await Promise.all([
@@ -229,6 +241,7 @@ export async function getAdminAppData() {
     students: studentsRaw.map((s) => mapStudent(s, { includeCardDetails: true, includeUsageHistory: true })),
     users: usersRaw.map(mapUser),
     cashier: cashierRaw.map(mapCashierEntry),
+    backupRecords: backupRecordsRaw.map(mapBackupRecord),
     admin,
     sessionStats,
   }

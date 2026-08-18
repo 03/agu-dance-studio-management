@@ -72,6 +72,18 @@ export async function bookClass(sessionId: string, date: string) {
   })
 }
 
+// Names only, in the order students joined — matches the "接龙" (group
+// sign-up chain) mental model students already have from chat groups.
+export async function getBookedNamesForSession(sessionId: string, date: string): Promise<string[]> {
+  await requireRole("STUDENT")
+  const bookings = await prisma.booking.findMany({
+    where: { sessionId, date: parseISODate(date), state: { in: ["BOOKED", "WAITLIST"] } },
+    include: { student: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  })
+  return bookings.map((b) => b.student.name)
+}
+
 export async function cancelBooking(sessionId: string, date: string) {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) throw new Error("NO_LINKED_STUDENT")

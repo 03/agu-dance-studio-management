@@ -12,6 +12,7 @@ import { AdminFinance } from "./admin-finance"
 import { AdminSessionStats } from "./admin-session-stats"
 import { AdminNotifications } from "./admin-notifications"
 import { AdminUsers } from "./admin-users"
+import { AdminBackup } from "./admin-backup"
 import {
   LayoutDashboard,
   CalendarRange,
@@ -22,6 +23,7 @@ import {
   BarChart3,
   Bell,
   ShieldCheck,
+  DatabaseBackup,
   ChevronLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -37,6 +39,7 @@ type Section =
   | "sessionStats"
   | "notifications"
   | "users"
+  | "backup"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
@@ -48,6 +51,7 @@ const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = 
   { key: "sessionStats", labelKey: "adm.nav.sessionStats", Icon: BarChart3 },
   { key: "notifications", labelKey: "adm.nav.notifications", Icon: Bell },
   { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
+  { key: "backup", labelKey: "adm.nav.backup", Icon: DatabaseBackup },
 ]
 
 export function AdminApp({
@@ -126,6 +130,7 @@ export function AdminApp({
           {section === "sessionStats" && <AdminSessionStats initial={data.sessionStats} />}
           {section === "notifications" && <AdminNotifications notificationRules={data.notificationRules} />}
           {section === "users" && <AdminUsers users={data.users} />}
+          {section === "backup" && <AdminBackup backupRecords={data.backupRecords} />}
         </main>
       </div>
     </div>

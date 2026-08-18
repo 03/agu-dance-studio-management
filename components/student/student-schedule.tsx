@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type ClassSession, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
-import { bookClass, cancelBooking } from "@/lib/actions/bookings"
+import { bookClass, cancelBooking, getBookedNamesForSession } from "@/lib/actions/bookings"
 import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Clock, MapPin, Users } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Clock, MapPin, Users, ListOrdered } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const styleKeys: StyleKey[] = [
@@ -45,6 +46,9 @@ export function StudentSchedule({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [styleFilter, setStyleFilter] = useState<string>("all")
   const [teacherFilter, setTeacherFilter] = useState<string>("all")
+  const [rosterSessionId, setRosterSessionId] = useState<string | null>(null)
+  const [rosterNames, setRosterNames] = useState<string[]>([])
+  const [rosterLoading, setRosterLoading] = useState(false)
 
   // Browsable window: the 2 days before today through the next 2 weeks
   // (today counted as day 1 of those two weeks) — 16 real calendar dates
@@ -102,6 +106,15 @@ export function StudentSchedule({
   const roomName = (id: string) => {
     const r = rooms.find((x) => x.id === id)
     return r ? (lang === "zh" ? r.name : r.nameEn) : ""
+  }
+
+  const openRoster = (sessionId: string) => {
+    setRosterSessionId(sessionId)
+    setRosterLoading(true)
+    getBookedNamesForSession(sessionId, selectedDateISO).then((names) => {
+      setRosterNames(names)
+      setRosterLoading(false)
+    })
   }
 
   const toggle = (s: ClassSession & { myState: Occurrence["myState"] }) => {
@@ -244,34 +257,66 @@ export function StudentSchedule({
                   </p>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant={
-                    st === "booked"
-                      ? "secondary"
-                      : st === "waitlist"
-                        ? "outline"
-                        : isFull
+                <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+                  <Button
+                    size="sm"
+                    variant={
+                      st === "booked"
+                        ? "secondary"
+                        : st === "waitlist"
                           ? "outline"
-                          : "default"
-                  }
-                  className="shrink-0"
-                  disabled={isPastDay || (isPending && pendingId === s.id)}
-                  onClick={() => toggle(s)}
-                >
-                  {st === "booked"
-                    ? t("common.booked")
-                    : st === "waitlist"
-                      ? t("common.onWaitlist")
-                      : isFull
-                        ? t("common.waitlist")
-                        : t("common.book")}
-                </Button>
+                          : isFull
+                            ? "outline"
+                            : "default"
+                    }
+                    disabled={isPastDay || (isPending && pendingId === s.id)}
+                    onClick={() => toggle(s)}
+                  >
+                    {st === "booked"
+                      ? t("common.booked")
+                      : st === "waitlist"
+                        ? t("common.onWaitlist")
+                        : isFull
+                          ? t("common.waitlist")
+                          : t("common.book")}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="gap-1" onClick={() => openRoster(s.id)}>
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    {t("stu.roster.button")}
+                  </Button>
+                </div>
               </div>
             </li>
           )
         })}
       </ul>
+
+      <Dialog open={rosterSessionId !== null} onOpenChange={(open) => !open && setRosterSessionId(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display">{t("stu.roster.title")}</DialogTitle>
+          </DialogHeader>
+          {rosterLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}…</p>
+          ) : rosterNames.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("stu.roster.empty")}</p>
+          ) : (
+            <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto py-1">
+              {rosterNames.map((name, i) => (
+                <li
+                  key={`${name}-${i}`}
+                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-card-foreground"
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-secondary-foreground">
+                    {i + 1}
+                  </span>
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

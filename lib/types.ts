@@ -179,3 +179,14 @@ export type AppUser = {
   mustChangePassword: boolean
   createdAt: string // display date, e.g. "2026-08-14"
 }
+
+// One row of the 备份/还原 audit log (lib/backup.ts, app/api/admin/{backup,restore}).
+export type BackupRecordEntry = {
+  id: string
+  action: "backup" | "restore"
+  filename: string
+  status: "success" | "failed"
+  message: string | null
+  createdBy: string
+  createdAt: string // display datetime, e.g. "2026-08-18 14:20"
+}

@@ -71,7 +71,7 @@ export function AdminCards({ cardProducts, cashier }: { cardProducts: CardProduc
                 </p>
                 <p className="text-xs text-muted-foreground">{t(p.type)}</p>
                 <div className="mt-4 flex items-end justify-between">
-                  <p className="font-display text-2xl font-extrabold text-primary">¥{p.price.toLocaleString()}</p>
+                  <p className="font-display text-2xl font-extrabold text-primary">${p.price.toLocaleString()}</p>
                   <div className="text-right text-[11px] text-muted-foreground">
                     <p>
                       {p.sessions === "unlimited" ? t("stu.cards.unlimited") : `${p.sessions} ${t("adm.cards.sessions")}`}
@@ -104,7 +104,7 @@ export function AdminCards({ cardProducts, cashier }: { cardProducts: CardProduc
                     {c.cardName ? (lang === "zh" ? c.cardName.zh : c.cardName.en) : "—"} · {t(c.method)} · {c.paidAt}
                   </p>
                 </div>
-                <span className="font-display text-base font-bold text-chart-5">+¥{c.amount.toLocaleString()}</span>
+                <span className="font-display text-base font-bold text-chart-5">+${c.amount.toLocaleString()}</span>
               </li>
             ))}
           </ul>

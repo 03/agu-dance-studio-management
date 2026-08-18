@@ -25,6 +25,12 @@ CREATE TYPE "StudentStatus" AS ENUM ('ACTIVE', 'EXPIRING', 'INACTIVE');
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('STUDENT', 'TEACHER', 'ADMIN');
 
+-- CreateEnum
+CREATE TYPE "BackupAction" AS ENUM ('BACKUP', 'RESTORE');
+
+-- CreateEnum
+CREATE TYPE "BackupStatus" AS ENUM ('SUCCESS', 'FAILED');
+
 -- CreateTable
 CREATE TABLE "teachers" (
     "id" TEXT NOT NULL,
@@ -199,6 +205,19 @@ CREATE TABLE "sessions" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "backup_records" (
+    "id" TEXT NOT NULL,
+    "action" "BackupAction" NOT NULL,
+    "filename" TEXT NOT NULL,
+    "status" "BackupStatus" NOT NULL,
+    "message" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "backup_records_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex

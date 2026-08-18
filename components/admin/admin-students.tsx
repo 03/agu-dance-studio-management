@@ -637,14 +637,14 @@ function ActionForm({
                 <SelectValue>
                   {(v: string) => {
                     const p = cardProducts.find((x) => x.id === v)
-                    return p ? `${lang === "zh" ? p.name.zh : p.name.en} · ¥${p.price}` : ""
+                    return p ? `${lang === "zh" ? p.name.zh : p.name.en} · $${p.price}` : ""
                   }}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {cardProducts.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {lang === "zh" ? p.name.zh : p.name.en} · ¥{p.price}
+                    {lang === "zh" ? p.name.zh : p.name.en} · ${p.price}
                   </SelectItem>
                 ))}
               </SelectContent>

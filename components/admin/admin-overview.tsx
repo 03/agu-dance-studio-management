@@ -11,7 +11,7 @@ export function AdminOverview({ admin }: { admin: AdminAppData["admin"] }) {
   const { kpis: adminKpis, cashFlow, consumptionByStyle } = admin
 
   const kpis = [
-    { key: "adm.kpi.revenue", value: `¥${adminKpis.revenue.toLocaleString()}`, delta: "+12%", Icon: TrendingUp },
+    { key: "adm.kpi.revenue", value: `$${adminKpis.revenue.toLocaleString()}`, delta: "+12%", Icon: TrendingUp },
     { key: "adm.kpi.consumed", value: adminKpis.consumed.toLocaleString(), delta: "+8%", Icon: Flame },
     { key: "adm.kpi.headcount", value: adminKpis.headcount.toLocaleString(), delta: "+5%", Icon: UserCheck },
     { key: "adm.kpi.activeStudents", value: adminKpis.activeStudents.toLocaleString(), delta: "+3%", Icon: Users },

@@ -33,7 +33,7 @@ export function AdminFinance({
           {cashFlow.map((c) => (
             <div key={c.month} className="flex flex-1 flex-col items-center gap-2">
               <span className="text-xs font-medium text-foreground">
-                {t("unit.rmb")}
+                {t("unit.currency")}
                 {(c.value / 1000).toFixed(0)}k
               </span>
               <div
@@ -87,7 +87,7 @@ export function AdminFinance({
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-foreground">{lang === "zh" ? teacher.name : teacher.nameEn}</span>
                     <span className="text-muted-foreground">
-                      {s.heads} {t("unit.people")} · {t("unit.rmb")}
+                      {s.heads} {t("unit.people")} · {t("unit.currency")}
                       {s.commission.toLocaleString()}
                     </span>
                   </div>
