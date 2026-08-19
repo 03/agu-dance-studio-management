@@ -195,7 +195,11 @@ export async function getAdminAppData() {
       prisma.student.findMany({
         include: {
           cards: true,
-          ledgerEntries: { where: { kind: "CONSUME" }, orderBy: { date: "desc" } },
+          // All kinds, not just CONSUME: mapStudent needs RECHARGE/GIFT/ADJUST
+          // too to compute correct totals for legacy-migrated students, whose
+          // whole card history lives only in ledger_entries (no StudentCard
+          // rows were created for them — see the legacy migration).
+          ledgerEntries: { orderBy: { date: "desc" } },
         },
         orderBy: { id: "asc" },
       }),
