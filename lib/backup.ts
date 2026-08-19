@@ -22,8 +22,6 @@ export const BUSINESS_TABLES = [
   "card_products",
   "student_cards",
   "ledger_entries",
-  "notification_rules",
-  "teacher_stats",
   "payments",
 ] as const
 
@@ -38,10 +36,8 @@ const DELETE_ORDER = [
   "bookings",
   "student_cards",
   "class_sessions",
-  "teacher_stats",
   "students",
   "card_products",
-  "notification_rules",
   "teachers",
   "rooms",
 ] as const

@@ -5,6 +5,7 @@ import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
 import { AdminOverview } from "./admin-overview"
 import { AdminScheduling } from "./admin-scheduling"
+import { AdminAttendance } from "./admin-attendance"
 import { AdminStudios } from "./admin-studios"
 import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
@@ -22,6 +23,7 @@ import {
   BarChart3,
   ShieldCheck,
   DatabaseBackup,
+  ClipboardList,
   ChevronLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -30,6 +32,7 @@ import type { AdminAppData } from "@/lib/data"
 type Section =
   | "overview"
   | "schedule"
+  | "attendance"
   | "studios"
   | "students"
   | "cards"
@@ -41,6 +44,7 @@ type Section =
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
   { key: "schedule", labelKey: "adm.nav.schedule", Icon: CalendarRange },
+  { key: "attendance", labelKey: "adm.nav.attendance", Icon: ClipboardList },
   { key: "studios", labelKey: "adm.nav.studios", Icon: Building2 },
   { key: "students", labelKey: "adm.nav.students", Icon: Users },
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
@@ -116,6 +120,9 @@ export function AdminApp({
           {section === "overview" && <AdminOverview admin={data.admin} cashFlow={data.cashFlow} />}
           {section === "schedule" && (
             <AdminScheduling teachers={data.teachers} rooms={data.rooms} sessions={data.sessions} />
+          )}
+          {section === "attendance" && (
+            <AdminAttendance sessions={data.sessions} teachers={data.teachers} students={data.students} />
           )}
           {section === "studios" && <AdminStudios studios={data.studios} />}
           {section === "students" && (

@@ -191,12 +191,11 @@ export function AdminStudents({
               <SortableHead field="name" label={t("common.name")} sort={sort} onSort={handleSort} />
               <SortableHead field="phone" label={t("common.phone")} sort={sort} onSort={handleSort} />
               <SortableHead field="wechat" label={t("auth.wechat")} sort={sort} onSort={handleSort} />
-              <SortableHead field="id" label={t("adm.students.internalId")} sort={sort} onSort={handleSort} />
               <SortableHead field="code" label={t("adm.students.code")} sort={sort} onSort={handleSort} />
               <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />
-              <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
-              <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
               <SortableHead field="totalSessions" label={t("adm.students.totalSessions")} sort={sort} onSort={handleSort} />
+              <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
+              <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
               <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
@@ -216,17 +215,11 @@ export function AdminStudents({
                 </TableCell>
                 <TableCell className="text-muted-foreground">{s.phone ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{s.wechat ?? "—"}</TableCell>
-                <TableCell>
-                  <span
-                    className="block max-w-[8rem] truncate font-mono text-[11px] text-muted-foreground"
-                    title={s.id}
-                  >
-                    {s.id}
-                  </span>
-                </TableCell>
                 <TableCell className="text-muted-foreground">{s.code ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{s.cards}</TableCell>
-                <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
+                <TableCell className="font-display font-bold text-card-foreground">
+                  {s.totalBalance + (s.usedSessions ?? 0)}
+                </TableCell>
                 <TableCell>
                   <button
                     onClick={() => setDialog({ mode: "usage", student: s })}
@@ -235,9 +228,7 @@ export function AdminStudents({
                     {s.usedSessions ?? 0}
                   </button>
                 </TableCell>
-                <TableCell className="font-display font-bold text-card-foreground">
-                  {s.totalBalance + (s.usedSessions ?? 0)}
-                </TableCell>
+                <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
                 <TableCell>
                   <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
                     {lang === "zh" ? statusLabel[s.status].zh : statusLabel[s.status].en}

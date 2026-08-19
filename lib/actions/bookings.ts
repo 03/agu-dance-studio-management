@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel } from "@/lib/mappers"
-import { parseISODate } from "@/lib/schedule-dates"
+import { parseISODate, toISODate } from "@/lib/schedule-dates"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
 // Picks which of the student's cards a booking should draw a credit from:
@@ -20,12 +20,10 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
   return tx.studentCard.findFirst({ where: { studentId, isUnlimited: true, expiry: { gt: now } } })
 }
 
-// `date` is the specific calendar occurrence being booked (ISO
-// "YYYY-MM-DD") — a student books one date's instance of a recurring
-// session at a time, not the whole weekly series.
-export async function bookClass(sessionId: string, date: string) {
-  const { studentId } = await requireRole("STUDENT")
-  if (!studentId) throw new Error("NO_LINKED_STUDENT")
+// Shared core behind bookClass (self-service) and adminBookStudent (staff
+// registering someone on their behalf) — same capacity/card-consumption
+// rules either way, just a different caller decides which studentId.
+async function bookOccurrenceForStudent(sessionId: string, date: string, studentId: string) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
     // Row-lock the session so concurrent bookers of the same session
@@ -72,6 +70,30 @@ export async function bookClass(sessionId: string, date: string) {
   })
 }
 
+// `date` is the specific calendar occurrence being booked (ISO
+// "YYYY-MM-DD") — a student books one date's instance of a recurring
+// session at a time, not the whole weekly series.
+export async function bookClass(sessionId: string, date: string) {
+  const { studentId } = await requireRole("STUDENT")
+  if (!studentId) throw new Error("NO_LINKED_STUDENT")
+  return bookOccurrenceForStudent(sessionId, date, studentId)
+}
+
+// Admin-side 课时登记 — staff registering a specific student into a specific
+// class occurrence on their behalf (same capacity/card-consumption rules as
+// self-booking). Guards against double-registering someone already on the
+// roster, since the shared core's upsert would otherwise silently consume a
+// second credit without creating a second ledger entry to show for it.
+export async function adminBookStudent(sessionId: string, date: string, studentId: string) {
+  await requireRole("ADMIN")
+  const occurrenceDate = parseISODate(date)
+  const existing = await prisma.booking.findUnique({
+    where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
+  })
+  if (existing && existing.state !== "CANCELED") throw new Error("ALREADY_REGISTERED")
+  return bookOccurrenceForStudent(sessionId, date, studentId)
+}
+
 // Names only, in the order students joined — matches the "接龙" (group
 // sign-up chain) mental model students already have from chat groups.
 export async function getBookedNamesForSession(sessionId: string, date: string): Promise<string[]> {
@@ -84,9 +106,9 @@ export async function getBookedNamesForSession(sessionId: string, date: string):
   return bookings.map((b) => b.student.name)
 }
 
-export async function cancelBooking(sessionId: string, date: string) {
-  const { studentId } = await requireRole("STUDENT")
-  if (!studentId) throw new Error("NO_LINKED_STUDENT")
+// Shared core behind cancelBooking (self-service) and adminCancelBooking
+// (staff removing someone from the roster) — same refund rules either way.
+async function cancelOccurrenceForStudent(sessionId: string, date: string, studentId: string) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT id FROM class_sessions WHERE id = ${sessionId} FOR UPDATE`
@@ -111,4 +133,19 @@ export async function cancelBooking(sessionId: string, date: string) {
 
     return tx.booking.update({ where: { id: booking.id }, data: { state: "CANCELED" } })
   })
+}
+
+export async function cancelBooking(sessionId: string, date: string) {
+  const { studentId } = await requireRole("STUDENT")
+  if (!studentId) throw new Error("NO_LINKED_STUDENT")
+  return cancelOccurrenceForStudent(sessionId, date, studentId)
+}
+
+// Admin-side removal from the 课时登记 roster — takes the bookingId shown in
+// the roster list directly, rather than round-tripping (sessionId, date,
+// studentId), since that's exactly what the admin UI already has on hand.
+export async function adminCancelBooking(bookingId: string) {
+  await requireRole("ADMIN")
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })
+  return cancelOccurrenceForStudent(booking.sessionId, toISODate(booking.date), booking.studentId)
 }

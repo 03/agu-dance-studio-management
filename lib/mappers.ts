@@ -151,14 +151,14 @@ export const formatLedgerDate = (d: Date): string => {
 
 export const formatDateISO = (d: Date): string => d.toISOString().slice(0, 10)
 
-// YYYY_MM_DD, no time — used for the admin 已用课时 (usage history) list,
+// YYYY-MM-DD, no time — used for the admin 已用课时 (usage history) list,
 // which now spans multiple years after the legacy-system data migration, so
 // formatLedgerDate's year-less "MM.DD HH:mm" would be ambiguous there.
 const formatDateOnly = (d: Date): string => {
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, "0")
   const dd = String(d.getDate()).padStart(2, "0")
-  return `${yyyy}_${mm}_${dd}`
+  return `${yyyy}-${mm}-${dd}`
 }
 
 export const daysLeftFrom = (expiry: Date): number =>

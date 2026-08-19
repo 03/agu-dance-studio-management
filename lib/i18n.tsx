@@ -76,6 +76,7 @@ export const dict: Dict = {
   "common.remaining": { zh: "剩余", en: "left" },
   "common.min": { zh: "分钟", en: "min" },
   "common.close": { zh: "关闭", en: "Close" },
+  "common.add": { zh: "添加", en: "Add" },
   "common.loading": { zh: "加载中", en: "Loading" },
   "common.confirm": { zh: "确认", en: "Confirm" },
   "common.save": { zh: "保存", en: "Save" },
@@ -214,6 +215,16 @@ export const dict: Dict = {
   "adm.users.err.lastAdmin": { zh: "无法删除最后一个管理员账号", en: "Can't delete the last remaining admin account" },
   "adm.users.err.generic": { zh: "操作失败，请重试", en: "Something went wrong — please try again" },
 
+  // Attendance / roster registration
+  "adm.nav.attendance": { zh: "课时登记", en: "Attendance" },
+  "adm.attendance.desc": { zh: "点击某天的某节课，可查看并管理该场次的学员名单", en: "Click a class on any day to view and manage its roster" },
+  "adm.attendance.addStudent": { zh: "添加学员", en: "Add student" },
+  "adm.attendance.searchPlaceholder": { zh: "按姓名或手机号搜索", en: "Search by name or phone" },
+  "adm.attendance.roster": { zh: "已登记学员", en: "Registered students" },
+  "adm.attendance.empty": { zh: "暂无学员登记", en: "No students registered yet" },
+  "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
+  "adm.attendance.err.alreadyRegistered": { zh: "该学员已在名单中", en: "This student is already registered" },
+
   // Backup / restore
   "adm.nav.backup": { zh: "备份 / 还原", en: "Backup & restore" },
   "adm.backup.backup": { zh: "备份", en: "Backup" },
@@ -263,7 +274,6 @@ export const dict: Dict = {
   "adm.students.adjust": { zh: "调整课时", en: "Adjust" },
   "adm.students.refund": { zh: "退费", en: "Refund" },
   "adm.students.noCard": { zh: "该学员没有可用卡项", en: "This student has no card to target" },
-  "adm.students.internalId": { zh: "内部ID", en: "Internal ID" },
   "adm.students.code": { zh: "用户代码", en: "User code" },
   "adm.students.usedSessions": { zh: "已用课时", en: "Used sessions" },
   "adm.students.totalSessions": { zh: "总课时", en: "Total sessions" },
