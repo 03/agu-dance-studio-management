@@ -86,15 +86,34 @@ function stripVersionSpecificPreamble(sql: string): string {
     .join("\n")
 }
 
+// Backups generated before this file stopped passing `--disable-triggers`
+// (see dumpBusinessData) still have `ALTER TABLE ... {DIS,EN}ABLE TRIGGER
+// ALL;` lines baked in — those require table-owner/superuser privileges the
+// Supabase connection role doesn't have, so strip them for compatibility
+// with already-downloaded backup files.
+function stripTriggerToggles(sql: string): string {
+  return sql
+    .split("\n")
+    .filter((line) => !/^ALTER TABLE (ONLY )?\S+ (DISABLE|ENABLE) TRIGGER ALL;$/.test(line))
+    .join("\n")
+}
+
 // A data-only dump of the business tables — schema is Prisma-migration
-// managed, not part of this file. `--disable-triggers` skips FK trigger
-// checks during COPY so pg_dump's chosen table order doesn't matter.
+// managed, not part of this file. No `--disable-triggers`: that flag emits
+// `ALTER TABLE ... DISABLE TRIGGER ALL`, which requires table-owner/superuser
+// privileges to touch the internal RI (foreign-key) triggers — Supabase's
+// pooler connection role doesn't have that, so restores there failed with
+// `permission denied: "RI_ConstraintTrigger_..." is a system trigger`. It's
+// unneeded anyway: pg_dump topologically sorts TABLE DATA sections by FK
+// dependency by default (verified: rooms/teachers → class_sessions →
+// students → bookings → card_products → student_cards → ledger_entries →
+// payments), so DELETE_ORDER (below) and this dump's own COPY order already
+// load everything parent-before-child without disabling anything.
 export async function dumpBusinessData(): Promise<Buffer> {
   const tmpFile = join(tmpdir(), `agu-backup-${randomUUID()}.sql`)
   const args = [
     databaseUrl(),
     "--data-only",
-    "--disable-triggers",
     "--no-owner",
     "--no-privileges",
     "-f",
@@ -120,7 +139,7 @@ export async function restoreBusinessData(dumpContent: string): Promise<void> {
   const tmpFile = join(tmpdir(), `agu-restore-${randomUUID()}.sql`)
   // Defensive: also strip on the way in, in case the uploaded file is an
   // older backup or was produced by a pg_dump build on another machine.
-  const cleanDump = stripVersionSpecificPreamble(dumpContent)
+  const cleanDump = stripTriggerToggles(stripVersionSpecificPreamble(dumpContent))
   const script = `
 BEGIN;
 
