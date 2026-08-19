@@ -151,6 +151,16 @@ export const formatLedgerDate = (d: Date): string => {
 
 export const formatDateISO = (d: Date): string => d.toISOString().slice(0, 10)
 
+// YYYY_MM_DD, no time — used for the admin 已用课时 (usage history) list,
+// which now spans multiple years after the legacy-system data migration, so
+// formatLedgerDate's year-less "MM.DD HH:mm" would be ambiguous there.
+const formatDateOnly = (d: Date): string => {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}_${mm}_${dd}`
+}
+
 export const daysLeftFrom = (expiry: Date): number =>
   Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / 86_400_000))
 
@@ -236,6 +246,15 @@ export const mapLedgerEntry = (e: DbLedgerEntry): LedgerEntry => ({
   note: e.noteZh || e.noteEn ? { zh: e.noteZh ?? "", en: e.noteEn ?? "" } : undefined,
 })
 
+export const mapUsageHistoryEntry = (e: DbLedgerEntry): LedgerEntry => ({
+  id: e.id,
+  kind: ledgerKindDbToKey(e.kind),
+  title: { zh: e.titleZh, en: e.titleEn },
+  date: formatDateOnly(e.date),
+  delta: e.delta,
+  note: e.noteZh || e.noteEn ? { zh: e.noteZh ?? "", en: e.noteEn ?? "" } : undefined,
+})
+
 export const mapCardProduct = (p: DbCardProduct): CardProduct => ({
   id: p.id,
   type: cardTypeDbToKey(p.type),
@@ -284,7 +303,7 @@ export function mapStudent(
   opts: { includeCardDetails?: boolean; includeUsageHistory?: boolean } = {},
 ): Student {
   const totalBalance = s.cards.reduce((sum, c) => (c.isUnlimited ? sum : sum + (c.balance ?? 0)), 0)
-  const usageHistory = opts.includeUsageHistory ? (s.ledgerEntries ?? []).map(mapLedgerEntry) : undefined
+  const usageHistory = opts.includeUsageHistory ? (s.ledgerEntries ?? []).map(mapUsageHistoryEntry) : undefined
   return {
     id: s.id,
     name: s.name,

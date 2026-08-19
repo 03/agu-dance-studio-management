@@ -120,7 +120,7 @@ export type LedgerEntry = {
 export type Student = {
   id: string
   name: string
-  phone: string
+  phone: string | null
   wechat: string | null
   email: string | null
   code: string | null

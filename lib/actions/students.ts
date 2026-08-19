@@ -100,10 +100,12 @@ export async function updateStudent(
   const phone = input.phone.trim()
   const joined = input.joined.trim()
   if (!name) throw new Error("INVALID_NAME")
-  if (!phone) throw new Error("INVALID_PHONE")
   if (!joined) throw new Error("INVALID_JOINED")
 
-  const linkedUser = await prisma.user.findUnique({ where: { studentId: id } })
+  // Phone is optional business data, but a linked login account's username
+  // still has to be non-empty and unique — only sync it to the new phone
+  // when one was actually given; clearing phone leaves the username as-is.
+  const linkedUser = phone ? await prisma.user.findUnique({ where: { studentId: id } }) : null
   if (linkedUser && linkedUser.username !== phone) {
     const taken = await prisma.user.findUnique({ where: { username: phone } })
     if (taken && taken.id !== linkedUser.id) throw new Error("PHONE_TAKEN")
@@ -114,7 +116,7 @@ export async function updateStudent(
       where: { id },
       data: {
         name,
-        phone,
+        phone: phone || null,
         wechat: input.wechat.trim() || null,
         email: input.email.trim() || null,
         code: input.code.trim() || null,

@@ -120,7 +120,7 @@ model Student {
   phone         String?
   wechat        String?
   email         String?
-  code          String // admin-facing student/member code, distinct from the internal id
+  code          String? // admin-facing student/member code, distinct from the internal id
   joined        String // display label, e.g. "2024-06"
   status        StudentStatus @default(ACTIVE)
   cards         StudentCard[]

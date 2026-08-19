@@ -97,7 +97,17 @@ function pickDefaultCard(cards: StudentCard[]): StudentCard | undefined {
   return cards.find((c) => c.balance === "unlimited")
 }
 
-type SortField = "id" | "name" | "phone" | "wechat" | "code" | "cards" | "totalBalance" | "usedSessions" | "status"
+type SortField =
+  | "id"
+  | "name"
+  | "phone"
+  | "wechat"
+  | "code"
+  | "cards"
+  | "totalBalance"
+  | "usedSessions"
+  | "totalSessions"
+  | "status"
 type SortDir = "asc" | "desc"
 
 const STATUS_ORDER: Record<Student["status"], number> = { active: 0, expiring: 1, inactive: 2 }
@@ -116,6 +126,10 @@ function getSortValue(s: Student, field: SortField): string | number {
       return s.wechat ?? ""
     case "code":
       return s.code ?? ""
+    case "phone":
+      return s.phone ?? ""
+    case "totalSessions":
+      return s.totalBalance + (s.usedSessions ?? 0)
     default:
       return s[field]
   }
@@ -146,7 +160,7 @@ export function AdminStudents({
   }
 
   const filtered = students.filter(
-    (s) => s.name.toLowerCase().includes(query.toLowerCase()) || s.phone.includes(query),
+    (s) => s.name.toLowerCase().includes(query.toLowerCase()) || (s.phone ?? "").includes(query),
   )
   const sorted = [...filtered].sort((a, b) => compareStudents(a, b, sort.field, sort.dir))
 
@@ -182,6 +196,7 @@ export function AdminStudents({
               <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />
               <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
               <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
+              <SortableHead field="totalSessions" label={t("adm.students.totalSessions")} sort={sort} onSort={handleSort} />
               <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
@@ -199,7 +214,7 @@ export function AdminStudents({
                     <span className="font-medium text-card-foreground">{s.name}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{s.phone}</TableCell>
+                <TableCell className="text-muted-foreground">{s.phone ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{s.wechat ?? "—"}</TableCell>
                 <TableCell>
                   <span
@@ -219,6 +234,9 @@ export function AdminStudents({
                   >
                     {s.usedSessions ?? 0}
                   </button>
+                </TableCell>
+                <TableCell className="font-display font-bold text-card-foreground">
+                  {s.totalBalance + (s.usedSessions ?? 0)}
                 </TableCell>
                 <TableCell>
                   <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
@@ -325,7 +343,7 @@ function EditStudentForm({ student, onClose }: { student: Student; onClose: () =
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(student.name)
-  const [phone, setPhone] = useState(student.phone)
+  const [phone, setPhone] = useState(student.phone ?? "")
   const [wechat, setWechat] = useState(student.wechat ?? "")
   const [email, setEmail] = useState(student.email ?? "")
   const [code, setCode] = useState(student.code ?? "")
@@ -333,7 +351,7 @@ function EditStudentForm({ student, onClose }: { student: Student; onClose: () =
   const [status, setStatus] = useState<Student["status"]>(student.status)
   const [error, setError] = useState<string | null>(null)
 
-  const isValid = name.trim() !== "" && phone.trim() !== "" && joined.trim() !== ""
+  const isValid = name.trim() !== "" && joined.trim() !== ""
 
   const handleConfirm = () => {
     if (!isValid || isPending) return

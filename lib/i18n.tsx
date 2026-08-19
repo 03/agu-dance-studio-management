@@ -266,6 +266,7 @@ export const dict: Dict = {
   "adm.students.internalId": { zh: "内部ID", en: "Internal ID" },
   "adm.students.code": { zh: "用户代码", en: "User code" },
   "adm.students.usedSessions": { zh: "已用课时", en: "Used sessions" },
+  "adm.students.totalSessions": { zh: "总课时", en: "Total sessions" },
   "adm.students.usageClass": { zh: "班级", en: "Class" },
   "adm.students.noUsage": { zh: "暂无课时使用记录", en: "No sessions used yet" },
   "adm.students.downloadPdf": { zh: "下载 PDF", en: "Download PDF" },
