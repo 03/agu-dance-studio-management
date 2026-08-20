@@ -106,8 +106,18 @@ export function RollCall({
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{r.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {r.checkedIn ? (r.proxy ? t("tea.proxyCheckIn") : t("tea.checkedIn")) : t("tea.notCheckedIn")}
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span>{r.checkedIn ? (r.proxy ? t("tea.proxyCheckIn") : t("tea.checkedIn")) : t("tea.notCheckedIn")}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 font-medium",
+                      r.remainingSessions <= 2
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    {t("adm.attendance.remaining")} {r.remainingSessions}
+                  </span>
                 </p>
               </div>
               {r.checkedIn ? (

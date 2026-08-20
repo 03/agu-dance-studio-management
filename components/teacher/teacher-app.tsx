@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
+import { Button } from "@/components/ui/button"
 import { MobileFrame } from "@/components/shared/mobile-frame"
 import { TeacherSchedule } from "./teacher-schedule"
 import { RollCall } from "./roll-call"
@@ -27,13 +28,10 @@ export function TeacherApp({
     <main className="min-h-screen bg-secondary/40 py-6">
       <div className="mx-auto max-w-sm px-4">
         <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={onExit}
-            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
+          <Button variant="destructive" size="sm" onClick={onExit}>
             <ChevronLeft className="h-4 w-4" />
             {t("app.backHome")}
-          </button>
+          </Button>
           <LanguageToggle />
         </div>
 

@@ -316,18 +316,22 @@ export function mapBackupRecord(r: DbBackupRecord): BackupRecordEntry {
   }
 }
 
+// Real purchases/gifts/adjustments always carry a cardId and are already
+// reflected in that card's balance — only legacy-migrated ledger rows
+// (cardId null, no StudentCard was ever created for them) need their net
+// delta added on top, or legacy students would show 0 for everything.
+export function computeRemainingBalance(cards: DbStudentCard[], ledgerEntries: DbLedgerEntry[]): number {
+  const cardBalance = cards.reduce((sum, c) => (c.isUnlimited ? sum : sum + (c.balance ?? 0)), 0)
+  const cardlessNet = ledgerEntries.filter((e) => !e.cardId).reduce((sum, e) => sum + e.delta, 0)
+  return cardBalance + cardlessNet
+}
+
 export function mapStudent(
   s: DbStudent & { cards: DbStudentCard[]; ledgerEntries?: DbLedgerEntry[] },
   opts: { includeCardDetails?: boolean; includeUsageHistory?: boolean } = {},
 ): Student {
-  const cardBalance = s.cards.reduce((sum, c) => (c.isUnlimited ? sum : sum + (c.balance ?? 0)), 0)
   const ledgerEntries = s.ledgerEntries ?? []
-  // Real purchases/gifts/adjustments always carry a cardId and are already
-  // reflected in that card's balance above — only legacy-migrated rows
-  // (cardId null, no StudentCard was ever created for them) need their net
-  // delta added on top, or legacy students would show 0 for everything.
-  const cardlessNet = ledgerEntries.filter((e) => !e.cardId).reduce((sum, e) => sum + e.delta, 0)
-  const totalBalance = cardBalance + cardlessNet
+  const totalBalance = computeRemainingBalance(s.cards, ledgerEntries)
   // Every negative delta is a session consumed, whether a CONSUME booking or
   // a manual negative ADJUST (e.g. the walk-in-guest double-charge case) —
   // summing by sign rather than by kind avoids re-special-casing each kind.

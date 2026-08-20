@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, styleColors, type ClassSession, type Occurrence, type Teacher, type Student, type RosterEntry } from "@/lib/types"
-import { toAppDay, toISODate, occurrenceKey, formatAppDate } from "@/lib/schedule-dates"
+import { toAppDay, toISODate, parseISODate, occurrenceKey, formatAppDate } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { getRosterForSession } from "@/lib/actions/rollcall"
 import { adminBookStudent, adminCancelBooking } from "@/lib/actions/bookings"
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Trash2, CalendarSearch } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const ERROR_KEY: Record<string, string> = {
@@ -19,6 +19,17 @@ const ERROR_KEY: Record<string, string> = {
   ALREADY_REGISTERED: "adm.attendance.err.alreadyRegistered",
 }
 const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
+
+// Monday..Sunday of the week containing `d`, per this app's day convention
+// (toAppDay: 0=Mon..6=Sun).
+function weekDatesOf(d: Date): Date[] {
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - toAppDay(d))
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i))
+}
+
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}`
+}
 
 export function AdminAttendance({
   sessions,
@@ -30,36 +41,30 @@ export function AdminAttendance({
   students: Student[]
 }) {
   const { t, lang } = useLanguage()
-  const [monthOffset, setMonthOffset] = useState(0)
+  const [anchorDate, setAnchorDate] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
   const [occurrenceMap, setOccurrenceMap] = useState<Map<string, Occurrence>>(new Map())
   const loadedMonths = useRef(new Set<string>())
   const [selected, setSelected] = useState<{ session: ClassSession; date: Date } | null>(null)
+  const [jumpOpen, setJumpOpen] = useState(false)
 
-  const { weeks, monthLabel, year, month } = useMemo(() => {
-    const now = new Date()
-    const base = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
-    const year = base.getFullYear()
-    const month = base.getMonth()
-    const daysInMonth = new Date(year, month + 1, 0).getDate()
-    const firstWeekday = toAppDay(new Date(year, month, 1))
-    const cells: (Date | null)[] = []
-    for (let i = 0; i < firstWeekday; i++) cells.push(null)
-    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d))
-    while (cells.length % 7 !== 0) cells.push(null)
-    const weeks: (Date | null)[][] = []
-    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
-    const monthLabel =
-      lang === "zh"
-        ? `${year} 年 ${month + 1} 月`
-        : base.toLocaleDateString("en-US", { year: "numeric", month: "long" })
-    return { weeks, monthLabel, year, month }
-  }, [lang, monthOffset])
+  const weekDates = useMemo(() => weekDatesOf(anchorDate), [anchorDate])
+  // A week can straddle two calendar months (e.g. Aug 31 – Sep 6) — load
+  // occurrence data for every month the visible week touches.
+  const neededMonths = useMemo(() => {
+    const keys = new Map<string, { year: number; month: number }>()
+    for (const d of weekDates) keys.set(monthKey(d), { year: d.getFullYear(), month: d.getMonth() })
+    return [...keys.values()]
+  }, [weekDates])
 
-  const ensureMonth = useCallback(async (y: number, m: number) => {
-    const key = `${y}-${m}`
+  const ensureMonth = useCallback(async (year: number, month: number) => {
+    const key = `${year}-${month}`
     if (loadedMonths.current.has(key)) return
     loadedMonths.current.add(key)
-    const fetched = await getOccurrencesForMonth(y, m)
+    const fetched = await getOccurrencesForMonth(year, month)
     setOccurrenceMap((prev) => {
       const next = new Map(prev)
       for (const o of fetched) next.set(occurrenceKey(o.sessionId, o.date), o)
@@ -68,16 +73,16 @@ export function AdminAttendance({
   }, [])
 
   useEffect(() => {
-    ensureMonth(year, month)
-  }, [year, month, ensureMonth])
+    for (const { year, month } of neededMonths) ensureMonth(year, month)
+  }, [neededMonths, ensureMonth])
 
-  // After an add/remove inside the roster dialog, this month's booked
-  // counts are stale — drop it from the loaded-months cache and re-fetch so
-  // the calendar cells still on screen update without a full page reload.
-  const refreshMonth = useCallback(() => {
-    loadedMonths.current.delete(`${year}-${month}`)
-    ensureMonth(year, month)
-  }, [year, month, ensureMonth])
+  // After an add/remove inside the roster dialog, the visible week's booked
+  // counts are stale — drop its month(s) from the loaded cache and re-fetch
+  // so the week grid still on screen updates without a full page reload.
+  const refreshWeek = useCallback(() => {
+    for (const { year, month } of neededMonths) loadedMonths.current.delete(`${year}-${month}`)
+    for (const { year, month } of neededMonths) ensureMonth(year, month)
+  }, [neededMonths, ensureMonth])
 
   const bookedFor = useCallback(
     (sessionId: string, date: Date) => occurrenceMap.get(occurrenceKey(sessionId, toISODate(date)))?.booked ?? 0,
@@ -95,6 +100,18 @@ export function AdminAttendance({
   const today = new Date()
   const isToday = (d: Date) =>
     d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
+  const isCurrentWeek = weekDates.some(isToday)
+
+  const monday = weekDates[0]
+  const sunday = weekDates[6]
+  const weekLabel =
+    lang === "zh"
+      ? monday.getFullYear() === sunday.getFullYear()
+        ? `${monday.getFullYear()} 年 ${formatAppDate(monday)} – ${formatAppDate(sunday)}`
+        : `${formatAppDate(monday)} ${monday.getFullYear()} – ${formatAppDate(sunday)} ${sunday.getFullYear()}`
+      : monday.getFullYear() === sunday.getFullYear()
+        ? `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+        : `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
 
   return (
     <div className="flex flex-col gap-6">
@@ -104,75 +121,86 @@ export function AdminAttendance({
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="mb-4 flex items-center justify-center gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setMonthOffset((o) => o - 1)}
-            aria-label={t("home.schedule.prevMonth")}
+            onClick={() => setAnchorDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7))}
+            aria-label={t("adm.attendance.prevWeek")}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <p className="min-w-[8rem] text-center font-display text-sm font-bold text-card-foreground">{monthLabel}</p>
+          <p className="min-w-[11rem] text-center font-display text-sm font-bold text-card-foreground">{weekLabel}</p>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setMonthOffset((o) => o + 1)}
-            aria-label={t("home.schedule.nextMonth")}
+            onClick={() => setAnchorDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7))}
+            aria-label={t("adm.attendance.nextWeek")}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          {monthOffset !== 0 && (
-            <Button variant="outline" size="sm" className="ml-1" onClick={() => setMonthOffset(0)}>
-              {t("home.schedule.thisMonth")}
+          {!isCurrentWeek && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const d = new Date()
+                d.setHours(0, 0, 0, 0)
+                setAnchorDate(d)
+              }}
+            >
+              {t("adm.attendance.thisWeek")}
             </Button>
           )}
+          <Button variant="outline" size="sm" className="ml-1" onClick={() => setJumpOpen(true)}>
+            <CalendarSearch className="mr-1.5 h-3.5 w-3.5" />
+            {t("adm.attendance.jumpToDate")}
+          </Button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
-          {weekdayKeys.map((wk) => (
-            <div key={wk} className="py-1">
-              {t(wk)}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {weeks.flatMap((week, wi) =>
-            week.map((d, di) => {
-              if (!d) return <div key={`${wi}-${di}`} className="min-h-[112px] rounded-lg" />
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[700px] grid-cols-7 gap-1">
+            {weekDates.map((d, i) => {
               const dow = toAppDay(d)
               const daySessions = sessions.filter((s) => s.day === dow)
               return (
                 <div
-                  key={`${wi}-${di}`}
+                  key={i}
                   className={cn(
-                    "flex min-h-[112px] flex-col items-center gap-1 rounded-lg border border-transparent p-1",
+                    "flex min-h-[220px] flex-col items-center gap-1 rounded-lg border border-transparent p-1.5",
                     isToday(d) && "border-primary bg-primary/5",
                   )}
                 >
-                  <span className={cn("text-xs font-semibold", isToday(d) ? "text-primary" : "text-card-foreground")}>
-                    {d.getDate()}
-                  </span>
-                  <div className="flex w-full flex-col gap-0.5">
+                  <div className="mb-1 w-full rounded-lg bg-secondary py-1.5 text-center">
+                    <p className="text-[11px] font-semibold text-secondary-foreground">{t(weekdayKeys[dow])}</p>
+                    <p className={cn("text-[11px]", isToday(d) ? "font-bold text-primary" : "text-muted-foreground")}>
+                      {formatAppDate(d)}
+                    </p>
+                  </div>
+                  <div className="flex w-full flex-col gap-1">
                     {daySessions.map((s) => {
                       const booked = bookedFor(s.id, d)
                       return (
                         <button
                           key={s.id}
                           onClick={() => setSelected({ session: s, date: d })}
-                          className="w-full truncate rounded-sm border-l-2 bg-secondary/50 px-1 py-0.5 text-left text-[9px] leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary"
+                          className="w-full truncate rounded-md border-l-2 bg-secondary/50 px-1.5 py-1 text-left text-[10px] leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary"
                           style={{ borderLeftColor: styleColors[s.style] }}
                           title={`${s.start} · ${t(s.style)} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
                         >
-                          {s.start} {t(s.style)} {booked}/{s.capacity}
+                          <span className="block font-semibold">{s.start}</span>
+                          <span className="block truncate">{t(s.style)}</span>
+                          <span className="block text-muted-foreground">
+                            {booked}/{s.capacity}
+                          </span>
                         </button>
                       )
                     })}
                   </div>
                 </div>
               )
-            }),
-          )}
+            })}
+          </div>
         </div>
       </div>
 
@@ -185,12 +213,56 @@ export function AdminAttendance({
               teacherName={teacherName(selected.session.teacherId)}
               students={students}
               onClose={() => setSelected(null)}
-              onChanged={refreshMonth}
+              onChanged={refreshWeek}
             />
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={jumpOpen} onOpenChange={setJumpOpen}>
+        <DialogContent>
+          <JumpToDateForm
+            onJump={(d) => {
+              setAnchorDate(d)
+              setJumpOpen(false)
+            }}
+            onClose={() => setJumpOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+function JumpToDateForm({ onJump, onClose }: { onJump: (d: Date) => void; onClose: () => void }) {
+  const { t } = useLanguage()
+  const [value, setValue] = useState("")
+
+  const handleConfirm = () => {
+    if (!value) return
+    onJump(parseISODate(value))
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">{t("adm.attendance.jumpToDate")}</DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 py-2">
+        <div className="grid gap-2">
+          <Label>{t("adm.attendance.jumpToDateDesc")}</Label>
+          <Input type="date" value={value} onChange={(e) => setValue(e.target.value)} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+        <Button onClick={handleConfirm} disabled={!value}>
+          {t("common.confirm")}
+        </Button>
+      </DialogFooter>
+    </>
   )
 }
 
@@ -330,7 +402,19 @@ function RosterDialog({
                   key={r.id}
                   className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-sm last:border-b-0"
                 >
-                  <span>{r.name}</span>
+                  <span className="flex items-center gap-2">
+                    {r.name}
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                        r.remainingSessions <= 2
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      {t("adm.attendance.remaining")} {r.remainingSessions}
+                    </span>
+                  </span>
                   <Button
                     size="icon"
                     variant="ghost"

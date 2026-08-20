@@ -172,8 +172,14 @@ export type CashierEntry = {
   paidAt: string // display date, e.g. "12.08 14:20"
 }
 
-// Roster for teacher roll-call view
-export type RosterEntry = { id: string; name: string; checkedIn: boolean; proxy?: boolean }
+// Roster for teacher roll-call view / admin attendance registration
+export type RosterEntry = {
+  id: string
+  name: string
+  checkedIn: boolean
+  proxy?: boolean
+  remainingSessions: number
+}
 
 export const weekdayKeys = ["day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"]
 

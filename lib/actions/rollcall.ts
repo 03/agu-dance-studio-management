@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireAnyRole } from "@/lib/auth"
 import { parseISODate } from "@/lib/schedule-dates"
+import { computeRemainingBalance } from "@/lib/mappers"
 import type { RosterEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
@@ -24,10 +25,16 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
   await assertOwnsSession(sessionId)
   const bookings = await prisma.booking.findMany({
     where: { sessionId, date: parseISODate(date), state: { in: ["BOOKED", "WAITLIST"] } },
-    include: { student: { select: { name: true } } },
+    include: { student: { select: { name: true, cards: true, ledgerEntries: true } } },
     orderBy: { createdAt: "asc" },
   })
-  return bookings.map((b) => ({ id: b.id, name: b.student.name, checkedIn: b.checkedIn, proxy: b.proxy }))
+  return bookings.map((b) => ({
+    id: b.id,
+    name: b.student.name,
+    checkedIn: b.checkedIn,
+    proxy: b.proxy,
+    remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
+  }))
 }
 
 export async function setCheckedIn(bookingId: string, checkedIn: boolean, proxy = false) {
