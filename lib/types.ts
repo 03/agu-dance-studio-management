@@ -94,6 +94,22 @@ export type UpcomingBooking = {
   myState: "booked" | "waitlist"
 }
 
+// Same shape, but for a class occurrence that has already happened — used
+// for the "history" list, which cares whether the student checked in rather
+// than whether they're still booked/waitlisted.
+export type PastBooking = {
+  bookingId: string
+  sessionId: string
+  style: StyleKey
+  teacherId: string
+  roomId: string
+  day: number
+  date: string // ISO "YYYY-MM-DD"
+  start: string
+  end: string
+  checkedIn: boolean
+}
+
 export type CardType = "stu.card.times" | "stu.card.period" | "stu.card.trial"
 
 export type PaymentMethod = "payment.transfer" | "payment.cash"

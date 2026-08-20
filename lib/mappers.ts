@@ -33,6 +33,7 @@ import type {
   ClassSession,
   Occurrence,
   UpcomingBooking,
+  PastBooking,
   CardType,
   StudentCard,
   LedgerEntry,
@@ -151,9 +152,9 @@ export const formatLedgerDate = (d: Date): string => {
 
 export const formatDateISO = (d: Date): string => d.toISOString().slice(0, 10)
 
-// YYYY-MM-DD, no time — used for the admin 已用课时 (usage history) list,
-// which now spans multiple years after the legacy-system data migration, so
-// formatLedgerDate's year-less "MM.DD HH:mm" would be ambiguous there.
+// YYYY-MM-DD, no time — used for ledger lists that now span multiple years
+// after the legacy-system data migration, where formatLedgerDate's
+// year-less "MM.DD HH:mm" would be ambiguous.
 const formatDateOnly = (d: Date): string => {
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, "0")
@@ -227,6 +228,23 @@ export function mapUpcomingBooking(b: DbBooking & { session: DbClassSession }): 
   }
 }
 
+// Same shape for a past occurrence — the "history" list cares whether the
+// student checked in, not their (now-moot) booked/waitlist state.
+export function mapPastBooking(b: DbBooking & { session: DbClassSession }): PastBooking {
+  return {
+    bookingId: b.id,
+    sessionId: b.sessionId,
+    style: styleDbToKey(b.session.style),
+    teacherId: b.session.teacherId,
+    roomId: b.session.roomId,
+    day: b.session.day,
+    date: toISODate(b.date),
+    start: b.session.start,
+    end: b.session.end,
+    checkedIn: b.checkedIn,
+  }
+}
+
 export const mapStudentCard = (c: DbStudentCard): StudentCard => ({
   id: c.id,
   type: cardTypeDbToKey(c.type),
@@ -246,7 +264,7 @@ export const mapLedgerEntry = (e: DbLedgerEntry): LedgerEntry => ({
   note: e.noteZh || e.noteEn ? { zh: e.noteZh ?? "", en: e.noteEn ?? "" } : undefined,
 })
 
-export const mapUsageHistoryEntry = (e: DbLedgerEntry): LedgerEntry => ({
+export const mapLedgerEntryDateOnly = (e: DbLedgerEntry): LedgerEntry => ({
   id: e.id,
   kind: ledgerKindDbToKey(e.kind),
   title: { zh: e.titleZh, en: e.titleEn },
@@ -317,7 +335,7 @@ export function mapStudent(
     ? ledgerEntries.reduce((sum, e) => sum + Math.max(0, -e.delta), 0)
     : undefined
   const usageHistory = opts.includeUsageHistory
-    ? ledgerEntries.filter((e) => e.delta < 0).map(mapUsageHistoryEntry)
+    ? ledgerEntries.filter((e) => e.delta < 0).map(mapLedgerEntryDateOnly)
     : undefined
   return {
     id: s.id,

@@ -57,7 +57,12 @@ export function StudentApp({
                 />
               )}
               {tab === "bookings" && (
-                <StudentBookings upcoming={data.student.upcoming} teachers={data.teachers} rooms={data.rooms} />
+                <StudentBookings
+                  upcoming={data.student.upcoming}
+                  history={data.student.history}
+                  teachers={data.teachers}
+                  rooms={data.rooms}
+                />
               )}
               {tab === "cards" && <StudentCards cards={data.student.cards} ledger={data.student.ledger} />}
               {tab === "me" && (

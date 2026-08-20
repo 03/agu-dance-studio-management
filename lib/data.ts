@@ -6,12 +6,13 @@ import {
   mapClassSession,
   mapStudent,
   mapStudentCard,
-  mapLedgerEntry,
+  mapLedgerEntryDateOnly,
   mapCardProduct,
   mapCashierEntry,
   mapUser,
   mapBackupRecord,
   mapUpcomingBooking,
+  mapPastBooking,
   styleDbToKey,
   bookingStateToMyState,
 } from "@/lib/mappers"
@@ -102,8 +103,17 @@ export async function getStudentAppData(studentId: string) {
   const windowEnd = new Date(today)
   windowEnd.setDate(today.getDate() + 14)
 
-  const [teachers, rooms, sessionsRaw, studentRow, ledgerRaw, bookingsForRate, occurrenceBookings, upcomingRaw] =
-    await Promise.all([
+  const [
+    teachers,
+    rooms,
+    sessionsRaw,
+    studentRow,
+    ledgerRaw,
+    bookingsForRate,
+    occurrenceBookings,
+    upcomingRaw,
+    historyRaw,
+  ] = await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
       prisma.classSession.findMany({ orderBy: [{ day: "asc" }, { start: "asc" }] }),
@@ -119,6 +129,12 @@ export async function getStudentAppData(studentId: string) {
         include: { session: true },
         orderBy: { date: "asc" },
       }),
+      prisma.booking.findMany({
+        where: { studentId, date: { lt: today }, state: "BOOKED" },
+        include: { session: true },
+        orderBy: { date: "desc" },
+        take: 50,
+      }),
     ])
 
   const meRow = studentRow[0]
@@ -133,10 +149,15 @@ export async function getStudentAppData(studentId: string) {
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     occurrences: buildOccurrences(occurrenceBookings, studentId),
     student: {
-      me: meRow ? mapStudent(meRow, { includeCardDetails: true }) : null,
+      // ledgerRaw folded in so legacy-migrated students (no StudentCard rows,
+      // whole card history lives only in ledger_entries) get a correct
+      // totalBalance instead of always showing 0 — see mapStudent's
+      // cardlessNet handling.
+      me: meRow ? mapStudent({ ...meRow, ledgerEntries: ledgerRaw }, { includeCardDetails: true }) : null,
       cards: meRow ? meRow.cards.map(mapStudentCard) : [],
-      ledger: ledgerRaw.map(mapLedgerEntry),
+      ledger: ledgerRaw.map(mapLedgerEntryDateOnly),
       upcoming: upcomingRaw.map(mapUpcomingBooking),
+      history: historyRaw.map(mapPastBooking),
       attendanceRate,
     },
   }

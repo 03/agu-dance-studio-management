@@ -6,21 +6,15 @@ import { LanguageToggle } from "@/components/language-toggle"
 import { AdminOverview } from "./admin-overview"
 import { AdminScheduling } from "./admin-scheduling"
 import { AdminAttendance } from "./admin-attendance"
-import { AdminStudios } from "./admin-studios"
 import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
-import { AdminFinance } from "./admin-finance"
-import { AdminSessionStats } from "./admin-session-stats"
 import { AdminUsers } from "./admin-users"
 import { AdminBackup } from "./admin-backup"
 import {
   LayoutDashboard,
   CalendarRange,
-  Building2,
   Users,
   CreditCard,
-  LineChart,
-  BarChart3,
   ShieldCheck,
   DatabaseBackup,
   ClipboardList,
@@ -29,27 +23,14 @@ import {
 import { cn } from "@/lib/utils"
 import type { AdminAppData } from "@/lib/data"
 
-type Section =
-  | "overview"
-  | "schedule"
-  | "attendance"
-  | "studios"
-  | "students"
-  | "cards"
-  | "finance"
-  | "sessionStats"
-  | "users"
-  | "backup"
+type Section = "overview" | "schedule" | "attendance" | "students" | "cards" | "users" | "backup"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
-  { key: "schedule", labelKey: "adm.nav.schedule", Icon: CalendarRange },
   { key: "attendance", labelKey: "adm.nav.attendance", Icon: ClipboardList },
-  { key: "studios", labelKey: "adm.nav.studios", Icon: Building2 },
   { key: "students", labelKey: "adm.nav.students", Icon: Users },
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
-  { key: "finance", labelKey: "adm.nav.finance", Icon: LineChart },
-  { key: "sessionStats", labelKey: "adm.nav.sessionStats", Icon: BarChart3 },
+  { key: "schedule", labelKey: "adm.nav.schedule", Icon: CalendarRange },
   { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
   { key: "backup", labelKey: "adm.nav.backup", Icon: DatabaseBackup },
 ]
@@ -117,22 +98,29 @@ export function AdminApp({
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          {section === "overview" && <AdminOverview admin={data.admin} cashFlow={data.cashFlow} />}
+          {section === "overview" && (
+            <AdminOverview
+              admin={data.admin}
+              teachers={data.teachers}
+              cashFlow={data.cashFlow}
+              sessionStats={data.sessionStats}
+            />
+          )}
           {section === "schedule" && (
-            <AdminScheduling teachers={data.teachers} rooms={data.rooms} sessions={data.sessions} />
+            <AdminScheduling
+              teachers={data.teachers}
+              rooms={data.rooms}
+              sessions={data.sessions}
+              studios={data.studios}
+            />
           )}
           {section === "attendance" && (
             <AdminAttendance sessions={data.sessions} teachers={data.teachers} students={data.students} />
           )}
-          {section === "studios" && <AdminStudios studios={data.studios} />}
           {section === "students" && (
             <AdminStudents students={data.students} cardProducts={data.cardProducts} />
           )}
           {section === "cards" && <AdminCards cardProducts={data.cardProducts} cashier={data.cashier} />}
-          {section === "finance" && (
-            <AdminFinance admin={data.admin} teachers={data.teachers} cashFlow={data.cashFlow} />
-          )}
-          {section === "sessionStats" && <AdminSessionStats initial={data.sessionStats} />}
           {section === "users" && <AdminUsers users={data.users} />}
           {section === "backup" && <AdminBackup backupRecords={data.backupRecords} />}
         </main>

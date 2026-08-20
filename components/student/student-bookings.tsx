@@ -3,7 +3,7 @@
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, type UpcomingBooking, type Teacher, type Room } from "@/lib/types"
+import { weekdayKeys, type UpcomingBooking, type PastBooking, type Teacher, type Room } from "@/lib/types"
 import { cancelBooking } from "@/lib/actions/bookings"
 import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
@@ -11,18 +11,14 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Clock, MapPin } from "lucide-react"
 
-const historyItems = [
-  { id: "h1", style: "style.contemporary" as const, teacherId: "t3", date: "11.18", start: "19:00", end: "20:30", roomId: "r2", day: 0 },
-  { id: "h2", style: "style.kpop" as const, teacherId: "t1", date: "11.28", start: "19:30", end: "20:30", roomId: "r1", day: 4 },
-  { id: "h3", style: "style.jazz" as const, teacherId: "t1", date: "12.07", start: "19:00", end: "20:00", roomId: "r1", day: 5 },
-]
-
 export function StudentBookings({
   upcoming,
+  history,
   teachers,
   rooms,
 }: {
   upcoming: UpcomingBooking[]
+  history: PastBooking[]
   teachers: Teacher[]
   rooms: Room[]
 }) {
@@ -111,22 +107,37 @@ export function StudentBookings({
         </TabsContent>
 
         <TabsContent value="history" className="mt-3">
-          <ul className="flex flex-col gap-3">
-            {historyItems.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 opacity-90">
-                <StyleDot style={s.style} size={12} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-card-foreground">{t(s.style)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.date} · {s.start} · {teacherName(s.teacherId)}
-                  </p>
-                </div>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
-                  {t("tea.checkedIn")}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {history.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+              {t("stu.bookings.historyEmpty")}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {history.map((s) => (
+                <li
+                  key={s.bookingId}
+                  className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 opacity-90"
+                >
+                  <StyleDot style={s.style} size={12} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-card-foreground">{t(s.style)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.date} · {s.start} · {teacherName(s.teacherId)}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      s.checkedIn
+                        ? "rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground"
+                        : "rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+                    }
+                  >
+                    {t(s.checkedIn ? "tea.checkedIn" : "stu.bookings.notCheckedIn")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </TabsContent>
       </Tabs>
     </div>
