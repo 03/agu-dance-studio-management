@@ -260,16 +260,21 @@ export async function getAdminAppData() {
 
 // Monthly, per-style breakdown of consumed class-hours for one calendar
 // year — backs both the admin overview's default (current year) and the
-// on-demand year navigation in lib/actions/analytics.ts. Entries without a
-// linked booking (older synthetic seed data) are skipped, same as
-// getAdminAnalytics()'s consumptionByStyle above.
+// on-demand year navigation in lib/actions/analytics.ts. Also rolls up a
+// per-teacher yearly total from the same entries, so the teacher-attendance
+// list shown alongside it shares the same selected year. Entries without a
+// linked booking (older synthetic seed data) are skipped.
 export async function getYearlyStyleStats(year: number) {
   const start = new Date(year, 0, 1)
   const end = new Date(year + 1, 0, 1)
   const [entries, earliest] = await Promise.all([
     prisma.ledgerEntry.findMany({
       where: { kind: "CONSUME", date: { gte: start, lt: end } },
-      select: { delta: true, date: true, booking: { select: { session: { select: { style: true } } } } },
+      select: {
+        delta: true,
+        date: true,
+        booking: { select: { session: { select: { style: true, teacherId: true } } } },
+      },
     }),
     prisma.ledgerEntry.aggregate({ where: { kind: "CONSUME" }, _min: { date: true } }),
   ])
@@ -280,6 +285,7 @@ export async function getYearlyStyleStats(year: number) {
     total: 0,
     byStyle: {} as Partial<Record<StyleKey, number>>,
   }))
+  const teacherHeads = new Map<string, number>()
   for (const e of entries) {
     const style = e.booking?.session?.style
     if (!style) continue
@@ -288,11 +294,16 @@ export async function getYearlyStyleStats(year: number) {
     const m = months[e.date.getMonth()]
     m.total += amt
     m.byStyle[key] = (m.byStyle[key] ?? 0) + amt
+    const teacherId = e.booking!.session!.teacherId
+    teacherHeads.set(teacherId, (teacherHeads.get(teacherId) ?? 0) + amt)
   }
+  const teacherStats = Array.from(teacherHeads.entries())
+    .map(([teacherId, heads]) => ({ teacherId, heads }))
+    .sort((a, b) => b.heads - a.heads)
 
   const minYear = earliest._min.date ? earliest._min.date.getFullYear() : year
   const maxYear = new Date().getFullYear()
-  return { year, months, minYear, maxYear }
+  return { year, months, minYear, maxYear, teacherStats }
 }
 
 export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
@@ -321,13 +332,9 @@ export async function getYearlyCashFlow(year: number) {
 export type YearlyCashFlow = Awaited<ReturnType<typeof getYearlyCashFlow>>
 
 async function getAdminAnalytics() {
-  const [thisMonthPayments, consumeEntries, checkedInBookings, activeStudents, monthConsumed] = await Promise.all([
+  const [thisMonthPayments, checkedInCount, activeStudents, monthConsumed] = await Promise.all([
     prisma.payment.findMany({ where: { paidAt: { gte: startOfMonth() } }, select: { amount: true } }),
-    prisma.ledgerEntry.findMany({
-      where: { kind: "CONSUME" },
-      select: { delta: true, booking: { select: { session: { select: { style: true } } } } },
-    }),
-    prisma.booking.findMany({ where: { checkedIn: true }, select: { session: { select: { teacherId: true } } } }),
+    prisma.booking.count({ where: { checkedIn: true } }),
     prisma.student.count({ where: { status: "ACTIVE" } }),
     prisma.ledgerEntry.aggregate({
       where: { kind: "CONSUME", date: { gte: startOfMonth() } },
@@ -335,34 +342,14 @@ async function getAdminAnalytics() {
     }),
   ])
 
-  const consumptionMap = new Map<StyleKey, number>()
-  for (const entry of consumeEntries) {
-    const style = entry.booking?.session?.style
-    if (!style) continue
-    const key = styleDbToKey(style)
-    consumptionMap.set(key, (consumptionMap.get(key) ?? 0) + Math.abs(entry.delta))
-  }
-  const consumptionByStyle = Array.from(consumptionMap.entries())
-    .map(([style, value]) => ({ style, value }))
-    .sort((a, b) => b.value - a.value)
-
   const kpis = {
     revenue: thisMonthPayments.reduce((sum, p) => sum + p.amount, 0),
     consumed: Math.abs(monthConsumed._sum.delta ?? 0),
-    headcount: checkedInBookings.length,
+    headcount: checkedInCount,
     activeStudents,
   }
 
-  const headsMap = new Map<string, number>()
-  for (const b of checkedInBookings) {
-    const teacherId = b.session.teacherId
-    headsMap.set(teacherId, (headsMap.get(teacherId) ?? 0) + 1)
-  }
-  const teacherStats = Array.from(headsMap.entries())
-    .map(([teacherId, heads]) => ({ teacherId, heads }))
-    .sort((a, b) => b.heads - a.heads)
-
-  return { kpis, consumptionByStyle, teacherStats }
+  return { kpis }
 }
 
 export type StudentAppData = Awaited<ReturnType<typeof getStudentAppData>>

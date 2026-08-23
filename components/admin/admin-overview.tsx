@@ -23,9 +23,8 @@ export function AdminOverview({
   cashFlow: YearlyCashFlow
   sessionStats: YearlyStyleStats
 }) {
-  const { t, lang } = useLanguage()
-  const { kpis: adminKpis, consumptionByStyle, teacherStats } = admin
-  const maxHeads = Math.max(1, ...teacherStats.map((s) => s.heads))
+  const { t } = useLanguage()
+  const { kpis: adminKpis } = admin
 
   const kpis = [
     { key: "adm.kpi.revenue", value: `$${adminKpis.revenue.toLocaleString()}`, delta: "+12%", Icon: TrendingUp },
@@ -33,8 +32,6 @@ export function AdminOverview({
     { key: "adm.kpi.headcount", value: adminKpis.headcount.toLocaleString(), delta: "+5%", Icon: UserCheck },
     { key: "adm.kpi.activeStudents", value: adminKpis.activeStudents.toLocaleString(), delta: "+3%", Icon: Users },
   ]
-
-  const totalConsumption = Math.max(1, consumptionByStyle.reduce((a, b) => a + b.value, 0))
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,76 +53,28 @@ export function AdminOverview({
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        {/* Cash flow bar chart */}
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-3">
-          <CashFlowChart initial={cashFlow} />
-        </div>
-
-        {/* Consumption by style + teacher attendance, stacked */}
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.chart.byStyle")}</h2>
-            <ul className="mt-5 flex flex-col gap-3">
-              {consumptionByStyle.map((c) => {
-                const pct = Math.round((c.value / totalConsumption) * 100)
-                return (
-                  <li key={c.style}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-card-foreground">
-                        <StyleDot style={c.style} />
-                        {t(c.style)}
-                      </span>
-                      <span className="text-muted-foreground">{pct}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: styleColors[c.style] }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.chart.teacherHeads")}</h2>
-            <ul className="mt-5 flex flex-col gap-3">
-              {teacherStats.map((s) => {
-                const teacher = teachers.find((tt) => tt.id === s.teacherId)!
-                return (
-                  <li key={s.teacherId}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="font-medium text-card-foreground">
-                        {lang === "zh" ? teacher.name : teacher.nameEn}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {s.heads} {t("unit.people")}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${(s.heads / maxHeads) * 100}%` }} />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        </div>
+      {/* Cash flow bar chart */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <CashFlowChart initial={cashFlow} />
       </div>
 
-      <SessionStatsSection initial={sessionStats} />
+      <SessionStatsSection initial={sessionStats} teachers={teachers} />
     </div>
   )
 }
 
-function SessionStatsSection({ initial }: { initial: YearlyStyleStats }) {
+function SessionStatsSection({
+  initial,
+  teachers,
+}: {
+  initial: YearlyStyleStats
+  teachers: AdminAppData["teachers"]
+}) {
   const { t, lang } = useLanguage()
   const [stats, setStats] = useState(initial)
   const [isPending, startTransition] = useTransition()
   const thisYear = new Date().getFullYear()
+  const maxHeads = Math.max(1, ...stats.teacherStats.map((s) => s.heads))
 
   const goTo = (year: number) => {
     if (year < stats.minYear || year > stats.maxYear || isPending) return
@@ -152,101 +101,130 @@ function SessionStatsSection({ initial }: { initial: YearlyStyleStats }) {
   const totalForPct = Math.max(1, yearTotal)
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">
-          {stats.year} {t("adm.sessionStats.total")}:{" "}
-          <span className="font-display font-bold text-foreground">{yearTotal}</span>
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => goTo(stats.year - 1)}
-            disabled={isPending || stats.year <= stats.minYear}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="w-14 text-center font-display text-sm font-bold text-foreground">{stats.year}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => goTo(stats.year + 1)}
-            disabled={isPending || stats.year >= stats.maxYear}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          {stats.year !== thisYear && (
-            <Button variant="outline" size="sm" className="ml-1" onClick={() => goTo(thisYear)} disabled={isPending}>
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              {t("adm.sessionStats.thisYear")}
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-baseline gap-3">
+          <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.sessionStats.byMonth")}</h2>
+          <span className="text-xs text-muted-foreground">
+            {t("adm.chart.cashflow.yearTotal")}:{" "}
+            <span className="font-display font-bold text-foreground">{yearTotal}</span>
+          </span>
+        </div>
+
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goTo(stats.year - 1)}
+              disabled={isPending || stats.year <= stats.minYear}
+            >
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-          )}
+            <span className="w-14 text-center font-display text-sm font-bold text-foreground">{stats.year}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goTo(stats.year + 1)}
+              disabled={isPending || stats.year >= stats.maxYear}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {stats.year !== thisYear && (
+              <Button variant="outline" size="sm" className="ml-1" onClick={() => goTo(thisYear)} disabled={isPending}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                {t("adm.sessionStats.thisYear")}
+              </Button>
+            )}
+          </div>
+
+          {/* Yearly totals by style */}
+          <div className="w-52">
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{t("adm.chart.byStyle")}</p>
+            {styleRows.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t("adm.sessionStats.noData")}</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {styleRows.map((r) => {
+                  const pct = Math.round((r.value / totalForPct) * 100)
+                  return (
+                    <li key={r.style}>
+                      <div className="mb-0.5 flex items-center justify-between text-[11px]">
+                        <span className="inline-flex items-center gap-1.5 font-medium text-card-foreground">
+                          <StyleDot style={r.style} />
+                          {t(r.style)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {r.value} · {pct}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${pct}%`, backgroundColor: styleColors[r.style] }}
+                        />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          {/* Teacher attendance */}
+          <div className="w-52">
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{t("adm.chart.teacherHeads")}</p>
+            {stats.teacherStats.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t("adm.sessionStats.noData")}</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {stats.teacherStats.map((s) => {
+                  const teacher = teachers.find((tt) => tt.id === s.teacherId)!
+                  return (
+                    <li key={s.teacherId}>
+                      <div className="mb-0.5 flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-card-foreground">
+                          {lang === "zh" ? teacher.name : teacher.nameEn}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {s.heads} {t("unit.people")}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                        <div className="h-full rounded-full bg-accent" style={{ width: `${(s.heads / maxHeads) * 100}%` }} />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        {/* Monthly stacked bars, segmented by style */}
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-3">
-          <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.sessionStats.byMonth")}</h2>
-          <div className="mt-6 flex h-52 items-end justify-between gap-2">
-            {stats.months.map((m) => (
-              <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-[11px] font-medium text-muted-foreground">{m.total || ""}</span>
-                <div
-                  className="flex w-full flex-col overflow-hidden rounded-t-lg"
-                  style={{ height: `${(m.total / maxMonthTotal) * 160}px` }}
-                >
-                  {styleKeys
-                    .filter((k) => m.byStyle[k])
-                    .map((k) => (
-                      <div
-                        key={k}
-                        style={{
-                          height: `${((m.byStyle[k] ?? 0) / (m.total || 1)) * 100}%`,
-                          backgroundColor: styleColors[k],
-                        }}
-                      />
-                    ))}
-                </div>
-                <span className="text-[11px] text-muted-foreground">{lang === "zh" ? m.month : m.en}</span>
-              </div>
-            ))}
+      <div className="flex h-52 items-end justify-between gap-2">
+        {stats.months.map((m) => (
+          <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">{m.total || ""}</span>
+            <div
+              className="flex w-full flex-col overflow-hidden rounded-t-lg"
+              style={{ height: `${(m.total / maxMonthTotal) * 160}px` }}
+            >
+              {styleKeys
+                .filter((k) => m.byStyle[k])
+                .map((k) => (
+                  <div
+                    key={k}
+                    style={{
+                      height: `${((m.byStyle[k] ?? 0) / (m.total || 1)) * 100}%`,
+                      backgroundColor: styleColors[k],
+                    }}
+                  />
+                ))}
+            </div>
+            <span className="text-[11px] text-muted-foreground">{lang === "zh" ? m.month : m.en}</span>
           </div>
-        </div>
-
-        {/* Yearly totals by style */}
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
-          <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.chart.byStyle")}</h2>
-          {styleRows.length === 0 ? (
-            <p className="mt-5 text-sm text-muted-foreground">{t("adm.sessionStats.noData")}</p>
-          ) : (
-            <ul className="mt-5 flex flex-col gap-3">
-              {styleRows.map((r) => {
-                const pct = Math.round((r.value / totalForPct) * 100)
-                return (
-                  <li key={r.style}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-card-foreground">
-                        <StyleDot style={r.style} />
-                        {t(r.style)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {r.value} · {pct}%
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: styleColors[r.style] }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
+        ))}
       </div>
     </div>
   )
