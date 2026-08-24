@@ -21,9 +21,15 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
 }
 
 // Shared core behind bookClass (self-service) and adminBookStudent (staff
-// registering someone on their behalf) — same capacity/card-consumption
-// rules either way, just a different caller decides which studentId.
-async function bookOccurrenceForStudent(sessionId: string, date: string, studentId: string) {
+// registering someone on their behalf) — same card-consumption mechanics
+// either way, but capacity/waitlist enforcement is opt-out via `forceBooked`
+// (see adminBookStudent for why the admin path always sets it).
+async function bookOccurrenceForStudent(
+  sessionId: string,
+  date: string,
+  studentId: string,
+  opts: { forceBooked?: boolean } = {},
+) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
     // Row-lock the session so concurrent bookers of the same session
@@ -34,8 +40,13 @@ async function bookOccurrenceForStudent(sessionId: string, date: string, student
       where: { id: sessionId },
       include: { teacher: true },
     })
-    const bookedCount = await tx.booking.count({ where: { sessionId, date: occurrenceDate, state: "BOOKED" } })
-    const state = bookedCount < session.capacity ? "BOOKED" : "WAITLIST"
+    let state: "BOOKED" | "WAITLIST"
+    if (opts.forceBooked) {
+      state = "BOOKED"
+    } else {
+      const bookedCount = await tx.booking.count({ where: { sessionId, date: occurrenceDate, state: "BOOKED" } })
+      state = bookedCount < session.capacity ? "BOOKED" : "WAITLIST"
+    }
 
     const booking = await tx.booking.upsert({
       where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
@@ -80,10 +91,16 @@ export async function bookClass(sessionId: string, date: string) {
 }
 
 // Admin-side 课时登记 — staff registering a specific student into a specific
-// class occurrence on their behalf (same capacity/card-consumption rules as
-// self-booking). Guards against double-registering someone already on the
-// roster, since the shared core's upsert would otherwise silently consume a
-// second credit without creating a second ledger entry to show for it.
+// class occurrence on their behalf. Always lands as BOOKED (forceBooked),
+// bypassing the capacity/waitlist check self-booking uses: waitlisting
+// exists to queue students fairly under uncontrolled self-service demand,
+// not to silently no-op an admin's explicit "register this student" action
+// — and the legacy-migrated dataset routinely already exceeds a session's
+// nominal capacity, so without this an admin could almost never actually
+// register (and therefore charge) anyone through this feature. Guards
+// against double-registering someone already on the roster, since the
+// shared core's upsert would otherwise silently consume a second credit
+// without creating a second ledger entry to show for it.
 export async function adminBookStudent(sessionId: string, date: string, studentId: string) {
   await requireRole("ADMIN")
   const occurrenceDate = parseISODate(date)
@@ -91,7 +108,7 @@ export async function adminBookStudent(sessionId: string, date: string, studentI
     where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
   })
   if (existing && existing.state !== "CANCELED") throw new Error("ALREADY_REGISTERED")
-  return bookOccurrenceForStudent(sessionId, date, studentId)
+  return bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true })
 }
 
 // Names only, in the order students joined — matches the "接龙" (group

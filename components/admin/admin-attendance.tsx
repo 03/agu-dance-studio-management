@@ -31,6 +31,17 @@ function monthKey(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}`
 }
 
+// getOccurrencesForMonth only returns (session, date) pairs that currently
+// have at least one booking — a date that just dropped to zero after a
+// removal simply isn't in the response at all. True for a given occurrence
+// key: does its date fall in this (year, month)?
+function keyInMonth(key: string, year: number, month: number): boolean {
+  const iso = key.split("__")[1]
+  if (!iso) return false
+  const [y, m] = iso.split("-").map(Number)
+  return y === year && m === month + 1
+}
+
 export function AdminAttendance({
   sessions,
   teachers,
@@ -67,6 +78,12 @@ export function AdminAttendance({
     const fetched = await getOccurrencesForMonth(year, month)
     setOccurrenceMap((prev) => {
       const next = new Map(prev)
+      // Drop this month's existing entries first — a date whose booked
+      // count just fell to zero won't be in `fetched` at all, so without
+      // this its stale non-zero count would linger forever.
+      for (const k of next.keys()) {
+        if (keyInMonth(k, year, month)) next.delete(k)
+      }
       for (const o of fetched) next.set(occurrenceKey(o.sessionId, o.date), o)
       return next
     })
