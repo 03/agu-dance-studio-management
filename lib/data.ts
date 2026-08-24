@@ -16,7 +16,16 @@ import {
   styleDbToKey,
   bookingStateToMyState,
 } from "@/lib/mappers"
-import { toISODate, occurrenceKey } from "@/lib/schedule-dates"
+import {
+  toISODate,
+  occurrenceKey,
+  monthRange,
+  yearRange,
+  parseISODate,
+  todayISO,
+  addDays,
+  studioDateParts,
+} from "@/lib/schedule-dates"
 import type { StyleKey, Occurrence, UpcomingBooking } from "@/lib/types"
 import type { BookingState } from "@/lib/generated/prisma/client"
 
@@ -45,8 +54,9 @@ export function buildOccurrences(
   return Array.from(map.values())
 }
 
-function startOfMonth(now = new Date()) {
-  return new Date(now.getFullYear(), now.getMonth(), 1)
+function startOfMonth() {
+  const [y, m] = todayISO().split("-").map(Number)
+  return monthRange(y, m - 1).start
 }
 
 // Public, pre-login landing page data — just the recurring weekly class
@@ -57,12 +67,10 @@ function startOfMonth(now = new Date()) {
 // demand via getOccurrencesForMonth (lib/actions/schedule.ts) rather than
 // this eagerly covering every month the visitor might navigate to.
 export async function getPublicScheduleData() {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const weekEnd = new Date(today)
-  weekEnd.setDate(today.getDate() + 7)
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const todayIso = todayISO()
+  const [y, m] = todayIso.split("-").map(Number)
+  const weekEnd = parseISODate(addDays(todayIso, 7))
+  const { start: monthStart, end: monthEnd } = monthRange(y, m - 1)
   const rangeEnd = weekEnd > monthEnd ? weekEnd : monthEnd
 
   const [sessionsRaw, roomsRaw, bookingsRaw] = await Promise.all([
@@ -96,12 +104,10 @@ export async function getPublicScheduleData() {
 // picker has no further navigation, so unlike the public month view there's
 // no on-demand fetch needed here.
 export async function getStudentAppData(studentId: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const windowStart = new Date(today)
-  windowStart.setDate(today.getDate() - 2)
-  const windowEnd = new Date(today)
-  windowEnd.setDate(today.getDate() + 14)
+  const todayIso = todayISO()
+  const today = parseISODate(todayIso)
+  const windowStart = parseISODate(addDays(todayIso, -2))
+  const windowEnd = parseISODate(addDays(todayIso, 14))
 
   const [
     teachers,
@@ -168,10 +174,9 @@ export async function getStudentAppData(studentId: string) {
 // session's next real-date occurrence (via nextOccurrence()), so that's the
 // only window whose booked counts it can ever display.
 export async function getTeacherAppData(teacherId: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const weekEnd = new Date(today)
-  weekEnd.setDate(today.getDate() + 7)
+  const todayIso = todayISO()
+  const today = parseISODate(todayIso)
+  const weekEnd = parseISODate(addDays(todayIso, 7))
 
   const [teacherRow, rooms, sessionsRaw, occurrenceBookings] = await Promise.all([
     prisma.teacher.findUnique({ where: { id: teacherId } }),
@@ -236,10 +241,11 @@ export async function getAdminAppData() {
       prisma.backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
     ])
 
+  const currentYear = Number(todayISO().split("-")[0])
   const [admin, sessionStats, cashFlow] = await Promise.all([
     getAdminAnalytics(),
-    getYearlyStyleStats(new Date().getFullYear()),
-    getYearlyCashFlow(new Date().getFullYear()),
+    getYearlyStyleStats(currentYear),
+    getYearlyCashFlow(currentYear),
   ])
 
   return {
@@ -265,8 +271,7 @@ export async function getAdminAppData() {
 // list shown alongside it shares the same selected year. Entries without a
 // linked booking (older synthetic seed data) are skipped.
 export async function getYearlyStyleStats(year: number) {
-  const start = new Date(year, 0, 1)
-  const end = new Date(year + 1, 0, 1)
+  const { start, end } = yearRange(year)
   const [entries, earliest] = await Promise.all([
     prisma.ledgerEntry.findMany({
       where: { kind: "CONSUME", date: { gte: start, lt: end } },
@@ -291,7 +296,7 @@ export async function getYearlyStyleStats(year: number) {
     if (!style) continue
     const key = styleDbToKey(style)
     const amt = Math.abs(e.delta)
-    const m = months[e.date.getMonth()]
+    const m = months[studioDateParts(e.date).month - 1]
     m.total += amt
     m.byStyle[key] = (m.byStyle[key] ?? 0) + amt
     const teacherId = e.booking!.session!.teacherId
@@ -301,8 +306,8 @@ export async function getYearlyStyleStats(year: number) {
     .map(([teacherId, heads]) => ({ teacherId, heads }))
     .sort((a, b) => b.heads - a.heads)
 
-  const minYear = earliest._min.date ? earliest._min.date.getFullYear() : year
-  const maxYear = new Date().getFullYear()
+  const minYear = earliest._min.date ? studioDateParts(earliest._min.date).year : year
+  const maxYear = Number(todayISO().split("-")[0])
   return { year, months, minYear, maxYear, teacherStats }
 }
 
@@ -312,8 +317,7 @@ export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
 // the admin finance page's cash flow chart with the same on-demand
 // year-navigation pattern as getYearlyStyleStats/getSessionStatsForYear.
 export async function getYearlyCashFlow(year: number) {
-  const start = new Date(year, 0, 1)
-  const end = new Date(year + 1, 0, 1)
+  const { start, end } = yearRange(year)
   const [payments, earliest] = await Promise.all([
     prisma.payment.findMany({ where: { paidAt: { gte: start, lt: end } }, select: { amount: true, paidAt: true } }),
     prisma.payment.aggregate({ _min: { paidAt: true } }),
@@ -321,11 +325,11 @@ export async function getYearlyCashFlow(year: number) {
 
   const months = Array.from({ length: 12 }, (_, i) => ({ month: `${i + 1}月`, en: MONTH_EN[i], value: 0 }))
   for (const p of payments) {
-    months[p.paidAt.getMonth()].value += p.amount
+    months[studioDateParts(p.paidAt).month - 1].value += p.amount
   }
 
-  const minYear = earliest._min.paidAt ? earliest._min.paidAt.getFullYear() : year
-  const maxYear = new Date().getFullYear()
+  const minYear = earliest._min.paidAt ? studioDateParts(earliest._min.paidAt).year : year
+  const maxYear = Number(todayISO().split("-")[0])
   return { year, months, minYear, maxYear }
 }
 
