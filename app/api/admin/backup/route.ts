@@ -19,7 +19,7 @@ export async function GET() {
     })
     return new NextResponse(content, {
       headers: {
-        "Content-Type": "application/sql",
+        "Content-Type": "application/json",
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     })

@@ -1,132 +1,90 @@
-// Shells out to the `pg_dump`/`psql` client binaries rather than
-// hand-rolling a Prisma-based export/import — a real data-only dump is far
-// more robust (handles every column type, escaping, etc. automatically)
-// than a custom row serializer, and the tables here are plain columns with
-// no BYTEA/large-object data, so a text SQL dump is a fine transport format.
-import { spawn } from "node:child_process"
-import { readFile, unlink, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { randomUUID } from "node:crypto"
+// Pure Prisma/JS backup+restore — no external `pg_dump`/`psql` binaries.
+// The previous implementation shelled out to those CLI tools, which is fine
+// locally or on a VPS, but fails outright (`spawn pg_dump ENOENT`) on
+// managed hosting like Hostinger's Node.js App plans, which give no way to
+// install system packages. This version reads/writes every row through the
+// same Prisma connection the rest of the app already uses, so it works
+// anywhere the app itself runs. Trade-off: backups are now a JSON snapshot
+// of Prisma's own row shapes rather than a portable SQL dump — fine for
+// this feature's actual use (restore into this same schema), but old
+// `.sql` backup files from the previous implementation can no longer be
+// restored.
+import { prisma } from "@/lib/db"
+import type { Prisma } from "@/lib/generated/prisma/client"
 
-// Everything backed up/restored by 备份/还原. Deliberately excludes
-// `users`/`sessions` (login accounts survive a restore untouched — see
-// restoreBusinessData) and `backup_records` itself (the audit log must
-// outlive the operation it's recording).
-export const BUSINESS_TABLES = [
-  "teachers",
-  "rooms",
-  "class_sessions",
-  "students",
-  "bookings",
-  "card_products",
-  "student_cards",
-  "ledger_entries",
-  "payments",
+// Parents before children — the order both the dump's keys and the
+// restore's re-inserts use. Rows are re-created with their original ids
+// (not through relation connects), so a row's FK targets must already
+// exist by the time it's inserted.
+const RESTORE_ORDER = [
+  "teacher",
+  "room",
+  "classSession",
+  "student",
+  "cardProduct",
+  "booking",
+  "studentCard",
+  "ledgerEntry",
+  "payment",
 ] as const
 
-// Children before parents, so each DELETE only ever removes rows whose
-// dependents are already gone. Plain DELETE (not TRUNCATE) on purpose:
-// TRUNCATE's CASCADE option truncates *entire* referencing tables — it
-// would wipe all of `users` since it has FK columns into students/teachers,
-// which is exactly what this feature must not do.
-const DELETE_ORDER = [
-  "ledger_entries",
-  "payments",
-  "bookings",
-  "student_cards",
-  "class_sessions",
-  "students",
-  "card_products",
-  "teachers",
-  "rooms",
-] as const
+type ModelName = (typeof RESTORE_ORDER)[number]
 
-// Strips Prisma-only query params (e.g. `?schema=public`) that libpq's URI
-// parser — used by pg_dump/psql, not Prisma's own connection code — rejects
-// outright. Both databases here use the default "public" schema, so
-// dropping the query string entirely is safe.
-function databaseUrl(): string {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error("DATABASE_URL is not set")
-  return url.split("?")[0]
+// Children before parents, so each deleteMany only ever removes rows whose
+// dependents are already gone.
+const DELETE_ORDER = [...RESTORE_ORDER].reverse() as ModelName[]
+
+// DateTime fields per model — JSON has no native date type, so these need
+// re-hydrating from ISO strings back into Date objects before insert.
+const DATE_FIELDS: Partial<Record<ModelName, string[]>> = {
+  booking: ["date", "createdAt"],
+  studentCard: ["expiry"],
+  ledgerEntry: ["date"],
+  payment: ["paidAt"],
 }
 
-function run(cmd: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args)
-    let stderr = ""
-    child.stderr.on("data", (d) => (stderr += d))
-    child.on("error", (err) => reject(new Error(`${cmd}: ${err.message}`)))
-    child.on("close", (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(stderr.trim() || `${cmd} exited with code ${code}`))
-    })
-  })
+type Row = Record<string, unknown>
+type Delegate = {
+  findMany: () => Promise<Row[]>
+  deleteMany: () => Promise<unknown>
+  createMany: (args: { data: Row[] }) => Promise<unknown>
 }
+
+// The real Prisma delegates each want their own specific per-model input
+// type, not this generic Row shape — this utility is intentionally generic
+// across all nine business tables, so the cast trades that per-model
+// checking away in exchange for not hand-writing this loop nine times.
+function delegates(client: Prisma.TransactionClient | typeof prisma): Record<ModelName, Delegate> {
+  return {
+    teacher: client.teacher,
+    room: client.room,
+    classSession: client.classSession,
+    student: client.student,
+    cardProduct: client.cardProduct,
+    booking: client.booking,
+    studentCard: client.studentCard,
+    ledgerEntry: client.ledgerEntry,
+    payment: client.payment,
+  } as unknown as Record<ModelName, Delegate>
+}
+
+const BACKUP_FORMAT_VERSION = 1
 
 export function backupFilename(date = new Date()): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")
   const d = String(date.getDate()).padStart(2, "0")
-  return `agu_backup_${y}_${m}_${d}.sql`
+  return `agu_backup_${y}_${m}_${d}.json`
 }
 
-// pg_dump's preamble sets a handful of session parameters (statement_timeout,
-// transaction_timeout, etc.) gated by the *pg_dump binary's own* version, not
-// the server it dumped from — e.g. pg_dump 18 always emits
-// `SET transaction_timeout = 0;`, a parameter that doesn't exist before
-// Postgres 17, so restoring that dump against a Postgres 16 server (local
-// Docker and Supabase both run 16) fails with "unrecognized configuration
-// parameter". None of these lines affect the actual data, so just drop them.
-function stripVersionSpecificPreamble(sql: string): string {
-  return sql
-    .split("\n")
-    .filter((line) => !/^SET [a-z_]+ = .+;$/.test(line) && !line.startsWith("SELECT pg_catalog.set_config("))
-    .join("\n")
-}
-
-// Backups generated before this file stopped passing `--disable-triggers`
-// (see dumpBusinessData) still have `ALTER TABLE ... {DIS,EN}ABLE TRIGGER
-// ALL;` lines baked in — those require table-owner/superuser privileges the
-// Supabase connection role doesn't have, so strip them for compatibility
-// with already-downloaded backup files.
-function stripTriggerToggles(sql: string): string {
-  return sql
-    .split("\n")
-    .filter((line) => !/^ALTER TABLE (ONLY )?\S+ (DISABLE|ENABLE) TRIGGER ALL;$/.test(line))
-    .join("\n")
-}
-
-// A data-only dump of the business tables — schema is Prisma-migration
-// managed, not part of this file. No `--disable-triggers`: that flag emits
-// `ALTER TABLE ... DISABLE TRIGGER ALL`, which requires table-owner/superuser
-// privileges to touch the internal RI (foreign-key) triggers — Supabase's
-// pooler connection role doesn't have that, so restores there failed with
-// `permission denied: "RI_ConstraintTrigger_..." is a system trigger`. It's
-// unneeded anyway: pg_dump topologically sorts TABLE DATA sections by FK
-// dependency by default (verified: rooms/teachers → class_sessions →
-// students → bookings → card_products → student_cards → ledger_entries →
-// payments), so DELETE_ORDER (below) and this dump's own COPY order already
-// load everything parent-before-child without disabling anything.
 export async function dumpBusinessData(): Promise<Buffer> {
-  const tmpFile = join(tmpdir(), `agu-backup-${randomUUID()}.sql`)
-  const args = [
-    databaseUrl(),
-    "--data-only",
-    "--no-owner",
-    "--no-privileges",
-    "-f",
-    tmpFile,
-    ...BUSINESS_TABLES.flatMap((t) => ["-t", t]),
-  ]
-  try {
-    await run("pg_dump", args)
-    const content = await readFile(tmpFile, "utf-8")
-    return Buffer.from(stripVersionSpecificPreamble(content), "utf-8")
-  } finally {
-    await unlink(tmpFile).catch(() => {})
+  const d = delegates(prisma)
+  const data: Partial<Record<ModelName, Row[]>> = {}
+  for (const model of RESTORE_ORDER) {
+    data[model] = await d[model].findMany()
   }
+  const payload = { version: BACKUP_FORMAT_VERSION, exportedAt: new Date().toISOString(), data }
+  return Buffer.from(JSON.stringify(payload), "utf-8")
 }
 
 // Wipes the business tables and reloads them from a prior backup's dump,
@@ -136,36 +94,58 @@ export async function dumpBusinessData(): Promise<Buffer> {
 // saved up front and re-applied afterward wherever the original id still
 // exists in the restored data, so login accounts keep working.
 export async function restoreBusinessData(dumpContent: string): Promise<void> {
-  const tmpFile = join(tmpdir(), `agu-restore-${randomUUID()}.sql`)
-  // Defensive: also strip on the way in, in case the uploaded file is an
-  // older backup or was produced by a pg_dump build on another machine.
-  const cleanDump = stripTriggerToggles(stripVersionSpecificPreamble(dumpContent))
-  const script = `
-BEGIN;
-
-CREATE TEMP TABLE _user_links AS
-  SELECT id, "studentId", "teacherId" FROM users WHERE "studentId" IS NOT NULL OR "teacherId" IS NOT NULL;
-
-${DELETE_ORDER.map((t) => `DELETE FROM ${t};`).join("\n")}
-
-${cleanDump}
-
-UPDATE users u SET "studentId" = ul."studentId"
-  FROM _user_links ul
-  WHERE u.id = ul.id AND ul."studentId" IS NOT NULL
-    AND EXISTS (SELECT 1 FROM students s WHERE s.id = ul."studentId");
-
-UPDATE users u SET "teacherId" = ul."teacherId"
-  FROM _user_links ul
-  WHERE u.id = ul.id AND ul."teacherId" IS NOT NULL
-    AND EXISTS (SELECT 1 FROM teachers t WHERE t.id = ul."teacherId");
-
-COMMIT;
-`
-  await writeFile(tmpFile, script, "utf-8")
+  let parsed: { data?: Partial<Record<ModelName, Row[]>> }
   try {
-    await run("psql", [databaseUrl(), "-v", "ON_ERROR_STOP=1", "-f", tmpFile])
-  } finally {
-    await unlink(tmpFile).catch(() => {})
+    parsed = JSON.parse(dumpContent)
+  } catch {
+    throw new Error("INVALID_BACKUP_FILE: not valid JSON")
   }
+  const data = parsed.data
+  if (!data || typeof data !== "object") {
+    throw new Error("INVALID_BACKUP_FILE: missing data")
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      const d = delegates(tx)
+
+      const userLinks = await tx.user.findMany({
+        where: { OR: [{ studentId: { not: null } }, { teacherId: { not: null } }] },
+        select: { id: true, studentId: true, teacherId: true },
+      })
+
+      for (const model of DELETE_ORDER) {
+        await d[model].deleteMany()
+      }
+
+      for (const model of RESTORE_ORDER) {
+        const rows = data[model] ?? []
+        if (rows.length === 0) continue
+        const dateFields = DATE_FIELDS[model] ?? []
+        const hydrated =
+          dateFields.length === 0
+            ? rows
+            : rows.map((row) => {
+                const copy = { ...row }
+                for (const field of dateFields) {
+                  if (copy[field] != null) copy[field] = new Date(copy[field] as string)
+                }
+                return copy
+              })
+        await d[model].createMany({ data: hydrated })
+      }
+
+      const studentIds = new Set((data.student ?? []).map((s) => s.id as string))
+      const teacherIds = new Set((data.teacher ?? []).map((t) => t.id as string))
+      for (const link of userLinks) {
+        if (link.studentId && studentIds.has(link.studentId)) {
+          await tx.user.update({ where: { id: link.id }, data: { studentId: link.studentId } })
+        }
+        if (link.teacherId && teacherIds.has(link.teacherId)) {
+          await tx.user.update({ where: { id: link.id }, data: { teacherId: link.teacherId } })
+        }
+      }
+    },
+    { timeout: 120_000, maxWait: 10_000 },
+  )
 }

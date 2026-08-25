@@ -38,7 +38,7 @@ export function AdminBackup({ backupRecords }: { backupRecords: BackupRecordEntr
       if (!res.ok) throw new Error("backup failed")
       const disposition = res.headers.get("Content-Disposition") ?? ""
       const match = disposition.match(/filename="([^"]+)"/)
-      const filename = match?.[1] ?? "agu_backup.sql"
+      const filename = match?.[1] ?? "agu_backup.json"
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -174,7 +174,7 @@ function RestoreForm({ onClose }: { onClose: () => void }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".sql"
+            accept=".json"
             className="hidden"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
