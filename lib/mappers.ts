@@ -290,7 +290,7 @@ export const mapCashierEntry = (
   cardName: p.card ? { zh: p.card.nameZh, en: p.card.nameEn } : null,
   amount: p.amount,
   method: paymentMethodDbToKey(p.method),
-  paidAt: formatLedgerDate(p.paidAt),
+  paidAt: formatDateOnly(p.paidAt),
 })
 
 export function mapUser(u: DbUser & { student: { name: string } | null; teacher: { name: string } | null }): AppUser {

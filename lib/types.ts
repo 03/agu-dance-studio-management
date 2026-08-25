@@ -179,6 +179,7 @@ export type RosterEntry = {
   checkedIn: boolean
   proxy?: boolean
   remainingSessions: number
+  createdAt: string
 }
 
 export const weekdayKeys = ["day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"]

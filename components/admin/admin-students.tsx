@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import jsPDF from "jspdf"
 import html2canvas from "html2canvas"
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { SortableHead } from "@/components/ui/sortable-head"
 import {
   Table,
   TableBody,
@@ -41,6 +42,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Search,
   CreditCard,
   Gift,
@@ -48,10 +58,8 @@ import {
   RotateCcw,
   Pencil,
   Trash2,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   Download,
+  Columns3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -142,6 +150,30 @@ function compareStudents(a: Student, b: Student, field: SortField, dir: SortDir)
   return String(av).localeCompare(String(bv)) * mul
 }
 
+// Every column except name/actions can be hidden — this is a per-browser
+// display preference (not business data), so it's kept in localStorage
+// rather than the database.
+type ToggleableColumn =
+  | "phone"
+  | "wechat"
+  | "code"
+  | "cards"
+  | "totalSessions"
+  | "usedSessions"
+  | "totalBalance"
+  | "status"
+const COLUMN_DEFS: { key: ToggleableColumn; labelKey: string }[] = [
+  { key: "phone", labelKey: "common.phone" },
+  { key: "wechat", labelKey: "auth.wechat" },
+  { key: "code", labelKey: "adm.students.code" },
+  { key: "cards", labelKey: "stu.nav.cards" },
+  { key: "totalSessions", labelKey: "adm.students.totalSessions" },
+  { key: "usedSessions", labelKey: "adm.students.usedSessions" },
+  { key: "totalBalance", labelKey: "stu.cards.balance" },
+  { key: "status", labelKey: "common.status" },
+]
+const HIDDEN_COLUMNS_STORAGE_KEY = "adm.students.hiddenColumns"
+
 export function AdminStudents({
   students,
   cardProducts,
@@ -156,6 +188,29 @@ export function AdminStudents({
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "name", dir: "asc" })
   const [isRefreshing, startRefresh] = useTransition()
   const refresh = () => startRefresh(() => router.refresh())
+
+  // Starts empty (all columns shown) so server-rendered HTML matches the
+  // first client render; the real preference loads from localStorage right
+  // after mount.
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ToggleableColumn>>(new Set())
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY)
+      if (stored) setHiddenColumns(new Set(JSON.parse(stored)))
+    } catch {
+      // Corrupt/unavailable storage — fall back to showing every column.
+    }
+  }, [])
+  const toggleColumn = (key: ToggleableColumn) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+  const showCol = (key: ToggleableColumn) => !hiddenColumns.has(key)
 
   const handleSort = (field: SortField) => {
     setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
@@ -177,6 +232,30 @@ export function AdminStudents({
           <Button variant="outline" size="icon" onClick={refresh} disabled={isRefreshing} title={t("common.refresh")}>
             <RotateCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" size="icon" title={t("adm.students.columns")}>
+                  <Columns3 className="h-4 w-4" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{t("adm.students.columns")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {COLUMN_DEFS.map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.key}
+                    checked={showCol(col.key)}
+                    onCheckedChange={() => toggleColumn(col.key)}
+                  >
+                    {t(col.labelKey)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -194,14 +273,20 @@ export function AdminStudents({
           <TableHeader>
             <TableRow>
               <SortableHead field="name" label={t("common.name")} sort={sort} onSort={handleSort} />
-              <SortableHead field="phone" label={t("common.phone")} sort={sort} onSort={handleSort} />
-              <SortableHead field="wechat" label={t("auth.wechat")} sort={sort} onSort={handleSort} />
-              <SortableHead field="code" label={t("adm.students.code")} sort={sort} onSort={handleSort} />
-              <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />
-              <SortableHead field="totalSessions" label={t("adm.students.totalSessions")} sort={sort} onSort={handleSort} />
-              <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
-              <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
-              <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />
+              {showCol("phone") && <SortableHead field="phone" label={t("common.phone")} sort={sort} onSort={handleSort} />}
+              {showCol("wechat") && <SortableHead field="wechat" label={t("auth.wechat")} sort={sort} onSort={handleSort} />}
+              {showCol("code") && <SortableHead field="code" label={t("adm.students.code")} sort={sort} onSort={handleSort} />}
+              {showCol("cards") && <SortableHead field="cards" label={t("stu.nav.cards")} sort={sort} onSort={handleSort} />}
+              {showCol("totalSessions") && (
+                <SortableHead field="totalSessions" label={t("adm.students.totalSessions")} sort={sort} onSort={handleSort} />
+              )}
+              {showCol("usedSessions") && (
+                <SortableHead field="usedSessions" label={t("adm.students.usedSessions")} sort={sort} onSort={handleSort} />
+              )}
+              {showCol("totalBalance") && (
+                <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
+              )}
+              {showCol("status") && <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />}
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -218,27 +303,35 @@ export function AdminStudents({
                     <span className="font-medium text-card-foreground">{s.name}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{s.phone ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{s.wechat ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{s.code ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{s.cards}</TableCell>
-                <TableCell className="font-display font-bold text-card-foreground">
-                  {s.totalBalance + (s.usedSessions ?? 0)}
-                </TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => setDialog({ mode: "usage", student: s })}
-                    className="font-display font-bold text-primary underline-offset-2 hover:underline"
-                  >
-                    {s.usedSessions ?? 0}
-                  </button>
-                </TableCell>
-                <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
-                <TableCell>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
-                    {lang === "zh" ? statusLabel[s.status].zh : statusLabel[s.status].en}
-                  </span>
-                </TableCell>
+                {showCol("phone") && <TableCell className="text-muted-foreground">{s.phone ?? "—"}</TableCell>}
+                {showCol("wechat") && <TableCell className="text-muted-foreground">{s.wechat ?? "—"}</TableCell>}
+                {showCol("code") && <TableCell className="text-muted-foreground">{s.code ?? "—"}</TableCell>}
+                {showCol("cards") && <TableCell className="text-muted-foreground">{s.cards}</TableCell>}
+                {showCol("totalSessions") && (
+                  <TableCell className="font-display font-bold text-card-foreground">
+                    {s.totalBalance + (s.usedSessions ?? 0)}
+                  </TableCell>
+                )}
+                {showCol("usedSessions") && (
+                  <TableCell>
+                    <button
+                      onClick={() => setDialog({ mode: "usage", student: s })}
+                      className="font-display font-bold text-primary underline-offset-2 hover:underline"
+                    >
+                      {s.usedSessions ?? 0}
+                    </button>
+                  </TableCell>
+                )}
+                {showCol("totalBalance") && (
+                  <TableCell className="font-display font-bold text-card-foreground">{s.totalBalance}</TableCell>
+                )}
+                {showCol("status") && (
+                  <TableCell>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
+                      {lang === "zh" ? statusLabel[s.status].zh : statusLabel[s.status].en}
+                    </span>
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="flex justify-end gap-1">
                     <IconBtn label={t("adm.students.addCard")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.addCard" })}>
@@ -290,38 +383,6 @@ export function AdminStudents({
         </DialogContent>
       </Dialog>
     </div>
-  )
-}
-
-function SortableHead({
-  field,
-  label,
-  sort,
-  onSort,
-}: {
-  field: SortField
-  label: string
-  sort: { field: SortField; dir: SortDir }
-  onSort: (field: SortField) => void
-}) {
-  const active = sort.field === field
-  return (
-    <TableHead>
-      <button
-        onClick={() => onSort(field)}
-        className={cn(
-          "inline-flex items-center gap-1 whitespace-nowrap font-medium transition-colors hover:text-foreground",
-          active ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        {label}
-        {active ? (
-          sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-40" />
-        )}
-      </button>
-    </TableHead>
   )
 }
 

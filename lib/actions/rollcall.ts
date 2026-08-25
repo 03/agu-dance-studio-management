@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireAnyRole } from "@/lib/auth"
 import { parseISODate } from "@/lib/schedule-dates"
-import { computeRemainingBalance } from "@/lib/mappers"
+import { computeRemainingBalance, formatLedgerDate } from "@/lib/mappers"
 import type { RosterEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
@@ -34,6 +34,7 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
     checkedIn: b.checkedIn,
     proxy: b.proxy,
     remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
+    createdAt: formatLedgerDate(b.createdAt),
   }))
 }
 

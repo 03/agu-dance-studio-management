@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { SortableHead } from "@/components/ui/sortable-head"
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Pencil, KeyRound, Trash2 } from "lucide-react"
+import { Plus, Pencil, KeyRound, Trash2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const roleStyles: Record<AppUserRole, string> = {
@@ -61,6 +62,30 @@ const ERROR_KEY: Record<string, string> = {
 }
 const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
 
+type SortField = "username" | "role" | "linkedName" | "createdAt"
+type SortDir = "asc" | "desc"
+
+const ROLE_ORDER: Record<AppUserRole, number> = { student: 0, teacher: 1, admin: 2 }
+
+function getSortValue(u: AppUser, field: SortField): string | number {
+  switch (field) {
+    case "role":
+      return ROLE_ORDER[u.role]
+    case "linkedName":
+      return u.linkedName ?? ""
+    default:
+      return u[field]
+  }
+}
+
+function compareUsers(a: AppUser, b: AppUser, field: SortField, dir: SortDir): number {
+  const av = getSortValue(a, field)
+  const bv = getSortValue(b, field)
+  const mul = dir === "asc" ? 1 : -1
+  if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul
+  return String(av).localeCompare(String(bv)) * mul
+}
+
 type DialogState =
   | { mode: "create" }
   | { mode: "edit"; user: AppUser }
@@ -71,33 +96,56 @@ type DialogState =
 export function AdminUsers({ users }: { users: AppUser[] }) {
   const { t } = useLanguage()
   const [dialog, setDialog] = useState<DialogState>(null)
+  const [query, setQuery] = useState("")
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "createdAt", dir: "desc" })
+
+  const handleSort = (field: SortField) => {
+    setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
+  }
+  const filtered = users.filter(
+    (u) =>
+      u.username.toLowerCase().includes(query.toLowerCase()) ||
+      (u.linkedName ?? "").toLowerCase().includes(query.toLowerCase()),
+  )
+  const sorted = [...filtered].sort((a, b) => compareUsers(a, b, sort.field, sort.dir))
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <span className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">
           {t("adm.nav.users")}:{" "}
           <span className="font-display font-bold text-foreground">{users.length}</span>
         </span>
-        <Button size="sm" onClick={() => setDialog({ mode: "create" })}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t("adm.users.add")}
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("common.search")}
+              className="w-56 pl-9"
+            />
+          </div>
+          <Button size="sm" onClick={() => setDialog({ mode: "create" })}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("adm.users.add")}
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("auth.username")}</TableHead>
-              <TableHead>{t("adm.users.role")}</TableHead>
-              <TableHead>{t("adm.users.linkedTo")}</TableHead>
-              <TableHead>{t("adm.users.created")}</TableHead>
+              <SortableHead field="username" label={t("auth.username")} sort={sort} onSort={handleSort} />
+              <SortableHead field="role" label={t("adm.users.role")} sort={sort} onSort={handleSort} />
+              <SortableHead field="linkedName" label={t("adm.users.linkedTo")} sort={sort} onSort={handleSort} />
+              <SortableHead field="createdAt" label={t("adm.users.created")} sort={sort} onSort={handleSort} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
+            {sorted.map((u) => (
               <TableRow key={u.id}>
                 <TableCell className="font-medium text-card-foreground">{u.username}</TableCell>
                 <TableCell>

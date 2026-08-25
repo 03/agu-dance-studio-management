@@ -11,9 +11,17 @@ export type Role = "student" | "teacher" | "admin" | null
 // Pre-authentication experience only: pick a role card, then log in (or,
 // for students, register) as that role. The only business data fetched
 // before login is the public class schedule (publicData) — everything else
-// only happens after app/page.tsx sees a valid session.
-export function AppShell({ publicData }: { publicData: PublicScheduleData }) {
-  const [selectedRole, setSelectedRole] = useState<Role>(null)
+// only happens after app/page.tsx sees a valid session. `initialRole` lets
+// the /student, /teacher, /admin route shortcuts land straight on that
+// role's login form instead of the card picker.
+export function AppShell({
+  publicData,
+  initialRole = null,
+}: {
+  publicData: PublicScheduleData
+  initialRole?: Role
+}) {
+  const [selectedRole, setSelectedRole] = useState<Role>(initialRole)
   const [mode, setMode] = useState<"login" | "register">("login")
 
   const selectRole = (role: Role) => {

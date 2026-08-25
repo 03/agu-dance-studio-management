@@ -12,8 +12,21 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SortableHead } from "@/components/ui/sortable-head"
 import { ChevronLeft, ChevronRight, Trash2, CalendarSearch } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+type RosterSortField = "name" | "remainingSessions" | "createdAt"
+type RosterSortDir = "asc" | "desc"
+
+function compareRoster(a: RosterEntry, b: RosterEntry, field: RosterSortField, dir: RosterSortDir): number {
+  const av = a[field]
+  const bv = b[field]
+  const mul = dir === "asc" ? 1 : -1
+  if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul
+  return String(av).localeCompare(String(bv)) * mul
+}
 
 const ERROR_KEY: Record<string, string> = {
   NO_VALID_CARD: "adm.attendance.err.noValidCard",
@@ -223,7 +236,7 @@ export function AdminAttendance({
       </div>
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           {selected && (
             <RosterDialog
               session={selected.session}
@@ -308,6 +321,12 @@ function RosterDialog({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [sort, setSort] = useState<{ field: RosterSortField; dir: RosterSortDir }>({ field: "createdAt", dir: "asc" })
+
+  const handleSort = (field: RosterSortField) => {
+    setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
+  }
+  const sortedRoster = [...roster].sort((a, b) => compareRoster(a, b, sort.field, sort.dir))
 
   const load = useCallback(() => {
     setLoading(true)
@@ -422,38 +441,64 @@ function RosterDialog({
           ) : roster.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{t("adm.attendance.empty")}</p>
           ) : (
-            <ul className="mt-2 max-h-60 overflow-y-auto rounded-xl border border-border">
-              {roster.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-sm last:border-b-0"
-                >
-                  <span className="flex items-center gap-2">
-                    {r.name}
-                    <span
-                      className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
-                        r.remainingSessions <= 2
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-secondary text-muted-foreground",
-                      )}
-                    >
-                      {t("adm.attendance.remaining")} {r.remainingSessions}
-                    </span>
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    disabled={isPending && pendingId === r.id}
-                    onClick={() => handleRemove(r.id)}
-                    title={t("common.delete")}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-2 max-h-60 overflow-x-auto overflow-y-auto rounded-xl border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead field="name" label={t("common.name")} sort={sort} onSort={handleSort} />
+                    <SortableHead
+                      field="remainingSessions"
+                      label={t("adm.attendance.remainingSessions")}
+                      sort={sort}
+                      onSort={handleSort}
+                      className="whitespace-nowrap"
+                    />
+                    <SortableHead
+                      field="createdAt"
+                      label={t("adm.attendance.registeredAt")}
+                      sort={sort}
+                      onSort={handleSort}
+                      className="whitespace-nowrap"
+                    />
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedRoster.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="max-w-[9rem] truncate text-card-foreground" title={r.name}>
+                        {r.name}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                            r.remainingSessions <= 2
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          {r.remainingSessions}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{r.createdAt}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          disabled={isPending && pendingId === r.id}
+                          onClick={() => handleRemove(r.id)}
+                          title={t("common.delete")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </div>
       </div>
