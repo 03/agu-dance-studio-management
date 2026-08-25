@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
 import { AdminOverview } from "./admin-overview"
@@ -46,8 +47,18 @@ export function AdminApp({
   onExit: () => void | Promise<void>
 }) {
   const { t } = useLanguage()
+  const router = useRouter()
   const [section, setSection] = useState<Section>("overview")
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  // 学员管理 shows numbers (剩余课时 etc.) that other tabs — 课时登记 in
+  // particular — can change without themselves navigating here. Switching
+  // tabs is pure client state (no Next.js navigation), so without this the
+  // list would keep showing whatever was fetched on the last full page
+  // load/refresh, not the latest data.
+  useEffect(() => {
+    if (section === "students") router.refresh()
+  }, [section, router])
 
   const brand = (
     <div className="flex items-center gap-2 px-5 py-5">

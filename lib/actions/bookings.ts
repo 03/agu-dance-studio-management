@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { styleDbToKey, styleLabel } from "@/lib/mappers"
+import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
 import { parseISODate, toISODate } from "@/lib/schedule-dates"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
@@ -56,16 +56,34 @@ async function bookOccurrenceForStudent(
 
     if (state === "BOOKED") {
       const card = await pickConsumableCard(tx, studentId)
-      if (!card) throw new Error("NO_VALID_CARD")
-      if (!card.isUnlimited) {
-        await tx.studentCard.update({ where: { id: card.id }, data: { balance: { decrement: 1 } } })
+      let cardId: string | null = null
+      if (card) {
+        if (!card.isUnlimited) {
+          await tx.studentCard.update({ where: { id: card.id }, data: { balance: { decrement: 1 } } })
+        }
+        cardId = card.id
+      } else {
+        // No live StudentCard to draw from — still allow the booking if the
+        // student's overall computed balance (剩余课时, the same number
+        // shown everywhere in the app) is positive. This is the normal case
+        // for legacy-migrated students: their whole card history lives only
+        // in ledger_entries (cardId null), since the migration never
+        // created StudentCard rows for them. Consume the same way, via a
+        // cardless CONSUME entry — cancelling later refunds it identically
+        // (see cancelOccurrenceForStudent, which already treats cardId-null
+        // entries as "nothing to refund on the card side").
+        const [cards, ledgerEntries] = await Promise.all([
+          tx.studentCard.findMany({ where: { studentId } }),
+          tx.ledgerEntry.findMany({ where: { studentId } }),
+        ])
+        if (computeRemainingBalance(cards, ledgerEntries) <= 0) throw new Error("NO_VALID_CARD")
       }
       const label = styleLabel(styleDbToKey(session.style))
       await tx.ledgerEntry.upsert({
         where: { bookingId: booking.id },
         create: {
           studentId,
-          cardId: card.id,
+          cardId,
           bookingId: booking.id,
           kind: "CONSUME",
           titleZh: `${label.zh} · ${session.teacher.name}`,

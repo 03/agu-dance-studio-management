@@ -151,9 +151,12 @@ export function AdminStudents({
   cardProducts: CardProduct[]
 }) {
   const { t, lang } = useLanguage()
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [dialog, setDialog] = useState<DialogState>(null)
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "name", dir: "asc" })
+  const [isRefreshing, startRefresh] = useTransition()
+  const refresh = () => startRefresh(() => router.refresh())
 
   const handleSort = (field: SortField) => {
     setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
@@ -172,6 +175,9 @@ export function AdminStudents({
             {t("adm.students.total")}:{" "}
             <span className="font-display font-bold text-foreground">{students.length}</span>
           </span>
+          <Button variant="outline" size="icon" onClick={refresh} disabled={isRefreshing} title={t("common.refresh")}>
+            <RotateCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

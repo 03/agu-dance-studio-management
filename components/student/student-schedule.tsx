@@ -16,8 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, MapPin, Users, ListOrdered } from "lucide-react"
+import { Clock, MapPin, Users, ListOrdered, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const BOOKING_ERROR_KEY: Record<string, string> = {
+  NO_VALID_CARD: "stu.schedule.err.noValidCard",
+  NO_LINKED_STUDENT: "stu.schedule.err.generic",
+}
+const bookingErrorKeyFor = (e: unknown) => BOOKING_ERROR_KEY[e instanceof Error ? e.message : ""] ?? "stu.schedule.err.generic"
 
 const styleKeys: StyleKey[] = [
   "style.jazz",
@@ -49,6 +55,7 @@ export function StudentSchedule({
   const [rosterSessionId, setRosterSessionId] = useState<string | null>(null)
   const [rosterNames, setRosterNames] = useState<string[]>([])
   const [rosterLoading, setRosterLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Browsable window: the 2 days before today through the next 2 weeks
   // (today counted as day 1 of those two weeks) — 16 real calendar dates
@@ -118,15 +125,21 @@ export function StudentSchedule({
   }
 
   const toggle = (s: ClassSession & { myState: Occurrence["myState"] }) => {
+    setError(null)
     setPendingId(s.id)
     startTransition(async () => {
-      if (s.myState === "none") {
-        await bookClass(s.id, selectedDateISO)
-      } else {
-        await cancelBooking(s.id, selectedDateISO)
+      try {
+        if (s.myState === "none") {
+          await bookClass(s.id, selectedDateISO)
+        } else {
+          await cancelBooking(s.id, selectedDateISO)
+        }
+        router.refresh()
+      } catch (e) {
+        setError(bookingErrorKeyFor(e))
+      } finally {
+        setPendingId(null)
       }
-      router.refresh()
-      setPendingId(null)
     })
   }
 
@@ -204,6 +217,15 @@ export function StudentSchedule({
           </SelectContent>
         </Select>
       </div>
+
+      {error && (
+        <div className="mx-4 mb-3 flex items-center justify-between gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <span>{t(error)}</span>
+          <button onClick={() => setError(null)} className="shrink-0" aria-label={t("common.close")}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Class list */}
       <ul className="flex flex-col gap-3 px-4 pb-4">

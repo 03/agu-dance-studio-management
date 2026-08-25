@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, styleColors, type ClassSession, type Occurrence, type Teacher, type Student, type RosterEntry } from "@/lib/types"
 import { toAppDay, toISODate, parseISODate, occurrenceKey, formatAppDate } from "@/lib/schedule-dates"
@@ -299,6 +300,7 @@ function RosterDialog({
   onChanged: () => void
 }) {
   const { t, lang } = useLanguage()
+  const router = useRouter()
   const dateISO = toISODate(date)
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -334,6 +336,12 @@ function RosterDialog({
         setQuery("")
         load()
         onChanged()
+        // Balance/roster changes here also affect 学员管理's student list
+        // and other admin pages, which get their data from the top-level
+        // AdminAppData fetched once on load — router.refresh() re-runs that
+        // fetch so switching tabs shows current numbers instead of stale
+        // ones from before this add.
+        router.refresh()
       } catch (e) {
         setError(errorKeyFor(e))
       } finally {
@@ -350,6 +358,7 @@ function RosterDialog({
         await adminCancelBooking(bookingId)
         load()
         onChanged()
+        router.refresh()
       } catch (e) {
         setError(errorKeyFor(e))
       } finally {
