@@ -80,7 +80,6 @@ const ERROR_KEY: Record<string, string> = {
   INVALID_NAME: "adm.students.err.invalidName",
   INVALID_PHONE: "adm.students.err.invalidPhone",
   INVALID_JOINED: "adm.students.err.invalidJoined",
-  PHONE_TAKEN: "adm.students.err.phoneTaken",
   STUDENT_HAS_HISTORY: "adm.students.err.hasHistory",
 }
 const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"

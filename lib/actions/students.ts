@@ -79,10 +79,10 @@ export async function adjustBalance(studentId: string, cardId: string, delta: nu
   })
 }
 
-// Every editable field on the student business profile except `id`. Keeps
-// a linked login account's username in sync with phone (same invariant the
-// self-service profile.ts:updateMyProfile maintains) since phone doubles
-// as the username app-wide.
+// Every editable field on the student business profile except `id`. Phone
+// is plain contact info here — it does not affect a linked login account's
+// username (see lib/actions/users.ts:updateUser for the only place that
+// changes).
 export async function updateStudent(
   id: string,
   input: {
@@ -102,31 +102,17 @@ export async function updateStudent(
   if (!name) throw new Error("INVALID_NAME")
   if (!joined) throw new Error("INVALID_JOINED")
 
-  // Phone is optional business data, but a linked login account's username
-  // still has to be non-empty and unique — only sync it to the new phone
-  // when one was actually given; clearing phone leaves the username as-is.
-  const linkedUser = phone ? await prisma.user.findUnique({ where: { studentId: id } }) : null
-  if (linkedUser && linkedUser.username !== phone) {
-    const taken = await prisma.user.findUnique({ where: { username: phone } })
-    if (taken && taken.id !== linkedUser.id) throw new Error("PHONE_TAKEN")
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.student.update({
-      where: { id },
-      data: {
-        name,
-        phone: phone || null,
-        wechat: input.wechat.trim() || null,
-        email: input.email.trim() || null,
-        code: input.code.trim() || null,
-        joined,
-        status: studentStatusKeyToDb(input.status),
-      },
-    })
-    if (linkedUser && linkedUser.username !== phone) {
-      await tx.user.update({ where: { id: linkedUser.id }, data: { username: phone } })
-    }
+  await prisma.student.update({
+    where: { id },
+    data: {
+      name,
+      phone: phone || null,
+      wechat: input.wechat.trim() || null,
+      email: input.email.trim() || null,
+      code: input.code.trim() || null,
+      joined,
+      status: studentStatusKeyToDb(input.status),
+    },
   })
 }
 

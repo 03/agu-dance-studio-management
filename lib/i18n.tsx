@@ -295,7 +295,6 @@ export const dict: Dict = {
   "adm.students.err.invalidName": { zh: "请填写姓名", en: "Please enter a name" },
   "adm.students.err.invalidPhone": { zh: "请填写手机号", en: "Please enter a phone number" },
   "adm.students.err.invalidJoined": { zh: "请填写入会时间", en: "Please enter a join date" },
-  "adm.students.err.phoneTaken": { zh: "该手机号已被其他账号使用", en: "This phone number is already used by another account" },
   "adm.students.err.hasHistory": {
     zh: "该学员存在预约、卡包、账单或收支记录，无法删除",
     en: "This student has bookings, cards, ledger entries, or payments — can't be deleted",

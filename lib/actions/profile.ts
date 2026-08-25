@@ -3,8 +3,8 @@
 import { prisma } from "@/lib/db"
 import { requireRole, verifyPassword, hashPassword } from "@/lib/auth"
 
-// Phone number doubles as the login username, so changing it here keeps
-// that invariant intact by updating both rows in one transaction.
+// Phone number is plain contact info — editing it here does not touch the
+// login username (only lib/actions/users.ts:updateUser, admin-only, does).
 export async function updateMyProfile(input: { name: string; phone: string; wechat: string; email: string }) {
   const session = await requireRole("STUDENT")
   if (!session.studentId) throw new Error("NO_LINKED_STUDENT")
@@ -17,16 +17,10 @@ export async function updateMyProfile(input: { name: string; phone: string; wech
   if (!name) return { error: "auth.register.err.name" }
   if (!phone) return { error: "auth.register.err.phone" }
 
-  const taken = await prisma.user.findUnique({ where: { username: phone } })
-  if (taken && taken.id !== session.userId) return { error: "auth.register.err.phoneTaken" }
-
-  await prisma.$transaction([
-    prisma.student.update({
-      where: { id: session.studentId },
-      data: { name, phone, wechat: wechat || null, email: email || null },
-    }),
-    prisma.user.update({ where: { id: session.userId }, data: { username: phone } }),
-  ])
+  await prisma.student.update({
+    where: { id: session.studentId },
+    data: { name, phone, wechat: wechat || null, email: email || null },
+  })
 
   return { ok: true as const }
 }

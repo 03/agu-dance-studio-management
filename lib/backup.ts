@@ -15,7 +15,9 @@ import type { Prisma } from "@/lib/generated/prisma/client"
 // Parents before children — the order both the dump's keys and the
 // restore's re-inserts use. Rows are re-created with their original ids
 // (not through relation connects), so a row's FK targets must already
-// exist by the time it's inserted.
+// exist by the time it's inserted. `user` is last since it can FK into
+// both student and teacher; `session` is deliberately not here at all —
+// see restoreBusinessData for why sessions are handled separately.
 const RESTORE_ORDER = [
   "teacher",
   "room",
@@ -26,6 +28,7 @@ const RESTORE_ORDER = [
   "studentCard",
   "ledgerEntry",
   "payment",
+  "user",
 ] as const
 
 type ModelName = (typeof RESTORE_ORDER)[number]
@@ -41,6 +44,7 @@ const DATE_FIELDS: Partial<Record<ModelName, string[]>> = {
   studentCard: ["expiry"],
   ledgerEntry: ["date"],
   payment: ["paidAt"],
+  user: ["createdAt"],
 }
 
 type Row = Record<string, unknown>
@@ -65,6 +69,7 @@ function delegates(client: Prisma.TransactionClient | typeof prisma): Record<Mod
     studentCard: client.studentCard,
     ledgerEntry: client.ledgerEntry,
     payment: client.payment,
+    user: client.user,
   } as unknown as Record<ModelName, Delegate>
 }
 
@@ -87,12 +92,15 @@ export async function dumpBusinessData(): Promise<Buffer> {
   return Buffer.from(JSON.stringify(payload), "utf-8")
 }
 
-// Wipes the business tables and reloads them from a prior backup's dump,
-// all inside one transaction so a mid-restore failure leaves the database
-// exactly as it was. `users` is never deleted, but its studentId/teacherId
-// columns FK into students/teachers (ON DELETE SET NULL) — those links are
-// saved up front and re-applied afterward wherever the original id still
-// exists in the restored data, so login accounts keep working.
+// Wipes every table this feature covers — including login accounts — and
+// reloads them from a prior backup's dump, all inside one transaction so a
+// mid-restore failure leaves the database exactly as it was. Rows keep
+// their original ids, so a `user` row's studentId/teacherId already points
+// at the right restored student/teacher without any extra relinking step.
+// `sessions` are cleared explicitly rather than left to the `user` deleteMany's
+// ON DELETE CASCADE — restoring is exactly the moment every active login
+// should be forced to re-authenticate, and that shouldn't depend on a FK
+// behavior someone could quietly change later.
 export async function restoreBusinessData(dumpContent: string): Promise<void> {
   let parsed: { data?: Partial<Record<ModelName, Row[]>> }
   try {
@@ -109,10 +117,7 @@ export async function restoreBusinessData(dumpContent: string): Promise<void> {
     async (tx) => {
       const d = delegates(tx)
 
-      const userLinks = await tx.user.findMany({
-        where: { OR: [{ studentId: { not: null } }, { teacherId: { not: null } }] },
-        select: { id: true, studentId: true, teacherId: true },
-      })
+      await tx.session.deleteMany()
 
       for (const model of DELETE_ORDER) {
         await d[model].deleteMany()
@@ -133,17 +138,6 @@ export async function restoreBusinessData(dumpContent: string): Promise<void> {
                 return copy
               })
         await d[model].createMany({ data: hydrated })
-      }
-
-      const studentIds = new Set((data.student ?? []).map((s) => s.id as string))
-      const teacherIds = new Set((data.teacher ?? []).map((t) => t.id as string))
-      for (const link of userLinks) {
-        if (link.studentId && studentIds.has(link.studentId)) {
-          await tx.user.update({ where: { id: link.id }, data: { studentId: link.studentId } })
-        }
-        if (link.teacherId && teacherIds.has(link.teacherId)) {
-          await tx.user.update({ where: { id: link.id }, data: { teacherId: link.teacherId } })
-        }
       }
     },
     { timeout: 120_000, maxWait: 10_000 },
