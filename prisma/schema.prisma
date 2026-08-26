@@ -109,9 +109,33 @@ model ClassSession {
   levelZh   String
   levelEn   String
   status    SessionStatus @default(NORMAL)
+  // Bounds this session's own lifetime — both null (the default) means it
+  // recurs indefinitely, same as before these fields existed. Set both for
+  // a class that only ever exists within a window (a holiday-only intensive,
+  // or a short-lived trial series). Distinct from ClassClosure, which pauses
+  // an otherwise still-ongoing session rather than ending it.
+  startDate DateTime?
+  endDate   DateTime?
   bookings  Booking[]
+  closures  ClassClosure[]
 
   @@map("class_sessions")
+}
+
+// A date range during which a class doesn't run — a temporary pause, not
+// the end of the series (see ClassSession.startDate/endDate for that).
+// `sessionId` null means the closure applies to every session (e.g. a
+// shared school-holiday break); set means it's specific to one session
+// (e.g. a single teacher's short leave).
+model ClassClosure {
+  id        String        @id @default(cuid())
+  startDate DateTime
+  endDate   DateTime
+  note      String?
+  session   ClassSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String?
+
+  @@map("class_closures")
 }
 
 model Student {

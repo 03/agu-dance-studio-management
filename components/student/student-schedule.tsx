@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, type ClassSession, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
+import { weekdayKeys, type ClassSession, type ClassClosure, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
 import { bookClass, cancelBooking, getBookedNamesForSession } from "@/lib/actions/bookings"
-import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate } from "@/lib/schedule-dates"
+import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 const BOOKING_ERROR_KEY: Record<string, string> = {
   NO_VALID_CARD: "stu.schedule.err.noValidCard",
   NO_LINKED_STUDENT: "stu.schedule.err.generic",
+  SESSION_NOT_ACTIVE: "stu.schedule.err.sessionNotActive",
 }
 const bookingErrorKeyFor = (e: unknown) => BOOKING_ERROR_KEY[e instanceof Error ? e.message : ""] ?? "stu.schedule.err.generic"
 
@@ -40,11 +41,13 @@ export function StudentSchedule({
   occurrences,
   teachers,
   rooms,
+  closures,
 }: {
   sessions: ClassSession[]
   occurrences: Occurrence[]
   teachers: Teacher[]
   rooms: Room[]
+  closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const router = useRouter()
@@ -93,7 +96,7 @@ export function StudentSchedule({
 
   const dayList = useMemo(() => {
     return allSessions
-      .filter((s) => s.day === selectedDayOfWeek)
+      .filter((s) => s.day === selectedDayOfWeek && isSessionActiveOn(s, closures, selectedDateISO))
       .map((s) => {
         const occ = occurrenceMap.get(occurrenceKey(s.id, selectedDateISO))
         return { ...s, booked: occ?.booked ?? 0, myState: occ?.myState ?? "none" }

@@ -144,3 +144,23 @@ export function occurrenceKey(sessionId: string, date: Date | string): string {
   const iso = typeof date === "string" ? date : toISODate(date)
   return `${sessionId}__${iso}`
 }
+
+// Whether a recurring session actually runs on one specific calendar date —
+// `day` matching alone (the only thing ClassSession itself used to encode)
+// isn't sufficient once a session can be bounded to its own lifetime
+// (startDate/endDate — e.g. a holiday-only intensive) or temporarily paused
+// by a ClassClosure (a shared school-holiday break, or one session's short
+// leave — see prisma/schema.prisma for how the two differ). All dates are
+// ISO "YYYY-MM-DD", which — being zero-padded — compare correctly with
+// plain string operators, so no Date parsing is needed here.
+export function isSessionActiveOn(
+  session: { id: string; startDate: string | null; endDate: string | null },
+  closures: { sessionId: string | null; startDate: string; endDate: string }[],
+  dateISO: string,
+): boolean {
+  if (session.startDate && dateISO < session.startDate) return false
+  if (session.endDate && dateISO > session.endDate) return false
+  return !closures.some(
+    (c) => (c.sessionId === null || c.sessionId === session.id) && dateISO >= c.startDate && dateISO <= c.endDate,
+  )
+}

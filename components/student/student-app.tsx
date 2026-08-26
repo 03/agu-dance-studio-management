@@ -52,6 +52,7 @@ export function StudentApp({
                   occurrences={data.occurrences}
                   teachers={data.teachers}
                   rooms={data.rooms}
+                  closures={data.closures}
                 />
               )}
               {tab === "bookings" && (

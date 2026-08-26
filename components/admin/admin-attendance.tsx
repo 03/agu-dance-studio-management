@@ -31,6 +31,7 @@ function compareRoster(a: RosterEntry, b: RosterEntry, field: RosterSortField, d
 const ERROR_KEY: Record<string, string> = {
   NO_VALID_CARD: "adm.attendance.err.noValidCard",
   ALREADY_REGISTERED: "adm.attendance.err.alreadyRegistered",
+  SESSION_NOT_ACTIVE: "adm.attendance.err.sessionNotActive",
 }
 const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
 

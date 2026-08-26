@@ -13,6 +13,7 @@ import {
   mapBackupRecord,
   mapUpcomingBooking,
   mapPastBooking,
+  mapClassClosure,
   styleDbToKey,
   bookingStateToMyState,
 } from "@/lib/mappers"
@@ -73,7 +74,7 @@ export async function getPublicScheduleData() {
   const { start: monthStart, end: monthEnd } = monthRange(y, m - 1)
   const rangeEnd = weekEnd > monthEnd ? weekEnd : monthEnd
 
-  const [sessionsRaw, roomsRaw, bookingsRaw] = await Promise.all([
+  const [sessionsRaw, roomsRaw, bookingsRaw, closuresRaw] = await Promise.all([
     prisma.classSession.findMany({
       where: { status: "NORMAL" },
       orderBy: [{ day: "asc" }, { start: "asc" }],
@@ -87,12 +88,14 @@ export async function getPublicScheduleData() {
       },
       select: { sessionId: true, date: true, state: true, studentId: true },
     }),
+    prisma.classClosure.findMany(),
   ])
 
   return {
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     rooms: roomsRaw.map(mapRoom),
     occurrences: buildOccurrences(bookingsRaw),
+    closures: closuresRaw.map(mapClassClosure),
   }
 }
 
@@ -119,6 +122,7 @@ export async function getStudentAppData(studentId: string) {
     occurrenceBookings,
     upcomingRaw,
     historyRaw,
+    closuresRaw,
   ] = await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
@@ -141,6 +145,7 @@ export async function getStudentAppData(studentId: string) {
         orderBy: { date: "desc" },
         take: 50,
       }),
+      prisma.classClosure.findMany(),
     ])
 
   const meRow = studentRow[0]
@@ -154,6 +159,7 @@ export async function getStudentAppData(studentId: string) {
     rooms: rooms.map(mapRoom),
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     occurrences: buildOccurrences(occurrenceBookings, studentId),
+    closures: closuresRaw.map(mapClassClosure),
     student: {
       // ledgerRaw folded in so legacy-migrated students (no StudentCard rows,
       // whole card history lives only in ledger_entries) get a correct
@@ -213,6 +219,7 @@ export async function getAdminAppData() {
     usersRaw,
     cashierRaw,
     backupRecordsRaw,
+    closuresRaw,
   ] = await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
@@ -239,6 +246,7 @@ export async function getAdminAppData() {
         take: 20,
       }),
       prisma.backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.classClosure.findMany({ orderBy: { startDate: "desc" } }),
     ])
 
   const currentYear = Number(todayISO().split("-")[0])
@@ -258,6 +266,7 @@ export async function getAdminAppData() {
     users: usersRaw.map(mapUser),
     cashier: cashierRaw.map(mapCashierEntry),
     backupRecords: backupRecordsRaw.map(mapBackupRecord),
+    closures: closuresRaw.map(mapClassClosure),
     admin,
     sessionStats,
     cashFlow,

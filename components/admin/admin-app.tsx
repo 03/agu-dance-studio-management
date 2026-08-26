@@ -156,6 +156,7 @@ export function AdminApp({
               rooms={data.rooms}
               sessions={data.sessions}
               studios={data.studios}
+              closures={data.closures}
             />
           )}
           {section === "attendance" && (

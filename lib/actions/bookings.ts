@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
-import { parseISODate, toISODate } from "@/lib/schedule-dates"
+import { parseISODate, toISODate, isSessionActiveOn } from "@/lib/schedule-dates"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
 // Picks which of the student's cards a booking should draw a credit from:
@@ -40,6 +40,26 @@ async function bookOccurrenceForStudent(
       where: { id: sessionId },
       include: { teacher: true },
     })
+
+    // Structural check, not a policy one — unlike capacity/waitlisting,
+    // there's no override for this: if the occurrence doesn't exist (past
+    // the session's own lifetime, or paused by a closure), there's nothing
+    // to book regardless of who's booking.
+    const closures = await tx.classClosure.findMany({
+      where: { OR: [{ sessionId: null }, { sessionId }] },
+      select: { sessionId: true, startDate: true, endDate: true },
+    })
+    const isActive = isSessionActiveOn(
+      {
+        id: session.id,
+        startDate: session.startDate ? toISODate(session.startDate) : null,
+        endDate: session.endDate ? toISODate(session.endDate) : null,
+      },
+      closures.map((c) => ({ sessionId: c.sessionId, startDate: toISODate(c.startDate), endDate: toISODate(c.endDate) })),
+      date,
+    )
+    if (!isActive) throw new Error("SESSION_NOT_ACTIVE")
+
     let state: "BOOKED" | "WAITLIST"
     if (opts.forceBooked) {
       state = "BOOKED"

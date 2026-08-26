@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type Occurrence, type Room } from "@/lib/types"
-import { toAppDay, toISODate, occurrenceKey, nextOccurrence } from "@/lib/schedule-dates"
+import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type Occurrence, type Room } from "@/lib/types"
+import { toAppDay, toISODate, occurrenceKey, nextOccurrence, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
@@ -20,10 +20,12 @@ export function PublicSchedule({
   sessions,
   occurrences,
   rooms,
+  closures,
 }: {
   sessions: ClassSession[]
   occurrences: Occurrence[]
   rooms: Room[]
+  closures: ClassClosure[]
 }) {
   const { t } = useLanguage()
   const [view, setView] = useState<ViewMode>("week")
@@ -86,9 +88,9 @@ export function PublicSchedule({
         </div>
 
         {view === "week" ? (
-          <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} />
+          <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} closures={closures} />
         ) : (
-          <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} />
+          <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} />
         )}
       </div>
 
@@ -114,10 +116,12 @@ function WeekView({
   sessions,
   bookedFor,
   rooms,
+  closures,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
   rooms: Room[]
+  closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
@@ -131,7 +135,7 @@ function WeekView({
             </div>
             <div className="flex flex-col gap-2">
               {sessions
-                .filter((s) => s.day === day)
+                .filter((s) => s.day === day && isSessionActiveOn(s, closures, toISODate(nextOccurrence(s.day))))
                 .map((s) => {
                   const booked = bookedFor(s.id, nextOccurrence(s.day))
                   const nameEn = roomNameEn(s.roomId)
@@ -170,10 +174,12 @@ function MonthView({
   sessions,
   bookedFor,
   ensureMonth,
+  closures,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
   ensureMonth: (year: number, month: number) => void
+  closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const [monthOffset, setMonthOffset] = useState(0)
@@ -247,7 +253,8 @@ function MonthView({
           week.map((d, di) => {
             if (!d) return <div key={`${wi}-${di}`} className="min-h-[104px] rounded-lg" />
             const dow = toAppDay(d)
-            const daySessions = sessions.filter((s) => s.day === dow)
+            const dISO = toISODate(d)
+            const daySessions = sessions.filter((s) => s.day === dow && isSessionActiveOn(s, closures, dISO))
             const visible = daySessions.slice(0, 3)
             const overflow = daySessions.length - visible.length
             return (

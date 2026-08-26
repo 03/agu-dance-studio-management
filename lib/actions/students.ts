@@ -29,39 +29,23 @@ export async function buyOrRenewCard(studentId: string, productId: string, metho
   })
 }
 
-// Positive class-count grant onto an existing card, e.g. a birthday gift.
-export async function giftClasses(studentId: string, cardId: string, amount: number, reason: string) {
-  await requireRole("ADMIN")
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("INVALID_AMOUNT")
-  await prisma.$transaction(async (tx) => {
-    const card = await tx.studentCard.findUniqueOrThrow({ where: { id: cardId } })
-    if (!card.isUnlimited) {
-      await tx.studentCard.update({ where: { id: cardId }, data: { balance: { increment: amount } } })
-    }
-    await tx.ledgerEntry.create({
-      data: {
-        studentId,
-        cardId,
-        kind: "GIFT",
-        titleZh: "赠课",
-        titleEn: "Gift classes",
-        date: new Date(),
-        delta: amount,
-        noteZh: reason,
-        noteEn: reason,
-      },
-    })
-  })
-}
-
-// Manual class-count correction on a card; delta may be positive or negative.
-export async function adjustBalance(studentId: string, cardId: string, delta: number, reason: string) {
+// Manual class-count correction; delta may be positive or negative (a
+// positive delta covers what used to be the separate "gift classes" action
+// — that was a strict subset of this one, so it was folded in here rather
+// than kept as a second entry point). `cardId` null means a cardless
+// correction against the student's overall balance — the normal case for
+// legacy-migrated students, whose whole card history lives only in
+// ledger_entries (see the legacy migration and computeRemainingBalance's
+// cardlessNet handling).
+export async function adjustBalance(studentId: string, cardId: string | null, delta: number, reason: string) {
   await requireRole("ADMIN")
   if (!Number.isFinite(delta) || delta === 0) throw new Error("INVALID_DELTA")
   await prisma.$transaction(async (tx) => {
-    const card = await tx.studentCard.findUniqueOrThrow({ where: { id: cardId } })
-    if (!card.isUnlimited) {
-      await tx.studentCard.update({ where: { id: cardId }, data: { balance: { increment: delta } } })
+    if (cardId) {
+      const card = await tx.studentCard.findUniqueOrThrow({ where: { id: cardId } })
+      if (!card.isUnlimited) {
+        await tx.studentCard.update({ where: { id: cardId }, data: { balance: { increment: delta } } })
+      }
     }
     await tx.ledgerEntry.create({
       data: {

@@ -92,7 +92,12 @@ export function RoleSwitcher({
         </div>
       </div>
       </main>
-      <PublicSchedule sessions={publicData.sessions} occurrences={publicData.occurrences} rooms={publicData.rooms} />
+      <PublicSchedule
+        sessions={publicData.sessions}
+        occurrences={publicData.occurrences}
+        rooms={publicData.rooms}
+        closures={publicData.closures}
+      />
     </>
   )
 }

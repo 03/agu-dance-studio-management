@@ -24,6 +24,7 @@ import type {
   Payment as DbPayment,
   User as DbUser,
   BackupRecord as DbBackupRecord,
+  ClassClosure as DbClassClosure,
 } from "@/lib/generated/prisma/client"
 import type {
   StyleKey,
@@ -31,6 +32,7 @@ import type {
   Room,
   Studio,
   ClassSession,
+  ClassClosure,
   Occurrence,
   UpcomingBooking,
   PastBooking,
@@ -207,6 +209,18 @@ export function mapClassSession(s: DbClassSession): ClassSession {
     capacity: s.capacity,
     level: { zh: s.levelZh, en: s.levelEn },
     status: sessionStatusDbToKey(s.status),
+    startDate: s.startDate ? formatDateOnly(s.startDate) : null,
+    endDate: s.endDate ? formatDateOnly(s.endDate) : null,
+  }
+}
+
+export function mapClassClosure(c: DbClassClosure): ClassClosure {
+  return {
+    id: c.id,
+    startDate: formatDateOnly(c.startDate),
+    endDate: formatDateOnly(c.endDate),
+    note: c.note,
+    sessionId: c.sessionId,
   }
 }
 

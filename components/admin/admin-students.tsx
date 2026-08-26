@@ -8,7 +8,6 @@ import { useLanguage } from "@/lib/i18n"
 import type { Student, StudentCard, CardProduct, PaymentMethod } from "@/lib/types"
 import {
   buyOrRenewCard,
-  giftClasses,
   adjustBalance,
   refundCard,
   updateStudent,
@@ -53,7 +52,6 @@ import {
 import {
   Search,
   CreditCard,
-  Gift,
   SlidersHorizontal,
   RotateCcw,
   Pencil,
@@ -63,7 +61,11 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type CardAction = "adm.students.addCard" | "adm.students.gift" | "adm.students.adjust" | "adm.students.refund"
+// Temporarily hidden per admin request — not needed right now, but the
+// underlying action/logic is kept intact for when it's needed again.
+const SHOW_REFUND_ACTION = false
+
+type CardAction = "adm.students.addCard" | "adm.students.adjust" | "adm.students.refund"
 
 type DialogState =
   | { mode: "card"; student: Student; action: CardAction }
@@ -173,6 +175,7 @@ const COLUMN_DEFS: { key: ToggleableColumn; labelKey: string }[] = [
   { key: "status", labelKey: "common.status" },
 ]
 const HIDDEN_COLUMNS_STORAGE_KEY = "adm.students.hiddenColumns"
+const DEFAULT_HIDDEN_COLUMNS: ToggleableColumn[] = ["phone", "wechat", "code", "cards"]
 
 export function AdminStudents({
   students,
@@ -189,10 +192,10 @@ export function AdminStudents({
   const [isRefreshing, startRefresh] = useTransition()
   const refresh = () => startRefresh(() => router.refresh())
 
-  // Starts empty (all columns shown) so server-rendered HTML matches the
-  // first client render; the real preference loads from localStorage right
-  // after mount.
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ToggleableColumn>>(new Set())
+  // Starts from the hardcoded default (phone/wechat/code/cards hidden) so
+  // server-rendered HTML matches the first client render; a saved
+  // per-browser preference, if any, overrides it right after mount.
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ToggleableColumn>>(new Set(DEFAULT_HIDDEN_COLUMNS))
   useEffect(() => {
     try {
       const stored = localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY)
@@ -220,6 +223,7 @@ export function AdminStudents({
     (s) => s.name.toLowerCase().includes(query.toLowerCase()) || (s.phone ?? "").includes(query),
   )
   const sorted = [...filtered].sort((a, b) => compareStudents(a, b, sort.field, sort.dir))
+  const activeCount = students.filter((s) => s.status === "active").length
 
   return (
     <div>
@@ -228,6 +232,10 @@ export function AdminStudents({
           <span className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">
             {t("adm.students.total")}:{" "}
             <span className="font-display font-bold text-foreground">{students.length}</span>
+          </span>
+          <span className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">
+            {t("adm.students.activeCount")}:{" "}
+            <span className="font-display font-bold text-foreground">{activeCount}</span>
           </span>
           <Button variant="outline" size="icon" onClick={refresh} disabled={isRefreshing} title={t("common.refresh")}>
             <RotateCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
@@ -337,15 +345,14 @@ export function AdminStudents({
                     <IconBtn label={t("adm.students.addCard")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.addCard" })}>
                       <CreditCard className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn label={t("adm.students.gift")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.gift" })}>
-                      <Gift className="h-4 w-4" />
-                    </IconBtn>
                     <IconBtn label={t("adm.students.adjust")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.adjust" })}>
                       <SlidersHorizontal className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn label={t("adm.students.refund")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.refund" })}>
-                      <RotateCcw className="h-4 w-4" />
-                    </IconBtn>
+                    {SHOW_REFUND_ACTION && (
+                      <IconBtn label={t("adm.students.refund")} onClick={() => setDialog({ mode: "card", student: s, action: "adm.students.refund" })}>
+                        <RotateCcw className="h-4 w-4" />
+                      </IconBtn>
+                    )}
                     <IconBtn label={t("common.edit")} onClick={() => setDialog({ mode: "edit", student: s })}>
                       <Pencil className="h-4 w-4" />
                     </IconBtn>
@@ -659,21 +666,26 @@ function ActionForm({
   const { t, lang } = useLanguage()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const requiresReason = action === "adm.students.gift" || action === "adm.students.adjust" || action === "adm.students.refund"
-  const requiresCard = requiresReason
+  const requiresReason = action === "adm.students.adjust" || action === "adm.students.refund"
+  // Refund forfeits a specific purchased card's balance, so it genuinely
+  // needs one to exist. Adjust doesn't — a student with no StudentCard rows
+  // at all (the normal case for legacy-migrated students) still has a real
+  // overall balance tracked via ledger_entries alone, and can be adjusted
+  // against that directly (see adjustBalance).
+  const requiresCard = action === "adm.students.refund"
 
   const cards = student.cardDetails ?? []
   const [productId, setProductId] = useState(cardProducts[0]?.id ?? "")
   const [method, setMethod] = useState<PaymentMethod>("payment.transfer")
   const [cardId, setCardId] = useState(() => pickDefaultCard(cards)?.id ?? "")
-  const [amount, setAmount] = useState(action === "adm.students.gift" ? "2" : "1")
+  const [amount, setAmount] = useState("1")
   const [reason, setReason] = useState("")
 
   const numericAmount = Number.parseInt(amount, 10)
   const isValid =
     action === "adm.students.addCard"
       ? !!productId
-      : !!cardId &&
+      : (!requiresCard || !!cardId) &&
         Number.isFinite(numericAmount) &&
         numericAmount !== 0 &&
         (action === "adm.students.adjust" || numericAmount > 0) &&
@@ -684,10 +696,8 @@ function ActionForm({
     startTransition(async () => {
       if (action === "adm.students.addCard") {
         await buyOrRenewCard(student.id, productId, method)
-      } else if (action === "adm.students.gift") {
-        await giftClasses(student.id, cardId, numericAmount, reason.trim())
       } else if (action === "adm.students.adjust") {
-        await adjustBalance(student.id, cardId, numericAmount, reason.trim())
+        await adjustBalance(student.id, cardId || null, numericAmount, reason.trim())
       } else {
         await refundCard(student.id, cardId, numericAmount, reason.trim())
       }
@@ -744,7 +754,11 @@ function ActionForm({
             <div className="grid gap-2">
               <Label>{t("stu.nav.cards")}</Label>
               {cards.length === 0 ? (
-                <p className="text-sm text-destructive">{t("adm.students.noCard")}</p>
+                requiresCard ? (
+                  <p className="text-sm text-destructive">{t("adm.students.noCard")}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("adm.students.noCardCardless")}</p>
+                )
               ) : (
                 <Select value={cardId} onValueChange={setCardId}>
                   <SelectTrigger>

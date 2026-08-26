@@ -65,6 +65,22 @@ export type ClassSession = {
   capacity: number
   level: { zh: string; en: string }
   status?: "normal" | "canceled"
+  // ISO "YYYY-MM-DD", or null for "no bound" (the default — runs
+  // indefinitely, same as before these existed). See isSessionActiveOn
+  // (lib/schedule-dates.ts) for how these combine with ClassClosure.
+  startDate: string | null
+  endDate: string | null
+}
+
+// A date range this session (or, when sessionId is null, every session)
+// doesn't run — see prisma/schema.prisma's ClassClosure for the distinction
+// from ClassSession.startDate/endDate.
+export type ClassClosure = {
+  id: string
+  startDate: string
+  endDate: string
+  note: string | null
+  sessionId: string | null
 }
 
 // One specific calendar occurrence of a ClassSession — how many are booked

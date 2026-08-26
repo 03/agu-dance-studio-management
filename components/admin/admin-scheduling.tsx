@@ -3,8 +3,14 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type StyleKey, type Teacher, type Room, type Studio } from "@/lib/types"
-import { createClassSession, updateClassSession, cancelClassSession } from "@/lib/actions/scheduling"
+import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type StyleKey, type Teacher, type Room, type Studio } from "@/lib/types"
+import {
+  createClassSession,
+  updateClassSession,
+  cancelClassSession,
+  createClassClosure,
+  deleteClassClosure,
+} from "@/lib/actions/scheduling"
 import { createStudio, updateStudio, deleteStudio, type StudioInput } from "@/lib/actions/studios"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,11 +45,13 @@ export function AdminScheduling({
   rooms,
   sessions,
   studios,
+  closures,
 }: {
   teachers: Teacher[]
   rooms: Room[]
   sessions: ClassSession[]
   studios: Studio[]
+  closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const router = useRouter()
@@ -56,7 +64,9 @@ export function AdminScheduling({
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  const saveEdit = (updated: { id: string; teacherId: string; roomId: string; start: string }) => {
+  const saveEdit = (
+    updated: { id: string; teacherId: string; roomId: string; start: string; startDate: string | null; endDate: string | null },
+  ) => {
     startTransition(async () => {
       await updateClassSession(updated.id, updated)
       router.refresh()
@@ -123,6 +133,10 @@ export function AdminScheduling({
       </div>
 
       <div className="mt-8">
+        <ClosuresSection closures={closures} sessions={sessions} teachers={teachers} />
+      </div>
+
+      <div className="mt-8">
         <StudiosSection studios={studios} />
       </div>
 
@@ -186,6 +200,8 @@ function AddForm({
   const [capacity, setCapacity] = useState("12")
   const [levelZh, setLevelZh] = useState("")
   const [levelEn, setLevelEn] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
 
   const capacityNum = Number.parseInt(capacity, 10)
   const isValid =
@@ -208,6 +224,8 @@ function AddForm({
       capacity: capacityNum,
       levelZh: levelZh.trim(),
       levelEn: levelEn.trim(),
+      startDate: startDate || null,
+      endDate: endDate || null,
     })
   }
 
@@ -303,6 +321,17 @@ function AddForm({
             <Input value={levelEn} onChange={(e) => setLevelEn(e.target.value)} placeholder="Beginner" />
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validFrom")}</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validTo")}</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        <p className="-mt-2 text-xs text-muted-foreground">{t("adm.schedule.validityHint")}</p>
       </div>
       <DialogFooter className="gap-2 sm:justify-between">
         <Button variant="ghost" onClick={onCancel} disabled={pending}>
@@ -328,13 +357,22 @@ function EditForm({
   teachers: Teacher[]
   rooms: Room[]
   pending: boolean
-  onSave: (s: { id: string; teacherId: string; roomId: string; start: string }) => void
+  onSave: (s: {
+    id: string
+    teacherId: string
+    roomId: string
+    start: string
+    startDate: string | null
+    endDate: string | null
+  }) => void
   onCancelClass: () => void
 }) {
   const { t, lang } = useLanguage()
   const [teacherId, setTeacherId] = useState(session.teacherId)
   const [roomId, setRoomId] = useState(session.roomId)
   const [start, setStart] = useState(session.start)
+  const [startDate, setStartDate] = useState(session.startDate ?? "")
+  const [endDate, setEndDate] = useState(session.endDate ?? "")
 
   return (
     <>
@@ -382,6 +420,17 @@ function EditForm({
           <Label>{t("common.time")}</Label>
           <Input value={start} onChange={(e) => setStart(e.target.value)} />
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validFrom")}</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validTo")}</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        <p className="-mt-2 text-xs text-muted-foreground">{t("adm.schedule.validityHint")}</p>
       </div>
       <DialogFooter className="gap-2 sm:justify-between">
         <Button
@@ -393,8 +442,236 @@ function EditForm({
           <Ban className="mr-1.5 h-4 w-4" />
           {t("adm.schedule.cancelClass")}
         </Button>
-        <Button onClick={() => onSave({ id: session.id, teacherId, roomId, start })} disabled={pending}>
+        <Button
+          onClick={() =>
+            onSave({ id: session.id, teacherId, roomId, start, startDate: startDate || null, endDate: endDate || null })
+          }
+          disabled={pending}
+        >
           {t("common.save")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+const CLOSURE_ERROR_KEY: Record<string, string> = {
+  INVALID_RANGE: "adm.schedule.err.invalidRange",
+}
+const closureErrorKeyFor = (e: unknown) => CLOSURE_ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
+
+type ClosureDialogState = { mode: "create" } | { mode: "delete"; closure: ClassClosure } | null
+
+function ClosuresSection({
+  closures,
+  sessions,
+  teachers,
+}: {
+  closures: ClassClosure[]
+  sessions: ClassSession[]
+  teachers: Teacher[]
+}) {
+  const { t, lang } = useLanguage()
+  const [dialog, setDialog] = useState<ClosureDialogState>(null)
+
+  const sessionLabel = (id: string) => {
+    const s = sessions.find((x) => x.id === id)
+    if (!s) return "—"
+    const teacher = teachers.find((x) => x.id === s.teacherId)
+    const teacherName = teacher ? (lang === "zh" ? teacher.name : teacher.nameEn) : ""
+    return `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.style)} · ${teacherName}`
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <span className="rounded-xl bg-card px-3 py-2 text-sm text-muted-foreground">
+          {t("adm.schedule.closures")}:{" "}
+          <span className="font-display font-bold text-foreground">{closures.length}</span>
+        </span>
+        <Button size="sm" onClick={() => setDialog({ mode: "create" })}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          {t("adm.schedule.addClosure")}
+        </Button>
+      </div>
+
+      {closures.length === 0 ? (
+        <p className="rounded-2xl border border-border bg-card py-10 text-center text-sm text-muted-foreground">
+          {t("adm.schedule.noClosures")}
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("common.date")}</TableHead>
+                <TableHead>{t("adm.schedule.closureScope")}</TableHead>
+                <TableHead>{t("adm.schedule.closureNote")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {closures.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="whitespace-nowrap text-card-foreground">
+                    {c.startDate} – {c.endDate}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.sessionId ? sessionLabel(c.sessionId) : t("adm.schedule.allClasses")}
+                  </TableCell>
+                  <TableCell className="max-w-[12rem] truncate text-muted-foreground" title={c.note ?? undefined}>
+                    {c.note ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDialog({ mode: "delete", closure: c })}
+                        title={t("common.delete")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
+        <DialogContent>
+          {dialog?.mode === "create" && <ClosureForm sessions={sessions} onClose={() => setDialog(null)} />}
+          {dialog?.mode === "delete" && (
+            <DeleteClosureConfirm key={dialog.closure.id} closure={dialog.closure} onClose={() => setDialog(null)} />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+const ALL_CLASSES_VALUE = "__all__"
+
+function ClosureForm({ sessions, onClose }: { sessions: ClassSession[]; onClose: () => void }) {
+  const { t, lang } = useLanguage()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [note, setNote] = useState("")
+  const [sessionId, setSessionId] = useState(ALL_CLASSES_VALUE)
+  const [error, setError] = useState<string | null>(null)
+
+  const sessionLabel = (id: string) => {
+    if (id === ALL_CLASSES_VALUE) return t("adm.schedule.allClasses")
+    const s = sessions.find((x) => x.id === id)
+    return s ? `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.style)}` : ""
+  }
+
+  const isValid = startDate.trim() !== "" && endDate.trim() !== ""
+
+  const handleConfirm = () => {
+    if (!isValid || isPending) return
+    setError(null)
+    startTransition(async () => {
+      try {
+        await createClassClosure({
+          startDate,
+          endDate,
+          note,
+          sessionId: sessionId === ALL_CLASSES_VALUE ? null : sessionId,
+        })
+        router.refresh()
+        onClose()
+      } catch (e) {
+        setError(closureErrorKeyFor(e))
+      }
+    })
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">{t("adm.schedule.addClosure")}</DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 py-2">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validFrom")}</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.validTo")}</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <Label>{t("adm.schedule.closureScope")}</Label>
+          <Select value={sessionId} onValueChange={(v) => setSessionId(v ?? ALL_CLASSES_VALUE)}>
+            <SelectTrigger>
+              <SelectValue>{sessionLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CLASSES_VALUE}>{t("adm.schedule.allClasses")}</SelectItem>
+              {sessions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {t(weekdayKeys[s.day])} {s.start} · {t(s.style)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label>{t("adm.schedule.closureNote")}</Label>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("adm.schedule.closureNotePlaceholder")} />
+        </div>
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isPending}>
+          {t("common.close")}
+        </Button>
+        <Button onClick={handleConfirm} disabled={!isValid || isPending}>
+          {t("common.save")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
+}
+
+function DeleteClosureConfirm({ closure, onClose }: { closure: ClassClosure; onClose: () => void }) {
+  const { t } = useLanguage()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      await deleteClassClosure(closure.id)
+      router.refresh()
+      onClose()
+    })
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">
+          {t("common.delete")} · {closure.startDate} – {closure.endDate}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 py-2">
+        <p className="text-sm text-muted-foreground">{t("adm.schedule.deleteClosureDesc")}</p>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isPending}>
+          {t("common.close")}
+        </Button>
+        <Button variant="destructive" onClick={handleConfirm} disabled={isPending}>
+          {t("common.delete")}
         </Button>
       </DialogFooter>
     </>
