@@ -17,7 +17,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { QrCode, ChevronRight, UserPen, KeyRound, HelpCircle } from "lucide-react"
-import { QrPattern } from "@/components/shared/qr-pattern"
+import { QrCodeImage } from "@/components/shared/qr-code"
+import { encodeCheckInPayload } from "@/lib/checkin"
 
 export function StudentProfile({
   me,
@@ -108,7 +109,11 @@ export function StudentProfile({
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 pb-2">
             <div className="rounded-3xl bg-card p-5 shadow-inner ring-1 ring-border">
-              <QrPattern seed={`${me.id}-${me.joined}`} />
+              {me.checkInCode ? (
+                <QrCodeImage value={encodeCheckInPayload(me.checkInCode)} />
+              ) : (
+                <div className="h-[176px] w-[176px]" />
+              )}
             </div>
             <div className="text-center">
               <p className="font-display text-base font-bold text-foreground">{me.name}</p>

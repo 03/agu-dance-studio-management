@@ -166,6 +166,12 @@ export const dict: Dict = {
   "tea.attendance": { zh: "出勤", en: "Attendance" },
   "tea.thisWeek": { zh: "本周课时", en: "Classes this week" },
   "tea.thisMonthHeads": { zh: "本月上课人次", en: "Students this month" },
+  "tea.scanCheckIn": { zh: "扫码签到", en: "Scan to check in" },
+  "tea.scanHint": { zh: "将摄像头对准学员的签到码", en: "Point the camera at the student's check-in code" },
+  "tea.scanSuccess": { zh: "签到成功", en: "Checked in" },
+  "tea.scanErr.invalidCode": { zh: "无效的签到码", en: "Not a valid check-in code" },
+  "tea.scanErr.notRegistered": { zh: "该学员未报名此课程", en: "This student isn't registered for this class" },
+  "tea.scanErr.cameraDenied": { zh: "无法访问摄像头，请检查浏览器权限设置", en: "Can't access the camera — check your browser permissions" },
 
   // Admin
   "adm.title": { zh: "教务管理后台", en: "Admin console" },

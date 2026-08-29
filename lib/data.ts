@@ -165,7 +165,7 @@ export async function getStudentAppData(studentId: string) {
       // whole card history lives only in ledger_entries) get a correct
       // totalBalance instead of always showing 0 — see mapStudent's
       // cardlessNet handling.
-      me: meRow ? mapStudent({ ...meRow, ledgerEntries: ledgerRaw }, { includeCardDetails: true }) : null,
+      me: meRow ? mapStudent({ ...meRow, ledgerEntries: ledgerRaw }, { includeCardDetails: true, includeCheckInCode: true }) : null,
       cards: meRow ? meRow.cards.map(mapStudentCard) : [],
       ledger: ledgerRaw.map(mapLedgerEntryDateOnly),
       upcoming: upcomingRaw.map(mapUpcomingBooking),

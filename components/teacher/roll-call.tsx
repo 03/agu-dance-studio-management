@@ -1,15 +1,22 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
 import type { ClassSession, Room, RosterEntry } from "@/lib/types"
-import { getRosterForSession, setCheckedIn } from "@/lib/actions/rollcall"
+import { getRosterForSession, setCheckedIn, checkInByCode } from "@/lib/actions/rollcall"
 import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ChevronLeft, Check, UserCheck } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { QrScanner } from "@/components/shared/qr-scanner"
+import { ChevronLeft, Check, UserCheck, ScanLine, CheckCircle2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const SCAN_ERROR_KEY: Record<string, string> = {
+  INVALID_CODE: "tea.scanErr.invalidCode",
+  NOT_REGISTERED: "tea.scanErr.notRegistered",
+}
 
 export function RollCall({
   sessionId,
@@ -58,6 +65,50 @@ export function RollCall({
     })
   }
 
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [cameraError, setCameraError] = useState(false)
+  const [scanFeedback, setScanFeedback] = useState<{ type: "success"; name: string } | { type: "error"; key: string } | null>(
+    null,
+  )
+  // Refs, not state — a scan fires many times per second while the same QR
+  // code sits in frame, and neither value needs to trigger a re-render.
+  const scanBusyRef = useRef(false)
+  const lastScanRef = useRef<{ payload: string; at: number } | null>(null)
+
+  const handleScan = useCallback(
+    (payload: string) => {
+      const now = Date.now()
+      // Same code seen again within 3s of a completed scan — almost
+      // certainly still the same QR code in frame, not a deliberate re-scan.
+      if (lastScanRef.current && lastScanRef.current.payload === payload && now - lastScanRef.current.at < 3000) return
+      if (scanBusyRef.current) return
+      scanBusyRef.current = true
+      startTransition(async () => {
+        try {
+          const result = await checkInByCode(sessionId, date, payload)
+          setRoster((prev) =>
+            prev.map((r) => (r.id === result.bookingId ? { ...r, checkedIn: true, proxy: false } : r)),
+          )
+          setScanFeedback({ type: "success", name: result.name })
+        } catch (e) {
+          const key = SCAN_ERROR_KEY[e instanceof Error ? e.message : ""] ?? "stu.schedule.err.generic"
+          setScanFeedback({ type: "error", key })
+        } finally {
+          lastScanRef.current = { payload, at: Date.now() }
+          scanBusyRef.current = false
+          setTimeout(() => setScanFeedback(null), 1800)
+        }
+      })
+    },
+    [sessionId, date],
+  )
+
+  const closeScanner = () => {
+    setScannerOpen(false)
+    setCameraError(false)
+    setScanFeedback(null)
+  }
+
   return (
     <div>
       <div className="border-b border-border bg-card px-4 py-3">
@@ -68,9 +119,15 @@ export function RollCall({
           <ChevronLeft className="h-4 w-4" />
           {t("tea.mySchedule")}
         </button>
-        <div className="flex items-center gap-2">
-          <StyleDot style={session.style} />
-          <span className="font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <StyleDot style={session.style} />
+            <span className="font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
+          </div>
+          <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs" onClick={() => setScannerOpen(true)}>
+            <ScanLine className="mr-1 h-3.5 w-3.5" />
+            {t("tea.scanCheckIn")}
+          </Button>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {formatAppDate(parseISODate(date))} · {session.start}–{session.end} · {roomName}
@@ -145,6 +202,43 @@ export function RollCall({
           {t("tea.finishClass")} · {checkedIn}/{roster.length}
         </Button>
       </div>
+
+      <Dialog open={scannerOpen} onOpenChange={(o) => !o && closeScanner()}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center font-display">{t("tea.scanCheckIn")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3 pb-2">
+            {cameraError ? (
+              <p className="py-8 text-center text-sm text-destructive">{t("tea.scanErr.cameraDenied")}</p>
+            ) : (
+              <div className="relative w-full">
+                <QrScanner active={scannerOpen} onScan={handleScan} onCameraError={() => setCameraError(true)} />
+                {scanFeedback && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/90 backdrop-blur-sm">
+                    {scanFeedback.type === "success" ? (
+                      <div className="flex flex-col items-center gap-1.5 text-center">
+                        <CheckCircle2 className="h-8 w-8 text-primary" />
+                        <p className="font-display text-sm font-bold text-foreground">{scanFeedback.name}</p>
+                        <p className="text-xs text-muted-foreground">{t("tea.scanSuccess")}</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-center">
+                        <XCircle className="h-8 w-8 text-destructive" />
+                        <p className="text-xs text-destructive">{t(scanFeedback.key)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-center text-xs text-muted-foreground">{t("tea.scanHint")}</p>
+            <Button variant="outline" className="w-full" onClick={closeScanner}>
+              {t("common.close")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

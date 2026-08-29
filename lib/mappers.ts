@@ -342,7 +342,7 @@ export function computeRemainingBalance(cards: DbStudentCard[], ledgerEntries: D
 
 export function mapStudent(
   s: DbStudent & { cards: DbStudentCard[]; ledgerEntries?: DbLedgerEntry[] },
-  opts: { includeCardDetails?: boolean; includeUsageHistory?: boolean } = {},
+  opts: { includeCardDetails?: boolean; includeUsageHistory?: boolean; includeCheckInCode?: boolean } = {},
 ): Student {
   const ledgerEntries = s.ledgerEntries ?? []
   const totalBalance = computeRemainingBalance(s.cards, ledgerEntries)
@@ -369,5 +369,6 @@ export function mapStudent(
     cardDetails: opts.includeCardDetails ? s.cards.map(mapStudentCard) : undefined,
     usedSessions,
     usageHistory,
+    checkInCode: opts.includeCheckInCode ? s.checkInCode : undefined,
   }
 }

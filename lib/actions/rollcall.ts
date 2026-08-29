@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { requireAnyRole } from "@/lib/auth"
 import { parseISODate } from "@/lib/schedule-dates"
 import { computeRemainingBalance, formatLedgerDate } from "@/lib/mappers"
+import { decodeCheckInPayload } from "@/lib/checkin"
 import type { RosterEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
@@ -36,6 +37,39 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
     remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
     createdAt: formatLedgerDate(b.createdAt),
   }))
+}
+
+// Scan-to-check-in: resolves the QR payload to a student via their
+// checkInCode, then checks in that student's *existing* booking for this
+// exact occurrence — this only ever flips an already-registered student's
+// checkedIn flag, the same thing the manual tap-to-check-in button does,
+// just found by scan instead of by tapping their name in the roster. It
+// deliberately does not create a new booking for an unregistered student:
+// that path has its own capacity/waitlist/card-balance rules (see
+// lib/actions/bookings.ts) that a quick scan shouldn't silently bypass —
+// register them properly first, then scan.
+export async function checkInByCode(
+  sessionId: string,
+  date: string,
+  payload: string,
+): Promise<{ bookingId: string; name: string }> {
+  await assertOwnsSession(sessionId)
+  const code = decodeCheckInPayload(payload)
+  if (!code) throw new Error("INVALID_CODE")
+
+  const student = await prisma.student.findUnique({ where: { checkInCode: code }, select: { id: true, name: true } })
+  if (!student) throw new Error("INVALID_CODE")
+
+  const booking = await prisma.booking.findUnique({
+    where: { studentId_sessionId_date: { studentId: student.id, sessionId, date: parseISODate(date) } },
+  })
+  if (!booking || booking.state === "CANCELED") throw new Error("NOT_REGISTERED")
+
+  // Idempotent on purpose — a re-scan of an already-checked-in student (a
+  // teacher scanning twice by accident, say) just reports success again
+  // rather than erroring.
+  await prisma.booking.update({ where: { id: booking.id }, data: { checkedIn: true, proxy: false } })
+  return { bookingId: booking.id, name: student.name }
 }
 
 export async function setCheckedIn(bookingId: string, checkedIn: boolean, proxy = false) {

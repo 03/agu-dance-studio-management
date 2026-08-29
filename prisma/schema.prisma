@@ -147,6 +147,11 @@ model Student {
   code          String? // admin-facing student/member code, distinct from the internal id
   joined        String // display label, e.g. "2024-06"
   status        StudentStatus @default(ACTIVE)
+  // Opaque bearer credential encoded into the student's check-in QR code
+  // (see lib/checkin.ts) — DB-generated so every existing row gets one for
+  // free at migration time, same idea as Session.token but a stable,
+  // regenerable value rather than an expiring login session.
+  checkInCode   String        @unique @default(dbgenerated("gen_random_uuid()"))
   cards         StudentCard[]
   ledgerEntries LedgerEntry[]
   bookings      Booking[]

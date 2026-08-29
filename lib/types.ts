@@ -167,6 +167,11 @@ export type Student = {
   // class-hours and the detail list behind the "已用课时" link, newest first.
   usedSessions?: number
   usageHistory?: LedgerEntry[]
+  // Populated for the student's own profile only (getStudentAppData) — the
+  // bearer credential encoded into their check-in QR code. Never included
+  // in the admin students list, which is a bulk payload of every student
+  // at once and would otherwise leak every code in one response.
+  checkInCode?: string
 }
 
 export type CardProduct = {
