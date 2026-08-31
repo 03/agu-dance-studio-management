@@ -30,7 +30,6 @@ function compareRoster(a: RosterEntry, b: RosterEntry, field: RosterSortField, d
 
 const ERROR_KEY: Record<string, string> = {
   NO_VALID_CARD: "adm.attendance.err.noValidCard",
-  ALREADY_REGISTERED: "adm.attendance.err.alreadyRegistered",
   SESSION_NOT_ACTIVE: "adm.attendance.err.sessionNotActive",
 }
 const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
@@ -334,6 +333,7 @@ function RosterDialog({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [sort, setSort] = useState<{ field: RosterSortField; dir: RosterSortDir }>({ field: "createdAt", dir: "asc" })
   const [copied, setCopied] = useState(false)
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{ studentId: string; name: string } | null>(null)
 
   const handleShare = () => {
     const url = `${window.location.origin}/roster/${session.id}/${dateISO}`
@@ -377,13 +377,18 @@ function RosterDialog({
     return students.filter((s) => s.name.toLowerCase().includes(q) || (s.phone ?? "").includes(q)).slice(0, 8)
   }, [query, students])
 
-  const handleAdd = (studentId: string) => {
+  // `allowDuplicate` is only ever true on the retry after the admin
+  // confirms the "already on the list, continue?" prompt below — see
+  // adminBookStudent's own comment for why that's allowed at all (bringing
+  // a friend along under the same account, "接龙两次").
+  const attemptAdd = (studentId: string, allowDuplicate: boolean) => {
     setError(null)
     setPendingId(studentId)
     startTransition(async () => {
       try {
-        await adminBookStudent(session.id, dateISO, studentId)
+        await adminBookStudent(session.id, dateISO, studentId, allowDuplicate)
         setQuery("")
+        setDuplicateConfirm(null)
         load()
         onChanged()
         // Balance/roster changes here also affect 学员管理's student list
@@ -393,12 +398,19 @@ function RosterDialog({
         // ones from before this add.
         router.refresh()
       } catch (e) {
-        setError(errorKeyFor(e))
+        if (e instanceof Error && e.message === "ALREADY_BOOKED") {
+          const match = students.find((x) => x.id === studentId)
+          setDuplicateConfirm({ studentId, name: match?.name ?? "" })
+        } else {
+          setError(errorKeyFor(e))
+        }
       } finally {
         setPendingId(null)
       }
     })
   }
+
+  const handleAdd = (studentId: string) => attemptAdd(studentId, false)
 
   const handleRemove = (bookingId: string) => {
     setError(null)
@@ -553,6 +565,25 @@ function RosterDialog({
           {t("common.close")}
         </Button>
       </DialogFooter>
+
+      <Dialog open={!!duplicateConfirm} onOpenChange={(o) => !o && setDuplicateConfirm(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">{t("booking.confirmDuplicate")}</DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateConfirm(null)}>
+              {t("common.dismiss")}
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={() => duplicateConfirm && attemptAdd(duplicateConfirm.studentId, true)}
+            >
+              {t("common.continue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

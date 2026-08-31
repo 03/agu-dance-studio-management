@@ -31,9 +31,9 @@ export function StudentBookings({
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  const cancel = (sessionId: string, date: string) => {
+  const cancel = (bookingId: string) => {
     startTransition(async () => {
-      await cancelBooking(sessionId, date)
+      await cancelBooking(bookingId)
       router.refresh()
     })
   }
@@ -94,7 +94,7 @@ export function StudentBookings({
                       variant="ghost"
                       className="h-7 text-destructive hover:text-destructive"
                       disabled={isPending}
-                      onClick={() => cancel(s.sessionId, s.date)}
+                      onClick={() => cancel(s.bookingId)}
                     >
                       {t("common.cancel")}
                     </Button>

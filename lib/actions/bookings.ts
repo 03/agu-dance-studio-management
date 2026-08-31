@@ -75,11 +75,21 @@ async function consumeCreditForBooking(
 // registering someone on their behalf) — same card-consumption mechanics
 // either way, but capacity/waitlist enforcement is opt-out via `forceBooked`
 // (see adminBookStudent for why the admin path always sets it).
+//
+// `allowDuplicate` gates a student already having an active (BOOKED/
+// WAITLIST) booking for this exact occurrence — normally that's surfaced as
+// ALREADY_BOOKED so the caller can confirm first, but a student sometimes
+// brings a friend along without getting them their own account and wants to
+// 接龙 under their own name a second time. Passing `allowDuplicate: true`
+// (only after that confirmation) skips the check and books another
+// independent row — its own credit deduction, its own cancel — same as if
+// it were a different student, right up until they run out of credits
+// (consumeCreditForBooking throws NO_VALID_CARD same as always).
 async function bookOccurrenceForStudent(
   sessionId: string,
   date: string,
   studentId: string,
-  opts: { forceBooked?: boolean } = {},
+  opts: { forceBooked?: boolean; allowDuplicate?: boolean } = {},
 ) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
@@ -111,6 +121,13 @@ async function bookOccurrenceForStudent(
     )
     if (!isActive) throw new Error("SESSION_NOT_ACTIVE")
 
+    if (!opts.allowDuplicate) {
+      const existing = await tx.booking.findFirst({
+        where: { studentId, sessionId, date: occurrenceDate, state: { in: ["BOOKED", "WAITLIST"] } },
+      })
+      if (existing) throw new Error("ALREADY_BOOKED")
+    }
+
     let state: "BOOKED" | "WAITLIST"
     if (opts.forceBooked) {
       state = "BOOKED"
@@ -119,19 +136,15 @@ async function bookOccurrenceForStudent(
       state = bookedCount < session.capacity ? "BOOKED" : "WAITLIST"
     }
 
-    // A prior CANCELED booking for this (student, session, date) still has
-    // its own row (cancelling never deletes it — see cancelOccurrenceForStudent),
-    // so re-booking hits `update`, not `create`. Resetting createdAt here
-    // means it always reflects the most recent time this became an active
-    // booking, not whenever the row was first created — that's what backs
-    // the 接龙 chain order (getBookedNamesForSession), the roster's 报名时间
-    // column, and waitlist promotion order (promoteFromWaitlist), all of
-    // which sort by createdAt and would otherwise let a cancel+rebook keep
-    // an old place in line instead of going to the back of it.
-    const booking = await tx.booking.upsert({
-      where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
-      create: { studentId, sessionId, date: occurrenceDate, state },
-      update: { state, checkedIn: false, proxy: false, createdAt: new Date() },
+    // Always a fresh row, never reused — with no unique constraint on
+    // (studentId, sessionId, date) any more, there's no reason to upsert
+    // onto a prior CANCELED row the way this used to. Every 接龙, including
+    // a repeat one under the same studentId, gets its own id, its own
+    // createdAt (接龙 chain order, roster 报名时间, waitlist promotion order
+    // — see getBookedNamesForSession/promoteFromWaitlist), and its own
+    // ledger entry/cancel.
+    const booking = await tx.booking.create({
+      data: { studentId, sessionId, date: occurrenceDate, state },
     })
 
     if (state === "BOOKED") {
@@ -144,11 +157,13 @@ async function bookOccurrenceForStudent(
 
 // `date` is the specific calendar occurrence being booked (ISO
 // "YYYY-MM-DD") — a student books one date's instance of a recurring
-// session at a time, not the whole weekly series.
-export async function bookClass(sessionId: string, date: string) {
+// session at a time, not the whole weekly series. `allowDuplicate` is set
+// only after the student has already been shown and confirmed the
+// "already booked, continue anyway?" prompt (see bookOccurrenceForStudent).
+export async function bookClass(sessionId: string, date: string, allowDuplicate = false) {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) throw new Error("NO_LINKED_STUDENT")
-  return bookOccurrenceForStudent(sessionId, date, studentId)
+  return bookOccurrenceForStudent(sessionId, date, studentId, { allowDuplicate })
 }
 
 // Admin-side 课时登记 — staff registering a specific student into a specific
@@ -158,18 +173,13 @@ export async function bookClass(sessionId: string, date: string) {
 // not to silently no-op an admin's explicit "register this student" action
 // — and the legacy-migrated dataset routinely already exceeds a session's
 // nominal capacity, so without this an admin could almost never actually
-// register (and therefore charge) anyone through this feature. Guards
-// against double-registering someone already on the roster, since the
-// shared core's upsert would otherwise silently consume a second credit
-// without creating a second ledger entry to show for it.
-export async function adminBookStudent(sessionId: string, date: string, studentId: string) {
+// register (and therefore charge) anyone through this feature.
+// `allowDuplicate` mirrors bookClass — set only after the admin confirms
+// the same "already on the list, continue?" prompt, for the same
+// bring-a-friend-under-one-account case.
+export async function adminBookStudent(sessionId: string, date: string, studentId: string, allowDuplicate = false) {
   await requireRole("ADMIN")
-  const occurrenceDate = parseISODate(date)
-  const existing = await prisma.booking.findUnique({
-    where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
-  })
-  if (existing && existing.state !== "CANCELED") throw new Error("ALREADY_REGISTERED")
-  return bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true })
+  return bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate })
 }
 
 // Offers a just-freed BOOKED seat to whoever's been on the waitlist
@@ -217,14 +227,24 @@ export async function getBookedNamesForSession(sessionId: string, date: string):
 // Freeing up a BOOKED seat also offers it to whoever's been waiting longest
 // (see promoteFromWaitlist) — cancelling a WAITLIST booking doesn't, since
 // no real seat was ever occupied.
-async function cancelOccurrenceForStudent(sessionId: string, date: string, studentId: string) {
-  const occurrenceDate = parseISODate(date)
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT id FROM class_sessions WHERE id = ${sessionId} FOR UPDATE`
+//
+// Targets one specific booking row by id, not (student, session, date) —
+// now that a student can hold more than one active booking for the same
+// occurrence (see bookOccurrenceForStudent's `allowDuplicate`), cancelling
+// has to be able to remove just one of them and leave the others alone,
+// exactly the way deleting one roster row already worked for admins.
+// `expectedStudentId`, when given, enforces that a self-service cancel can
+// only ever hit the caller's own booking, never one looked up by id alone.
+async function cancelOccurrenceBooking(bookingId: string, expectedStudentId?: string) {
+  const target = await prisma.booking.findUnique({ where: { id: bookingId } })
+  if (!target) return null
+  if (expectedStudentId && target.studentId !== expectedStudentId) throw new Error("FORBIDDEN")
+  if (target.state === "CANCELED") return target
 
-    const booking = await tx.booking.findUnique({
-      where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
-    })
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM class_sessions WHERE id = ${target.sessionId} FOR UPDATE`
+
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } })
     if (!booking || booking.state === "CANCELED") return booking
 
     const wasBooked = booking.state === "BOOKED"
@@ -245,17 +265,22 @@ async function cancelOccurrenceForStudent(sessionId: string, date: string, stude
     const cancelled = await tx.booking.update({ where: { id: booking.id }, data: { state: "CANCELED" } })
 
     if (wasBooked) {
-      await promoteFromWaitlist(tx, sessionId, occurrenceDate)
+      await promoteFromWaitlist(tx, booking.sessionId, booking.date)
     }
 
     return cancelled
   })
 }
 
-export async function cancelBooking(sessionId: string, date: string) {
+// Self-service cancel — takes the bookingId shown in 我的预约 directly (one
+// row per booking, so a student with more than one active booking for the
+// same class cancels them one at a time, same as everyone else's roster).
+export async function cancelBooking(bookingId: string) {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) throw new Error("NO_LINKED_STUDENT")
-  return cancelOccurrenceForStudent(sessionId, date, studentId)
+  const result = await cancelOccurrenceBooking(bookingId, studentId)
+  if (!result) throw new Error("NOT_FOUND")
+  return result
 }
 
 // Admin-side removal from the 课时登记 roster — takes the bookingId shown in
@@ -263,6 +288,7 @@ export async function cancelBooking(sessionId: string, date: string) {
 // studentId), since that's exactly what the admin UI already has on hand.
 export async function adminCancelBooking(bookingId: string) {
   await requireRole("ADMIN")
-  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } })
-  return cancelOccurrenceForStudent(booking.sessionId, toISODate(booking.date), booking.studentId)
+  const result = await cancelOccurrenceBooking(bookingId)
+  if (!result) throw new Error("NOT_FOUND")
+  return result
 }

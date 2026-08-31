@@ -61,10 +61,16 @@ export async function checkInByCode(
   const student = await prisma.student.findUnique({ where: { checkInCode: code }, select: { id: true, name: true } })
   if (!student) throw new Error("INVALID_CODE")
 
-  const booking = await prisma.booking.findUnique({
-    where: { studentId_sessionId_date: { studentId: student.id, sessionId, date: parseISODate(date) } },
+  // A student can hold more than one active booking for this occurrence now
+  // (see lib/actions/bookings.ts's `allowDuplicate` — bringing a friend
+  // along under their own account). Prefer whichever of theirs isn't
+  // checked in yet, oldest first, so scanning the same QR code twice checks
+  // in a second duplicate booking instead of just re-confirming the first.
+  const booking = await prisma.booking.findFirst({
+    where: { studentId: student.id, sessionId, date: parseISODate(date), state: { not: "CANCELED" } },
+    orderBy: [{ checkedIn: "asc" }, { createdAt: "asc" }],
   })
-  if (!booking || booking.state === "CANCELED") throw new Error("NOT_REGISTERED")
+  if (!booking) throw new Error("NOT_REGISTERED")
 
   // Idempotent on purpose — a re-scan of an already-checked-in student (a
   // teacher scanning twice by accident, say) just reports success again

@@ -171,6 +171,16 @@ model Student {
 // (Monday 7pm Jazz), `date` picks out which real date's instance of that
 // slot this booking is for. A student books/cancels per occurrence, not
 // once-and-forever for the whole recurring series.
+//
+// Deliberately NOT unique on (studentId, sessionId, date) — a student who
+// brings a friend along without getting them their own account books under
+// their own studentId a second (or third...) time instead ("接龙两次"),
+// each such row its own independent booking with its own credit deduction
+// and its own cancel. See ALLOW_DUPLICATE handling in
+// lib/actions/bookings.ts for the confirm-first gate on that, and the plain
+// index below for the (studentId, sessionId, date) lookups that used to
+// lean on the unique constraint (the duplicate-booking check itself,
+// checkInByCode, ...).
 model Booking {
   id          String       @id @default(cuid())
   student     Student      @relation(fields: [studentId], references: [id])
@@ -184,7 +194,7 @@ model Booking {
   createdAt   DateTime     @default(now())
   ledgerEntry LedgerEntry?
 
-  @@unique([studentId, sessionId, date])
+  @@index([studentId, sessionId, date])
   @@map("bookings")
 }
 

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type ClassSession, type ClassClosure, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
-import { bookClass, cancelBooking, getBookedNamesForSession } from "@/lib/actions/bookings"
+import { bookClass, getBookedNamesForSession } from "@/lib/actions/bookings"
 import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Clock, MapPin, Users, ListOrdered, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +59,7 @@ export function StudentSchedule({
   const [rosterNames, setRosterNames] = useState<string[]>([])
   const [rosterLoading, setRosterLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicateConfirm, setDuplicateConfirm] = useState<(ClassSession & { myState: Occurrence["myState"] }) | null>(null)
 
   // Browsable window: the 2 days before today through the next 2 weeks
   // (today counted as day 1 of those two weeks) — 16 real calendar dates
@@ -127,19 +128,28 @@ export function StudentSchedule({
     })
   }
 
-  const toggle = (s: ClassSession & { myState: Occurrence["myState"] }) => {
+  // Booking-only now — cancelling a specific 接龙 entry happens in 我的预约,
+  // where each of a student's bookings (including duplicates, see below)
+  // has its own row and its own cancel button. This button always tries to
+  // add a booking; if the student already has an active one for this
+  // occurrence, `bookClass` throws ALREADY_BOOKED and we show the same
+  // confirm-first prompt admins see, rather than silently no-op'ing or
+  // greying the button out — a student bringing a friend along without
+  // giving them their own account books under their own name again here.
+  const attemptBook = (s: ClassSession & { myState: Occurrence["myState"] }, allowDuplicate: boolean) => {
     setError(null)
     setPendingId(s.id)
     startTransition(async () => {
       try {
-        if (s.myState === "none") {
-          await bookClass(s.id, selectedDateISO)
-        } else {
-          await cancelBooking(s.id, selectedDateISO)
-        }
+        await bookClass(s.id, selectedDateISO, allowDuplicate)
+        setDuplicateConfirm(null)
         router.refresh()
       } catch (e) {
-        setError(bookingErrorKeyFor(e))
+        if (e instanceof Error && e.message === "ALREADY_BOOKED") {
+          setDuplicateConfirm(s)
+        } else {
+          setError(bookingErrorKeyFor(e))
+        }
       } finally {
         setPendingId(null)
       }
@@ -282,27 +292,27 @@ export function StudentSchedule({
                 </div>
 
                 <div className="flex shrink-0 flex-col items-stretch gap-1.5">
+                  {st !== "none" && (
+                    <span
+                      className={cn(
+                        "self-end rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        st === "waitlist" ? "bg-accent/15 text-accent" : "bg-primary/10 text-primary",
+                      )}
+                    >
+                      {st === "waitlist" ? t("common.onWaitlist") : t("common.booked")}
+                    </span>
+                  )}
                   <Button
                     size="sm"
-                    variant={
-                      st === "booked"
-                        ? "secondary"
-                        : st === "waitlist"
-                          ? "outline"
-                          : isFull
-                            ? "outline"
-                            : "default"
-                    }
+                    variant={st === "none" && isFull ? "outline" : "default"}
                     disabled={isPastDay || (isPending && pendingId === s.id)}
-                    onClick={() => toggle(s)}
+                    onClick={() => attemptBook(s, false)}
                   >
-                    {st === "booked"
-                      ? t("common.booked")
-                      : st === "waitlist"
-                        ? t("common.onWaitlist")
-                        : isFull
-                          ? t("common.waitlist")
-                          : t("common.book")}
+                    {st !== "none"
+                      ? t("stu.schedule.bookAgain")
+                      : isFull
+                        ? t("common.waitlist")
+                        : t("common.book")}
                   </Button>
                   <Button size="sm" variant="ghost" className="gap-1" onClick={() => openRoster(s.id)}>
                     <ListOrdered className="h-3.5 w-3.5" />
@@ -339,6 +349,25 @@ export function StudentSchedule({
               ))}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!duplicateConfirm} onOpenChange={(o) => !o && setDuplicateConfirm(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">{t("booking.confirmDuplicate")}</DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateConfirm(null)}>
+              {t("common.dismiss")}
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={() => duplicateConfirm && attemptBook(duplicateConfirm, true)}
+            >
+              {t("common.continue")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

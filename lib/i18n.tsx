@@ -76,6 +76,8 @@ export const dict: Dict = {
   "common.add": { zh: "添加", en: "Add" },
   "common.loading": { zh: "加载中", en: "Loading" },
   "common.confirm": { zh: "确认", en: "Confirm" },
+  "common.continue": { zh: "继续", en: "Continue" },
+  "common.dismiss": { zh: "取消", en: "Cancel" },
   "common.save": { zh: "保存", en: "Save" },
   "common.all": { zh: "全部", en: "All" },
   "common.search": { zh: "搜索", en: "Search" },
@@ -114,6 +116,7 @@ export const dict: Dict = {
   "stu.nav.cards": { zh: "卡包", en: "Cards" },
   "stu.nav.me": { zh: "我的", en: "Me" },
   "stu.schedule.title": { zh: "课程预约", en: "Book a class" },
+  "stu.schedule.bookAgain": { zh: "再接龙一位", en: "Add another spot" },
   "stu.filter.style": { zh: "舞种", en: "Style" },
   "stu.filter.teacher": { zh: "老师", en: "Teacher" },
   "stu.filter.room": { zh: "教室", en: "Room" },
@@ -239,8 +242,8 @@ export const dict: Dict = {
   "adm.attendance.shareLink": { zh: "复制只读链接", en: "Copy read-only link" },
   "adm.attendance.shareLinkCopied": { zh: "链接已复制", en: "Link copied" },
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
-  "adm.attendance.err.alreadyRegistered": { zh: "该学员已在名单中", en: "This student is already registered" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
+  "booking.confirmDuplicate": { zh: "该学员已经在列表中，是否继续", en: "This student is already on the list — continue anyway?" },
 
   // Backup / restore
   "adm.nav.backup": { zh: "备份 / 还原", en: "Backup & restore" },
