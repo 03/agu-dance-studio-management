@@ -47,7 +47,7 @@ import type {
   AppUserRole,
   BackupRecordEntry,
 } from "@/lib/types"
-import { toISODate } from "@/lib/schedule-dates"
+import { toISODate, studioDateParts } from "@/lib/schedule-dates"
 
 // ---- enum <-> view-model key conversions ----
 
@@ -144,25 +144,29 @@ export const userRoleKeyToDb = (role: AppUserRole): DbUserRole => KEY_TO_USER_RO
 
 // ---- date formatting (DateTime columns -> the display strings the UI expects) ----
 
+// Both of these go through studioDateParts/toISODate (Intl, explicit
+// Australia/Melbourne) rather than bare `d.getMonth()`/`getDate()` — those
+// read the *runtime's* ambient timezone, which is fine on this dev machine
+// (happens to default to Australia/Melbourne) but silently shifts every
+// date by a day on any host that defaults to UTC (most production
+// deployments), even though the underlying instant in the database is
+// identical. See lib/schedule-dates.ts's top comment for the full story —
+// this was the one pair of formatters that had drifted from that pattern.
 export const formatLedgerDate = (d: Date): string => {
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const dd = String(d.getDate()).padStart(2, "0")
-  const hh = String(d.getHours()).padStart(2, "0")
-  const mi = String(d.getMinutes()).padStart(2, "0")
+  const { month, day, hour, minute } = studioDateParts(d)
+  const mm = String(month).padStart(2, "0")
+  const dd = String(day).padStart(2, "0")
+  const hh = String(hour).padStart(2, "0")
+  const mi = String(minute).padStart(2, "0")
   return `${mm}.${dd} ${hh}:${mi}`
 }
 
-export const formatDateISO = (d: Date): string => d.toISOString().slice(0, 10)
+export const formatDateISO = (d: Date): string => toISODate(d)
 
 // YYYY-MM-DD, no time — used for ledger lists that now span multiple years
 // after the legacy-system data migration, where formatLedgerDate's
 // year-less "MM.DD HH:mm" would be ambiguous.
-const formatDateOnly = (d: Date): string => {
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const dd = String(d.getDate()).padStart(2, "0")
-  return `${yyyy}-${mm}-${dd}`
-}
+const formatDateOnly = (d: Date): string => toISODate(d)
 
 export const daysLeftFrom = (expiry: Date): number =>
   Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / 86_400_000))
