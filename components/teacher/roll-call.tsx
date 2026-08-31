@@ -176,6 +176,7 @@ export function RollCall({
                     {t("adm.attendance.remaining")} {r.remainingSessions}
                   </span>
                 </p>
+                {r.note && <p className="mt-0.5 truncate text-[11px] text-accent" title={r.note}>{r.note}</p>}
               </div>
               {r.checkedIn ? (
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">

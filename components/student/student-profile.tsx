@@ -7,6 +7,7 @@ import type { Student } from "@/lib/types"
 import { updateMyProfile, changeMyPassword } from "@/lib/actions/profile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -16,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { QrCode, ChevronRight, UserPen, KeyRound, HelpCircle } from "lucide-react"
+import { QrCode, ChevronRight, UserPen, KeyRound } from "lucide-react"
 import { QrCodeImage } from "@/components/shared/qr-code"
 import { encodeCheckInPayload } from "@/lib/checkin"
 
@@ -37,7 +38,6 @@ export function StudentProfile({
   const menu = [
     { Icon: UserPen, label: t("stu.profile.edit"), onClick: () => setEditOpen(true) },
     { Icon: KeyRound, label: t("stu.profile.changePassword"), onClick: () => setPwOpen(true) },
-    { Icon: HelpCircle, label: t("common.notes"), onClick: () => {} },
   ]
 
   return (
@@ -146,19 +146,23 @@ function EditProfileForm({ me, onClose }: { me: Student; onClose: () => void }) 
   const { t } = useLanguage()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [name, setName] = useState(me.name)
+  // Name is display-only here — students can't rename themselves, only
+  // admins can (admin-students.tsx) — so it's fixed to me.name rather than
+  // editable state.
+  const name = me.name
   const [phone, setPhone] = useState(me.phone ?? "")
   const [wechat, setWechat] = useState(me.wechat ?? "")
   const [email, setEmail] = useState(me.email ?? "")
+  const [note, setNote] = useState(me.note ?? "")
   const [error, setError] = useState<string | null>(null)
 
-  const isValid = name.trim() !== "" && phone.trim() !== ""
+  const isValid = name.trim() !== ""
 
   const handleConfirm = () => {
     if (!isValid || isPending) return
     setError(null)
     startTransition(async () => {
-      const result = await updateMyProfile({ name, phone, wechat, email })
+      const result = await updateMyProfile({ name, phone, wechat, email, note })
       if (result?.error) {
         setError(result.error)
         return
@@ -176,7 +180,7 @@ function EditProfileForm({ me, onClose }: { me: Student; onClose: () => void }) 
       <div className="flex flex-col gap-4 py-2">
         <div className="grid gap-2">
           <Label>{t("common.name")}</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Input value={name} disabled className="disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground" />
         </div>
         <div className="grid gap-2">
           <Label>{t("common.phone")}</Label>
@@ -191,6 +195,16 @@ function EditProfileForm({ me, onClose }: { me: Student; onClose: () => void }) 
             <Label>{t("auth.email")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
+        </div>
+        <div className="grid gap-2">
+          <Label>{t("common.notes")}</Label>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={t("stu.profile.notesPlaceholder")}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">{t("stu.profile.notesHint")}</p>
         </div>
         {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>

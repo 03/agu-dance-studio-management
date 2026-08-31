@@ -77,6 +77,7 @@ export async function updateStudent(
     code: string
     joined: string
     status: Student["status"]
+    note: string
   },
 ) {
   await requireRole("ADMIN")
@@ -96,6 +97,7 @@ export async function updateStudent(
       code: input.code.trim() || null,
       joined,
       status: studentStatusKeyToDb(input.status),
+      note: input.note.trim() || null,
     },
   })
 }

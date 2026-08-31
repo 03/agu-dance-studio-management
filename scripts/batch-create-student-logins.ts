@@ -1,27 +1,29 @@
-// One-off onboarding: creates a login account for every ACTIVE student who
-// doesn't already have one. Username is the student's name (trimmed),
-// deduped with a numeric suffix on collision against any existing username
-// (any role). All accounts share one initial password and are created with
-// mustChangePassword=true, so each student sets their own on first login.
+// One-off onboarding: creates a login account for every student who doesn't
+// already have one, regardless of status (ACTIVE, EXPIRING, or INACTIVE —
+// no status filter here on purpose). Username is the student's name
+// (trimmed), deduped with a numeric suffix on collision against any
+// existing username (any role). All accounts share one initial password and
+// are created with mustChangePassword=true, so each student sets their own
+// on first login.
 // Run via `npx tsx scripts/batch-create-student-logins.ts`.
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../lib/generated/prisma/client"
 import { hashPassword } from "../lib/password"
 
-const INITIAL_PASSWORD = "agusmile"
+const INITIAL_PASSWORD = "agudance"
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
   const students = await prisma.student.findMany({
-    where: { status: "ACTIVE", user: null },
+    where: { user: null },
     select: { id: true, name: true },
     orderBy: { id: "asc" },
   })
 
   if (students.length === 0) {
-    console.log("No active students without a login account — nothing to do.")
+    console.log("No students without a login account — nothing to do.")
     return
   }
 

@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/students"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SortableHead } from "@/components/ui/sortable-head"
@@ -117,6 +118,7 @@ type SortField =
   | "usedSessions"
   | "totalSessions"
   | "status"
+  | "note"
 type SortDir = "asc" | "desc"
 
 const STATUS_ORDER: Record<Student["status"], number> = { active: 0, expiring: 1, inactive: 2 }
@@ -137,6 +139,8 @@ function getSortValue(s: Student, field: SortField): string | number {
       return s.code ?? ""
     case "phone":
       return s.phone ?? ""
+    case "note":
+      return s.note ?? ""
     case "totalSessions":
       return s.totalBalance + (s.usedSessions ?? 0)
     default:
@@ -164,6 +168,7 @@ type ToggleableColumn =
   | "usedSessions"
   | "totalBalance"
   | "status"
+  | "note"
 const COLUMN_DEFS: { key: ToggleableColumn; labelKey: string }[] = [
   { key: "phone", labelKey: "common.phone" },
   { key: "wechat", labelKey: "auth.wechat" },
@@ -173,9 +178,10 @@ const COLUMN_DEFS: { key: ToggleableColumn; labelKey: string }[] = [
   { key: "usedSessions", labelKey: "adm.students.usedSessions" },
   { key: "totalBalance", labelKey: "stu.cards.balance" },
   { key: "status", labelKey: "common.status" },
+  { key: "note", labelKey: "common.notes" },
 ]
 const HIDDEN_COLUMNS_STORAGE_KEY = "adm.students.hiddenColumns"
-const DEFAULT_HIDDEN_COLUMNS: ToggleableColumn[] = ["phone", "wechat", "code", "cards"]
+const DEFAULT_HIDDEN_COLUMNS: ToggleableColumn[] = ["phone", "wechat", "code", "cards", "note"]
 
 export function AdminStudents({
   students,
@@ -295,6 +301,7 @@ export function AdminStudents({
                 <SortableHead field="totalBalance" label={t("stu.cards.balance")} sort={sort} onSort={handleSort} />
               )}
               {showCol("status") && <SortableHead field="status" label={t("common.status")} sort={sort} onSort={handleSort} />}
+              {showCol("note") && <SortableHead field="note" label={t("common.notes")} sort={sort} onSort={handleSort} />}
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -338,6 +345,11 @@ export function AdminStudents({
                     <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusStyles[s.status])}>
                       {lang === "zh" ? statusLabel[s.status].zh : statusLabel[s.status].en}
                     </span>
+                  </TableCell>
+                )}
+                {showCol("note") && (
+                  <TableCell className="max-w-[200px] truncate text-muted-foreground" title={s.note ?? undefined}>
+                    {s.note ?? "—"}
                   </TableCell>
                 )}
                 <TableCell>
@@ -413,6 +425,7 @@ function EditStudentForm({ student, onClose }: { student: Student; onClose: () =
   const [code, setCode] = useState(student.code ?? "")
   const [joined, setJoined] = useState(student.joined)
   const [status, setStatus] = useState<Student["status"]>(student.status)
+  const [note, setNote] = useState(student.note ?? "")
   const [error, setError] = useState<string | null>(null)
 
   const isValid = name.trim() !== "" && joined.trim() !== ""
@@ -422,7 +435,7 @@ function EditStudentForm({ student, onClose }: { student: Student; onClose: () =
     setError(null)
     startTransition(async () => {
       try {
-        await updateStudent(student.id, { name, phone, wechat, email, code, joined, status })
+        await updateStudent(student.id, { name, phone, wechat, email, code, joined, status, note })
         router.refresh()
         onClose()
       } catch (e) {
@@ -483,6 +496,10 @@ function EditStudentForm({ student, onClose }: { student: Student; onClose: () =
               <SelectItem value="inactive">{lang === "zh" ? statusLabel.inactive.zh : statusLabel.inactive.en}</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label>{t("common.notes")}</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
         </div>
         {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>

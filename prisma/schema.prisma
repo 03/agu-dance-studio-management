@@ -152,6 +152,11 @@ model Student {
   // free at migration time, same idea as Session.token but a stable,
   // regenerable value rather than an expiring login session.
   checkInCode   String        @unique @default(dbgenerated("gen_random_uuid()"))
+  // Free-text note the student writes about themself, e.g. injuries or
+  // things a teacher should know — visible to the student, their teachers,
+  // and admin, but never in a bulk list another student could see (see
+  // mapStudent's includeNote option).
+  note          String?
   cards         StudentCard[]
   ledgerEntries LedgerEntry[]
   bookings      Booking[]

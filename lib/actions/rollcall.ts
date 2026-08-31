@@ -26,7 +26,7 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
   await assertOwnsSession(sessionId)
   const bookings = await prisma.booking.findMany({
     where: { sessionId, date: parseISODate(date), state: { in: ["BOOKED", "WAITLIST"] } },
-    include: { student: { select: { name: true, cards: true, ledgerEntries: true } } },
+    include: { student: { select: { name: true, cards: true, ledgerEntries: true, note: true } } },
     orderBy: { createdAt: "asc" },
   })
   return bookings.map((b) => ({
@@ -36,6 +36,7 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
     proxy: b.proxy,
     remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
     createdAt: formatLedgerDate(b.createdAt),
+    note: b.student.note,
   }))
 }
 

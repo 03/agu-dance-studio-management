@@ -172,6 +172,11 @@ export type Student = {
   // in the admin students list, which is a bulk payload of every student
   // at once and would otherwise leak every code in one response.
   checkInCode?: string
+  // Populated for the student's own profile and the admin students view —
+  // a free-text note the student writes about themself (e.g. injuries).
+  // Visible to the student, their teachers (via RosterEntry.note), and
+  // admin — but never in a bulk list another student could see.
+  note?: string | null
 }
 
 export type CardProduct = {
@@ -201,6 +206,7 @@ export type RosterEntry = {
   proxy?: boolean
   remainingSessions: number
   createdAt: string
+  note: string | null
 }
 
 export const weekdayKeys = ["day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"]

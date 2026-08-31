@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import { useLanguage } from "@/lib/i18n"
 import { login } from "@/lib/actions/auth"
 import { userRoleKeyToDb } from "@/lib/mappers"
@@ -12,11 +13,15 @@ import { GraduationCap, Presentation, LayoutDashboard } from "lucide-react"
 
 type NonNullRole = Exclude<Role, null>
 
-const roleMeta: Record<NonNullRole, { titleKey: string; Icon: typeof GraduationCap }> = {
-  student: { titleKey: "role.student", Icon: GraduationCap },
-  teacher: { titleKey: "role.teacher", Icon: Presentation },
-  admin: { titleKey: "role.admin", Icon: LayoutDashboard },
+// loginTitleKey is deliberately separate from role.* (used for the small
+// cross-role icon links below) — the heading names the action ("教师登录"),
+// the icon link's title/aria-label names the destination ("教师").
+const roleMeta: Record<NonNullRole, { titleKey: string; loginTitleKey: string; href: string; Icon: typeof GraduationCap }> = {
+  student: { titleKey: "role.student", loginTitleKey: "auth.login", href: "/", Icon: GraduationCap },
+  teacher: { titleKey: "role.teacher", loginTitleKey: "auth.teacherLogin", href: "/teacher", Icon: Presentation },
+  admin: { titleKey: "role.admin", loginTitleKey: "auth.adminLogin", href: "/admin", Icon: LayoutDashboard },
 }
+const roleOrder: NonNullRole[] = ["student", "teacher", "admin"]
 
 // Just the login card (no page chrome — header/hero background live in
 // AppShell, which places this alongside the public schedule on one page).
@@ -36,7 +41,8 @@ export function LoginForm({
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const { Icon } = roleMeta[role]
+  const { Icon, loginTitleKey } = roleMeta[role]
+  const otherRoles = roleOrder.filter((r) => r !== role)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,7 +62,7 @@ export function LoginForm({
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </span>
-        <span className="font-display text-xl font-bold text-card-foreground">{t("auth.login")}</span>
+        <span className="font-display text-xl font-bold text-card-foreground">{t(loginTitleKey)}</span>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -97,6 +103,26 @@ export function LoginForm({
             {t("auth.noAccount")}
           </button>
         )}
+
+        {/* Low-key entry points to the other two roles' logins —
+            deliberately small and muted so they don't compete with whichever
+            role's flow is in front (the common case for that entry point). */}
+        <div className="flex items-center justify-center gap-5">
+          {otherRoles.map((r) => {
+            const OtherIcon = roleMeta[r].Icon
+            return (
+              <Link
+                key={r}
+                href={roleMeta[r].href}
+                title={t(roleMeta[r].titleKey)}
+                aria-label={t(roleMeta[r].titleKey)}
+                className="text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+              >
+                <OtherIcon className="h-3.5 w-3.5" />
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </form>
   )

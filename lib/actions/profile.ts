@@ -5,7 +5,10 @@ import { requireRole, verifyPassword, hashPassword } from "@/lib/auth"
 
 // Phone number is plain contact info — editing it here does not touch the
 // login username (only lib/actions/users.ts:updateUser, admin-only, does).
-export async function updateMyProfile(input: { name: string; phone: string; wechat: string; email: string }) {
+// `note` is visible to the student, their teachers, and admin (see
+// mapStudent's includeNote option and RosterEntry.note) — not a private
+// field, just not broadcast to other students in a bulk list.
+export async function updateMyProfile(input: { name: string; phone: string; wechat: string; email: string; note: string }) {
   const session = await requireRole("STUDENT")
   if (!session.studentId) throw new Error("NO_LINKED_STUDENT")
 
@@ -13,13 +16,13 @@ export async function updateMyProfile(input: { name: string; phone: string; wech
   const phone = input.phone.trim()
   const wechat = input.wechat.trim()
   const email = input.email.trim()
+  const note = input.note.trim()
 
   if (!name) return { error: "auth.register.err.name" }
-  if (!phone) return { error: "auth.register.err.phone" }
 
   await prisma.student.update({
     where: { id: session.studentId },
-    data: { name, phone, wechat: wechat || null, email: email || null },
+    data: { name, phone: phone || null, wechat: wechat || null, email: email || null, note: note || null },
   })
 
   return { ok: true as const }

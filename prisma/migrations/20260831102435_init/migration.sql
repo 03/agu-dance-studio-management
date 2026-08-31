@@ -68,20 +68,35 @@ CREATE TABLE "class_sessions" (
     "levelZh" TEXT NOT NULL,
     "levelEn" TEXT NOT NULL,
     "status" "SessionStatus" NOT NULL DEFAULT 'NORMAL',
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
 
     CONSTRAINT "class_sessions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "class_closures" (
+    "id" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "note" TEXT,
+    "sessionId" TEXT,
+
+    CONSTRAINT "class_closures_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "students" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
+    "phone" TEXT,
     "wechat" TEXT,
     "email" TEXT,
     "code" TEXT,
     "joined" TEXT NOT NULL,
     "status" "StudentStatus" NOT NULL DEFAULT 'ACTIVE',
+    "checkInCode" TEXT NOT NULL DEFAULT gen_random_uuid(),
+    "note" TEXT,
 
     CONSTRAINT "students_pkey" PRIMARY KEY ("id")
 );
@@ -198,6 +213,9 @@ CREATE TABLE "backup_records" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "students_checkInCode_key" ON "students"("checkInCode");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "bookings_studentId_sessionId_date_key" ON "bookings"("studentId", "sessionId", "date");
 
 -- CreateIndex
@@ -220,6 +238,9 @@ ALTER TABLE "class_sessions" ADD CONSTRAINT "class_sessions_teacherId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "class_sessions" ADD CONSTRAINT "class_sessions_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "rooms"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "class_closures" ADD CONSTRAINT "class_closures_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "class_sessions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -256,3 +277,4 @@ ALTER TABLE "users" ADD CONSTRAINT "users_teacherId_fkey" FOREIGN KEY ("teacherI
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
