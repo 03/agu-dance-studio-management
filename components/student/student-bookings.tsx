@@ -88,8 +88,7 @@ export function StudentBookings({
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">{teacherName(s.teacherId)}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">{t("stu.cancelRule")}</span>
+                  <div className="mt-3 flex items-center justify-end">
                     <Button
                       size="sm"
                       variant="ghost"

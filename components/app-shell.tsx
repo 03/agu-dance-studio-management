@@ -10,13 +10,15 @@ import type { PublicScheduleData } from "@/lib/data"
 
 export type Role = "student" | "teacher" | "admin" | null
 
-// Pre-authentication experience only: a single page with the login card
-// (role dropdown, defaulting to student) on top and the public class
-// schedule below it, plus registration for students. The only business data
-// fetched before login is the public class schedule (publicData) —
-// everything else only happens after app/page.tsx sees a valid session.
-// `initialRole` lets the /student, /teacher, /admin route shortcuts land
-// with that role pre-selected in the dropdown.
+// Pre-authentication experience only: a single page with the login card on
+// top and the public class schedule below it, plus registration for
+// students. There's no role selector on the login card — the role is fixed
+// by which URL brought the visitor here: "/" defaults to student (the
+// common case), while teachers and admins get their own dedicated
+// `initialRole` entry points (/teacher, /admin) to log in from instead.
+// The only business data fetched before login is the public class schedule
+// (publicData) — everything else only happens after app/page.tsx sees a
+// valid session.
 export function AppShell({
   publicData,
   initialRole = "student",
@@ -25,7 +27,6 @@ export function AppShell({
   initialRole?: Exclude<Role, null>
 }) {
   const { t } = useLanguage()
-  const [role, setRole] = useState<Exclude<Role, null>>(initialRole)
   const [mode, setMode] = useState<"login" | "register">("login")
 
   if (mode === "register") {
@@ -51,7 +52,7 @@ export function AppShell({
         </header>
 
         <div className="flex flex-1 flex-col items-center gap-10 py-12">
-          <LoginForm role={role} onRoleChange={setRole} onRegister={() => setMode("register")} />
+          <LoginForm role={initialRole} onRegister={() => setMode("register")} />
 
           <div className="w-full rounded-3xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur">
             <PublicSchedule

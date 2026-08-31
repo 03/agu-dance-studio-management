@@ -150,7 +150,6 @@ export function StudentSchedule({
     <div>
       <header className="sticky top-0 z-10 bg-primary px-4 pb-4 pt-5 text-primary-foreground">
         <h1 className="font-display text-xl font-bold">{t("stu.schedule.title")}</h1>
-        <p className="mt-0.5 text-xs text-primary-foreground/70">{t("stu.cancelRule")}</p>
 
         {/* Day picker */}
         <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1">

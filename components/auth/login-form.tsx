@@ -8,7 +8,6 @@ import type { Role } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { GraduationCap, Presentation, LayoutDashboard } from "lucide-react"
 
 type NonNullRole = Exclude<Role, null>
@@ -19,17 +18,17 @@ const roleMeta: Record<NonNullRole, { titleKey: string; Icon: typeof GraduationC
   admin: { titleKey: "role.admin", Icon: LayoutDashboard },
 }
 
-const roleOrder: NonNullRole[] = ["student", "teacher", "admin"]
-
 // Just the login card (no page chrome — header/hero background live in
 // AppShell, which places this alongside the public schedule on one page).
+// The role isn't picked here — it's fixed by which entry point brought the
+// visitor here (student.agustudio.au / "/" defaults to student; teachers
+// and admins use their own /teacher, /admin links) — so there's no role
+// selector cluttering the common case.
 export function LoginForm({
   role,
-  onRoleChange,
   onRegister,
 }: {
   role: NonNullRole
-  onRoleChange: (r: NonNullRole) => void
   onRegister?: () => void
 }) {
   const { t } = useLanguage()
@@ -61,21 +60,6 @@ export function LoginForm({
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="grid gap-2">
-          <Label>{t("app.selectRole")}</Label>
-          <Select value={role} onValueChange={(v) => onRoleChange(v as NonNullRole)}>
-            <SelectTrigger className="w-full">
-              <SelectValue>{(v: NonNullRole) => t(roleMeta[v].titleKey)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {roleOrder.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {t(roleMeta[r].titleKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
         <div className="grid gap-2">
           <Label htmlFor="username">{t("auth.username")}</Label>
           <Input

@@ -11,12 +11,6 @@ export const dict: Dict = {
   // Brand / global
   "brand.name": { zh: "Agu 舞蹈工作室", en: "Agu Dance Studio" },
   "brand.tagline": { zh: "全流程管理及预约平台", en: "Studio management & booking" },
-  "app.selectRole": { zh: "选择你的身份", en: "Choose your role" },
-  "app.selectRoleDesc": {
-    zh: "一个平台，服务学员、教师与教务管理。",
-    en: "One platform for students, teachers, and administrators.",
-  },
-  "app.enter": { zh: "进入", en: "Enter" },
   "app.backHome": { zh: "退出登录", en: "Log out" },
 
   // Public homepage schedule
@@ -140,11 +134,10 @@ export const dict: Dict = {
   "stu.me.member": { zh: "会员", en: "Member" },
   "stu.profile.edit": { zh: "编辑资料", en: "Edit profile" },
   "stu.profile.changePassword": { zh: "修改密码", en: "Change password" },
-  "stu.cancelRule": { zh: "开课前 4 小时可免费取消", en: "Free cancellation up to 4h before class" },
   "stu.roster.button": { zh: "接龙名单", en: "Roster" },
   "stu.roster.title": { zh: "接龙名单", en: "Roster" },
   "stu.roster.empty": { zh: "暂无学员接龙", en: "No one has joined yet" },
-  "stu.schedule.err.noValidCard": { zh: "您没有有效的课时卡，请先购卡后再预约", en: "You don't have a valid class card — please purchase one before booking" },
+  "stu.schedule.err.noValidCard": { zh: "剩余课时不足，请及时充值，谢谢", en: "You don't have enough classes left — please top up soon, thank you" },
   "stu.schedule.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
   "stu.schedule.err.generic": { zh: "操作失败，请重试", en: "Something went wrong — please try again" },
   "ledger.consume": { zh: "消课", en: "Class" },
