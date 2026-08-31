@@ -236,6 +236,8 @@ export const dict: Dict = {
   "adm.attendance.remainingSessions": { zh: "剩余课时", en: "Remaining sessions" },
   "adm.attendance.registeredAt": { zh: "报名时间", en: "Registered at" },
   "adm.attendance.empty": { zh: "暂无学员登记", en: "No students registered yet" },
+  "adm.attendance.shareLink": { zh: "复制只读链接", en: "Copy read-only link" },
+  "adm.attendance.shareLinkCopied": { zh: "链接已复制", en: "Link copied" },
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
   "adm.attendance.err.alreadyRegistered": { zh: "该学员已在名单中", en: "This student is already registered" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },

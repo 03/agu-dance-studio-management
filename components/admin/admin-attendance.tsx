@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SortableHead } from "@/components/ui/sortable-head"
-import { ChevronLeft, ChevronRight, Trash2, CalendarSearch } from "lucide-react"
+import { ChevronLeft, ChevronRight, Trash2, CalendarSearch, Link2, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type RosterSortField = "name" | "remainingSessions" | "createdAt"
@@ -333,6 +333,15 @@ function RosterDialog({
   const [isPending, startTransition] = useTransition()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [sort, setSort] = useState<{ field: RosterSortField; dir: RosterSortDir }>({ field: "createdAt", dir: "asc" })
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/roster/${session.id}/${dateISO}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   const handleSort = (field: RosterSortField) => {
     setSort((prev) => (prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }))
@@ -416,9 +425,24 @@ function RosterDialog({
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4 py-2">
-        <p className="-mt-2 text-xs text-muted-foreground">
-          {teacherName} · {lang === "zh" ? session.level.zh : session.level.en}
-        </p>
+        <div className="-mt-2 flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {teacherName} · {lang === "zh" ? session.level.zh : session.level.en}
+          </p>
+          <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={handleShare}>
+            {copied ? (
+              <>
+                <Check className="mr-1 h-3.5 w-3.5" />
+                {t("adm.attendance.shareLinkCopied")}
+              </>
+            ) : (
+              <>
+                <Link2 className="mr-1 h-3.5 w-3.5" />
+                {t("adm.attendance.shareLink")}
+              </>
+            )}
+          </Button>
+        </div>
 
         <div className="grid gap-2">
           <Label>{t("adm.attendance.addStudent")}</Label>
