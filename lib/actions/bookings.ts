@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
 import { parseISODate, toISODate, isSessionActiveOn } from "@/lib/schedule-dates"
-import type { Prisma } from "@/lib/generated/prisma/client"
+import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
 
 // Picks which of the student's cards a booking should draw a credit from:
 // the non-unlimited, non-expired card with the soonest expiry (use the one
@@ -18,6 +18,57 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
   })
   if (timed) return timed
   return tx.studentCard.findFirst({ where: { studentId, isUnlimited: true, expiry: { gt: now } } })
+}
+
+// Consumes one class credit for a booking that's becoming BOOKED — shared
+// by a fresh booking (bookOccurrenceForStudent) and waitlist promotion
+// (cancelOccurrenceForStudent), since both need identical card-selection
+// and ledger-writing rules. Throws NO_VALID_CARD without writing anything
+// if the student has nothing to draw from, so callers can safely treat
+// that as "this candidate can't be promoted" rather than a hard failure.
+async function consumeCreditForBooking(
+  tx: Prisma.TransactionClient,
+  studentId: string,
+  bookingId: string,
+  session: { style: DanceStyle; teacher: { name: string; nameEn: string } },
+) {
+  const card = await pickConsumableCard(tx, studentId)
+  let cardId: string | null = null
+  if (card) {
+    if (!card.isUnlimited) {
+      await tx.studentCard.update({ where: { id: card.id }, data: { balance: { decrement: 1 } } })
+    }
+    cardId = card.id
+  } else {
+    // No live StudentCard to draw from — still allow it if the student's
+    // overall computed balance (剩余课时, the same number shown everywhere
+    // in the app) is positive. This is the normal case for legacy-migrated
+    // students: their whole card history lives only in ledger_entries,
+    // since the migration never created StudentCard rows for them. Consume
+    // the same way, via a cardless CONSUME entry — cancelling later refunds
+    // it identically (see cancelOccurrenceForStudent, which already treats
+    // cardId-null entries as "nothing to refund on the card side").
+    const [cards, ledgerEntries] = await Promise.all([
+      tx.studentCard.findMany({ where: { studentId } }),
+      tx.ledgerEntry.findMany({ where: { studentId } }),
+    ])
+    if (computeRemainingBalance(cards, ledgerEntries) <= 0) throw new Error("NO_VALID_CARD")
+  }
+  const label = styleLabel(styleDbToKey(session.style))
+  await tx.ledgerEntry.upsert({
+    where: { bookingId },
+    create: {
+      studentId,
+      cardId,
+      bookingId,
+      kind: "CONSUME",
+      titleZh: `${label.zh} · ${session.teacher.name}`,
+      titleEn: `${label.en} · ${session.teacher.nameEn}`,
+      date: new Date(),
+      delta: -1,
+    },
+    update: {},
+  })
 }
 
 // Shared core behind bookClass (self-service) and adminBookStudent (staff
@@ -68,51 +119,23 @@ async function bookOccurrenceForStudent(
       state = bookedCount < session.capacity ? "BOOKED" : "WAITLIST"
     }
 
+    // A prior CANCELED booking for this (student, session, date) still has
+    // its own row (cancelling never deletes it — see cancelOccurrenceForStudent),
+    // so re-booking hits `update`, not `create`. Resetting createdAt here
+    // means it always reflects the most recent time this became an active
+    // booking, not whenever the row was first created — that's what backs
+    // the 接龙 chain order (getBookedNamesForSession), the roster's 报名时间
+    // column, and waitlist promotion order (promoteFromWaitlist), all of
+    // which sort by createdAt and would otherwise let a cancel+rebook keep
+    // an old place in line instead of going to the back of it.
     const booking = await tx.booking.upsert({
       where: { studentId_sessionId_date: { studentId, sessionId, date: occurrenceDate } },
       create: { studentId, sessionId, date: occurrenceDate, state },
-      update: { state, checkedIn: false, proxy: false },
+      update: { state, checkedIn: false, proxy: false, createdAt: new Date() },
     })
 
     if (state === "BOOKED") {
-      const card = await pickConsumableCard(tx, studentId)
-      let cardId: string | null = null
-      if (card) {
-        if (!card.isUnlimited) {
-          await tx.studentCard.update({ where: { id: card.id }, data: { balance: { decrement: 1 } } })
-        }
-        cardId = card.id
-      } else {
-        // No live StudentCard to draw from — still allow the booking if the
-        // student's overall computed balance (剩余课时, the same number
-        // shown everywhere in the app) is positive. This is the normal case
-        // for legacy-migrated students: their whole card history lives only
-        // in ledger_entries (cardId null), since the migration never
-        // created StudentCard rows for them. Consume the same way, via a
-        // cardless CONSUME entry — cancelling later refunds it identically
-        // (see cancelOccurrenceForStudent, which already treats cardId-null
-        // entries as "nothing to refund on the card side").
-        const [cards, ledgerEntries] = await Promise.all([
-          tx.studentCard.findMany({ where: { studentId } }),
-          tx.ledgerEntry.findMany({ where: { studentId } }),
-        ])
-        if (computeRemainingBalance(cards, ledgerEntries) <= 0) throw new Error("NO_VALID_CARD")
-      }
-      const label = styleLabel(styleDbToKey(session.style))
-      await tx.ledgerEntry.upsert({
-        where: { bookingId: booking.id },
-        create: {
-          studentId,
-          cardId,
-          bookingId: booking.id,
-          kind: "CONSUME",
-          titleZh: `${label.zh} · ${session.teacher.name}`,
-          titleEn: `${label.en} · ${session.teacher.nameEn}`,
-          date: new Date(),
-          delta: -1,
-        },
-        update: {},
-      })
+      await consumeCreditForBooking(tx, studentId, booking.id, session)
     }
 
     return booking
@@ -149,6 +172,34 @@ export async function adminBookStudent(sessionId: string, date: string, studentI
   return bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true })
 }
 
+// Offers a just-freed BOOKED seat to whoever's been on the waitlist
+// longest, skipping anyone who can't actually take it right now (their
+// card may have expired, or run out, since they joined the queue — a
+// WAITLIST booking was never required to have a valid card, unlike BOOKED)
+// rather than leaving the seat stuck behind an ineligible first-in-line
+// student. Best-effort: if nobody in the queue is currently eligible, the
+// seat just stays open, same as if nobody had been waiting at all.
+async function promoteFromWaitlist(tx: Prisma.TransactionClient, sessionId: string, date: Date) {
+  const waiting = await tx.booking.findMany({
+    where: { sessionId, date, state: "WAITLIST" },
+    orderBy: { createdAt: "asc" },
+  })
+  if (waiting.length === 0) return
+
+  const session = await tx.classSession.findUniqueOrThrow({ where: { id: sessionId }, include: { teacher: true } })
+
+  for (const candidate of waiting) {
+    try {
+      await consumeCreditForBooking(tx, candidate.studentId, candidate.id, session)
+      await tx.booking.update({ where: { id: candidate.id }, data: { state: "BOOKED" } })
+      return
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_VALID_CARD") continue
+      throw e
+    }
+  }
+}
+
 // Names only, in the order students joined — matches the "接龙" (group
 // sign-up chain) mental model students already have from chat groups.
 export async function getBookedNamesForSession(sessionId: string, date: string): Promise<string[]> {
@@ -163,6 +214,9 @@ export async function getBookedNamesForSession(sessionId: string, date: string):
 
 // Shared core behind cancelBooking (self-service) and adminCancelBooking
 // (staff removing someone from the roster) — same refund rules either way.
+// Freeing up a BOOKED seat also offers it to whoever's been waiting longest
+// (see promoteFromWaitlist) — cancelling a WAITLIST booking doesn't, since
+// no real seat was ever occupied.
 async function cancelOccurrenceForStudent(sessionId: string, date: string, studentId: string) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
@@ -173,7 +227,9 @@ async function cancelOccurrenceForStudent(sessionId: string, date: string, stude
     })
     if (!booking || booking.state === "CANCELED") return booking
 
-    if (booking.state === "BOOKED") {
+    const wasBooked = booking.state === "BOOKED"
+
+    if (wasBooked) {
       const ledger = await tx.ledgerEntry.findUnique({ where: { bookingId: booking.id } })
       if (ledger) {
         if (ledger.cardId) {
@@ -186,7 +242,13 @@ async function cancelOccurrenceForStudent(sessionId: string, date: string, stude
       }
     }
 
-    return tx.booking.update({ where: { id: booking.id }, data: { state: "CANCELED" } })
+    const cancelled = await tx.booking.update({ where: { id: booking.id }, data: { state: "CANCELED" } })
+
+    if (wasBooked) {
+      await promoteFromWaitlist(tx, sessionId, occurrenceDate)
+    }
+
+    return cancelled
   })
 }
 

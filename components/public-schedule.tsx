@@ -55,60 +55,58 @@ export function PublicSchedule({
   )
 
   return (
-    <section className="border-t border-border bg-background px-6 py-14">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h2 className="font-display text-2xl font-bold text-foreground md:text-3xl">
-            {t("home.schedule.title")}
-          </h2>
-          <div className="inline-flex rounded-xl border border-border bg-card p-1">
-            <button
-              onClick={() => setView("week")}
-              className={cn(
-                "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
-                view === "week"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("home.schedule.week")}
-            </button>
-            <button
-              onClick={() => setView("month")}
-              className={cn(
-                "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
-                view === "month"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("home.schedule.month")}
-            </button>
-          </div>
+    <div>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <h2 className="font-display text-2xl font-bold text-foreground md:text-3xl">
+          {t("home.schedule.title")}
+        </h2>
+        <div className="inline-flex rounded-xl border border-border bg-card p-1">
+          <button
+            onClick={() => setView("week")}
+            className={cn(
+              "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+              view === "week"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("home.schedule.week")}
+          </button>
+          <button
+            onClick={() => setView("month")}
+            className={cn(
+              "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+              view === "month"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("home.schedule.month")}
+          </button>
         </div>
-
-        {view === "week" ? (
-          <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} closures={closures} />
-        ) : (
-          <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} />
-        )}
       </div>
 
+      {view === "week" ? (
+        <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} closures={closures} />
+      ) : (
+        <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} rooms={rooms} />
+      )}
+
       {/* Contact */}
-      <div className="mx-auto mt-14 max-w-5xl border-t border-border pt-8">
+      <div className="mt-14 border-t border-border pt-8">
         <p className="mb-4 text-sm font-semibold text-foreground">{t("home.contact.title")}</p>
         <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-primary" />
-            {t("home.contact.wechat")}: <span className="font-medium text-foreground">ABC#1</span>
+            {t("home.contact.wechat")}: <span className="font-medium text-foreground">AguHappy</span>
           </span>
           <span className="inline-flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            {t("home.contact.xiaohongshu")}: <span className="font-medium text-foreground">REDBOOK#1</span>
+            {t("home.contact.xiaohongshu")}: <span className="font-medium text-foreground">833708881</span>
           </span>
         </div>
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -175,13 +173,16 @@ function MonthView({
   bookedFor,
   ensureMonth,
   closures,
+  rooms,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
   ensureMonth: (year: number, month: number) => void
   closures: ClassClosure[]
+  rooms: Room[]
 }) {
   const { t, lang } = useLanguage()
+  const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
   const [monthOffset, setMonthOffset] = useState(0)
 
   const { weeks, monthLabel, year, month } = useMemo(() => {
@@ -241,55 +242,65 @@ function MonthView({
           </button>
         )}
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
+      <div className="overflow-x-auto">
+      <div className="grid min-w-[840px] grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
         {weekdayKeys.map((wk) => (
           <div key={wk} className="py-1">
             {t(wk)}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid min-w-[840px] grid-cols-7 gap-1">
         {weeks.flatMap((week, wi) =>
           week.map((d, di) => {
-            if (!d) return <div key={`${wi}-${di}`} className="min-h-[104px] rounded-lg" />
+            if (!d) return <div key={`${wi}-${di}`} className="min-h-[110px] rounded-lg" />
             const dow = toAppDay(d)
             const dISO = toISODate(d)
             const daySessions = sessions.filter((s) => s.day === dow && isSessionActiveOn(s, closures, dISO))
-            const visible = daySessions.slice(0, 3)
-            const overflow = daySessions.length - visible.length
             return (
               <div
                 key={`${wi}-${di}`}
                 className={cn(
-                  "flex min-h-[104px] flex-col items-center gap-1 rounded-lg border border-transparent p-1",
+                  "flex min-h-[110px] flex-col items-center gap-1 rounded-lg border border-transparent p-1",
                   isToday(d) && "border-primary bg-primary/5",
                 )}
               >
                 <span className={cn("text-xs font-semibold", isToday(d) ? "text-primary" : "text-card-foreground")}>
                   {d.getDate()}
                 </span>
-                <div className="flex w-full flex-col gap-0.5">
-                  {visible.map((s) => {
+                <div className="flex w-full flex-col gap-1">
+                  {daySessions.map((s) => {
                     const booked = bookedFor(s.id, d)
+                    const nameEn = roomNameEn(s.roomId)
                     return (
                       <div
                         key={s.id}
-                        className="w-full truncate rounded-sm border-l-2 bg-secondary/50 px-1 py-0.5 text-left text-[9px] leading-tight font-medium text-card-foreground"
+                        className="w-full rounded-lg border-l-4 bg-secondary/40 p-1.5 text-left"
                         style={{ borderLeftColor: styleColors[s.style] }}
-                        title={`${s.start} · ${t(s.style)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${booked}/${s.capacity} ${t("home.schedule.enrolled")}`}
                       >
-                        {s.start} {booked}/{s.capacity}
+                        <p className="text-[10px] font-semibold text-card-foreground">{s.start}</p>
+                        <p className="truncate text-[10px] font-bold text-card-foreground">{t(s.style)}</p>
+                        <p className="truncate text-[9px] text-muted-foreground">
+                          {lang === "zh" ? s.level.zh : s.level.en}
+                        </p>
+                        {nameEn && (
+                          <p className="flex items-start gap-1 truncate text-[9px] text-muted-foreground">
+                            <MapPin className="mt-[1px] h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate">{nameEn}</span>
+                          </p>
+                        )}
+                        <p className="text-[9px] text-muted-foreground">
+                          {booked}/{s.capacity} {t("home.schedule.enrolled")}
+                        </p>
                       </div>
                     )
                   })}
-                  {overflow > 0 && (
-                    <span className="text-[9px] text-muted-foreground">+{overflow}</span>
-                  )}
                 </div>
               </div>
             )
           }),
         )}
+      </div>
       </div>
     </div>
   )

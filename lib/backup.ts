@@ -10,6 +10,7 @@
 // `.sql` backup files from the previous implementation can no longer be
 // restored.
 import { prisma } from "@/lib/db"
+import { sendBackupEmail } from "@/lib/email"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
 // Parents before children — the order both the dump's keys and the
@@ -90,6 +91,44 @@ export async function dumpBusinessData(): Promise<Buffer> {
   }
   const payload = { version: BACKUP_FORMAT_VERSION, exportedAt: new Date().toISOString(), data }
   return Buffer.from(JSON.stringify(payload), "utf-8")
+}
+
+export type BackupCycleResult =
+  | { ok: true; filename: string; content: Buffer; emailNote: string | null }
+  | { ok: false; filename: string; message: string }
+
+// One full backup cycle — dump, best-effort off-site email, audit log —
+// shared by the admin's manual download button (app/api/admin/backup) and
+// the nightly scheduled run (lib/scheduled-backup.ts), so both go through
+// identical logic instead of two copies drifting apart. `createdBy` is
+// whatever should show in the 备份/还原 audit table's 操作人 column —
+// an admin's username for a manual click, or a fixed label like
+// "system (scheduled)" for the automated run.
+export async function runBackupCycle(createdBy: string): Promise<BackupCycleResult> {
+  const filename = backupFilename()
+  try {
+    const content = await dumpBusinessData()
+
+    // The off-site email copy is a bonus on top of the backup itself — a
+    // failed send must not fail the backup, just get noted on the record.
+    let emailNote: string | null = null
+    try {
+      await sendBackupEmail(content, filename)
+    } catch (emailErr) {
+      emailNote = `Email copy failed: ${emailErr instanceof Error ? emailErr.message : "unknown error"}`.slice(0, 500)
+    }
+
+    await prisma.backupRecord.create({
+      data: { action: "BACKUP", filename, status: "SUCCESS", message: emailNote, createdBy },
+    })
+    return { ok: true, filename, content, emailNote }
+  } catch (e) {
+    const message = e instanceof Error ? e.message.slice(0, 500) : "unknown error"
+    await prisma.backupRecord.create({
+      data: { action: "BACKUP", filename, status: "FAILED", message, createdBy },
+    })
+    return { ok: false, filename, message }
+  }
 }
 
 // Wipes every table this feature covers — including login accounts — and

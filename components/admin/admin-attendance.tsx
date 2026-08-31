@@ -116,6 +116,16 @@ export function AdminAttendance({
     for (const { year, month } of neededMonths) ensureMonth(year, month)
   }, [neededMonths, ensureMonth])
 
+  // Someone else — a student booking/cancelling from their own phone, or
+  // another admin — can change these counts at any moment, not just from
+  // this admin's own actions above. Poll so the week grid stays current
+  // without needing a manual refresh; a few seconds of staleness is fine
+  // for "how many are booked so far," so this doesn't need to be push-based.
+  useEffect(() => {
+    const id = setInterval(refreshWeek, 5000)
+    return () => clearInterval(id)
+  }, [refreshWeek])
+
   const bookedFor = useCallback(
     (sessionId: string, date: Date) => occurrenceMap.get(occurrenceKey(sessionId, toISODate(date)))?.booked ?? 0,
     [occurrenceMap],
@@ -340,6 +350,17 @@ function RosterDialog({
   useEffect(() => {
     load()
   }, [load])
+
+  // Someone else can add/remove a booking on this exact roster while it's
+  // open here — a student self-booking or cancelling from their own phone,
+  // or another admin. Poll quietly (no loading spinner, unlike `load`) so
+  // it stays current without the admin needing to close and reopen it.
+  useEffect(() => {
+    const id = setInterval(() => {
+      getRosterForSession(session.id, dateISO).then(setRoster)
+    }, 5000)
+    return () => clearInterval(id)
+  }, [session.id, dateISO])
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()

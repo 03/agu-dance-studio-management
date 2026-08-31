@@ -20,7 +20,7 @@ export const dict: Dict = {
   "app.backHome": { zh: "退出登录", en: "Log out" },
 
   // Public homepage schedule
-  "home.schedule.title": { zh: "循环课程表", en: "Weekly Class Schedule" },
+  "home.schedule.title": { zh: "课程表", en: "Weekly Class Schedule" },
   "home.schedule.week": { zh: "周视图", en: "Week" },
   "home.schedule.month": { zh: "月视图", en: "Month" },
   "home.schedule.prevMonth": { zh: "上一月", en: "Previous month" },
@@ -61,7 +61,7 @@ export const dict: Dict = {
   "role.student.desc": { zh: "查课 · 预约 · 课时卡 · 签到码", en: "Browse, book, class cards & check-in" },
   "role.teacher": { zh: "教师", en: "Teacher" },
   "role.teacher.desc": { zh: "个人课表 · 一键点名签到", en: "Your schedule & one-tap roll call" },
-  "role.admin": { zh: "教务管理", en: "Administrator" },
+  "role.admin": { zh: "管理员", en: "Administrator" },
   "role.admin.desc": { zh: "排课 · 卡项 · 财务 · 报表", en: "Scheduling, cards, finance & reports" },
 
   // Common
