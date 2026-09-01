@@ -39,15 +39,33 @@ export async function createClassSession(input: {
 
 export async function updateClassSession(
   id: string,
-  input: { teacherId: string; roomId: string; start: string; startDate?: string | null; endDate?: string | null },
+  input: {
+    style: StyleKey
+    teacherId: string
+    roomId: string
+    day: number
+    start: string
+    end: string
+    capacity: number
+    levelZh: string
+    levelEn: string
+    startDate?: string | null
+    endDate?: string | null
+  },
 ) {
   await requireRole("ADMIN")
   await prisma.classSession.update({
     where: { id },
     data: {
+      style: styleKeyToDb(input.style),
       teacherId: input.teacherId,
       roomId: input.roomId,
+      day: input.day,
       start: input.start,
+      end: input.end,
+      capacity: input.capacity,
+      levelZh: input.levelZh,
+      levelEn: input.levelEn,
       ...(input.startDate !== undefined && { startDate: input.startDate ? parseISODate(input.startDate) : null }),
       ...(input.endDate !== undefined && { endDate: input.endDate ? parseISODate(input.endDate) : null }),
     },

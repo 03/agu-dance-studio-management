@@ -64,11 +64,10 @@ export function AdminScheduling({
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  const saveEdit = (
-    updated: { id: string; teacherId: string; roomId: string; start: string; startDate: string | null; endDate: string | null },
-  ) => {
+  const saveEdit = (updated: { id: string } & Parameters<typeof updateClassSession>[1]) => {
     startTransition(async () => {
-      await updateClassSession(updated.id, updated)
+      const { id, ...input } = updated
+      await updateClassSession(id, input)
       router.refresh()
       setEditing(null)
     })
@@ -357,22 +356,50 @@ function EditForm({
   teachers: Teacher[]
   rooms: Room[]
   pending: boolean
-  onSave: (s: {
-    id: string
-    teacherId: string
-    roomId: string
-    start: string
-    startDate: string | null
-    endDate: string | null
-  }) => void
+  onSave: (s: { id: string } & Parameters<typeof updateClassSession>[1]) => void
   onCancelClass: () => void
 }) {
   const { t, lang } = useLanguage()
+  const [style, setStyle] = useState<StyleKey>(session.style)
   const [teacherId, setTeacherId] = useState(session.teacherId)
   const [roomId, setRoomId] = useState(session.roomId)
+  const [day, setDay] = useState(String(session.day))
+  const teacherLabel = (id: string) => (lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn)
+  const roomLabel = (id: string) => (lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn)
   const [start, setStart] = useState(session.start)
+  const [end, setEnd] = useState(session.end)
+  const [capacity, setCapacity] = useState(String(session.capacity))
+  const [levelZh, setLevelZh] = useState(session.level.zh)
+  const [levelEn, setLevelEn] = useState(session.level.en)
   const [startDate, setStartDate] = useState(session.startDate ?? "")
   const [endDate, setEndDate] = useState(session.endDate ?? "")
+
+  const capacityNum = Number.parseInt(capacity, 10)
+  const isValid =
+    start.trim() !== "" &&
+    end.trim() !== "" &&
+    levelZh.trim() !== "" &&
+    levelEn.trim() !== "" &&
+    Number.isFinite(capacityNum) &&
+    capacityNum > 0
+
+  const handleSave = () => {
+    if (!isValid) return
+    onSave({
+      id: session.id,
+      style,
+      teacherId,
+      roomId,
+      day: Number.parseInt(day, 10),
+      start: start.trim(),
+      end: end.trim(),
+      capacity: capacityNum,
+      levelZh: levelZh.trim(),
+      levelEn: levelEn.trim(),
+      startDate: startDate || null,
+      endDate: endDate || null,
+    })
+  }
 
   return (
     <>
@@ -383,42 +410,90 @@ function EditForm({
       </DialogHeader>
       <div className="flex flex-col gap-4 py-2">
         <div className="grid gap-2">
-          <Label>{t("adm.schedule.swapTeacher")}</Label>
-          <Select value={teacherId} onValueChange={setTeacherId}>
+          <Label>{t("stu.filter.style")}</Label>
+          <Select value={style} onValueChange={(v) => setStyle(v as StyleKey)}>
             <SelectTrigger>
-              <SelectValue>
-                {(v: string) => (lang === "zh" ? teachers.find((x) => x.id === v)?.name : teachers.find((x) => x.id === v)?.nameEn)}
-              </SelectValue>
+              <SelectValue>{(v: StyleKey) => t(v)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {teachers.map((tc) => (
-                <SelectItem key={tc.id} value={tc.id}>
-                  {lang === "zh" ? tc.name : tc.nameEn}
+              {styleKeys.map((sk) => (
+                <SelectItem key={sk} value={sk}>
+                  {t(sk)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.swapTeacher")}</Label>
+            <Select value={teacherId} onValueChange={setTeacherId}>
+              <SelectTrigger>
+                <SelectValue>{teacherLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {teachers.map((tc) => (
+                  <SelectItem key={tc.id} value={tc.id}>
+                    {lang === "zh" ? tc.name : tc.nameEn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.swapRoom")}</Label>
+            <Select value={roomId} onValueChange={setRoomId}>
+              <SelectTrigger>
+                <SelectValue>{roomLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {rooms.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {lang === "zh" ? r.name : r.nameEn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="grid gap-2">
-          <Label>{t("adm.schedule.swapRoom")}</Label>
-          <Select value={roomId} onValueChange={setRoomId}>
+          <Label>{t("adm.schedule.day")}</Label>
+          <Select value={day} onValueChange={setDay}>
             <SelectTrigger>
-              <SelectValue>
-                {(v: string) => (lang === "zh" ? rooms.find((x) => x.id === v)?.name : rooms.find((x) => x.id === v)?.nameEn)}
-              </SelectValue>
+              <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {rooms.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {lang === "zh" ? r.name : r.nameEn}
+              {weekdayKeys.map((wk, i) => (
+                <SelectItem key={wk} value={String(i)}>
+                  {t(wk)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.startTime")}</Label>
+            <Input value={start} onChange={(e) => setStart(e.target.value)} placeholder="19:00" />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.endTime")}</Label>
+            <Input value={end} onChange={(e) => setEnd(e.target.value)} placeholder="20:00" />
+          </div>
+        </div>
         <div className="grid gap-2">
-          <Label>{t("common.time")}</Label>
-          <Input value={start} onChange={(e) => setStart(e.target.value)} />
+          <Label>{t("adm.schedule.capacity")}</Label>
+          <Input type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.level")} (中文)</Label>
+            <Input value={levelZh} onChange={(e) => setLevelZh(e.target.value)} placeholder="初级" />
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.level")} (English)</Label>
+            <Input value={levelEn} onChange={(e) => setLevelEn(e.target.value)} placeholder="Beginner" />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
@@ -442,12 +517,7 @@ function EditForm({
           <Ban className="mr-1.5 h-4 w-4" />
           {t("adm.schedule.cancelClass")}
         </Button>
-        <Button
-          onClick={() =>
-            onSave({ id: session.id, teacherId, roomId, start, startDate: startDate || null, endDate: endDate || null })
-          }
-          disabled={pending}
-        >
+        <Button onClick={handleSave} disabled={!isValid || pending}>
           {t("common.save")}
         </Button>
       </DialogFooter>
