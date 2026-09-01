@@ -23,6 +23,9 @@ export type CreateUserInput = {
   existingId?: string
   newName?: string
   newPhone?: string // student only
+  newWechat?: string // student only
+  newEmail?: string // student only
+  newNote?: string // student only
   newNameEn?: string // teacher only
 }
 
@@ -45,11 +48,14 @@ export async function createUser(input: CreateUserInput) {
     if (input.linkMode === "existing" && input.existingId) {
       data.student = { connect: { id: input.existingId } }
     } else if (input.linkMode === "new") {
-      if (!input.newName?.trim() || !input.newPhone?.trim()) throw new Error("MISSING_STUDENT_FIELDS")
+      if (!input.newName?.trim()) throw new Error("MISSING_STUDENT_FIELDS")
       data.student = {
         create: {
           name: input.newName.trim(),
-          phone: input.newPhone.trim(),
+          phone: input.newPhone?.trim() || null,
+          wechat: input.newWechat?.trim() || null,
+          email: input.newEmail?.trim() || null,
+          note: input.newNote?.trim() || null,
           joined: new Date().toISOString().slice(0, 7),
           status: "ACTIVE",
         },

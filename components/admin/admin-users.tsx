@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/users"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
   Table,
@@ -208,6 +209,9 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
   const [existingId, setExistingId] = useState("")
   const [newName, setNewName] = useState("")
   const [newPhone, setNewPhone] = useState("")
+  const [newWechat, setNewWechat] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newNote, setNewNote] = useState("")
   const [newNameEn, setNewNameEn] = useState("")
 
   const [unlinked, setUnlinked] = useState<{ students: { id: string; name: string }[]; teachers: { id: string; name: string }[] }>({
@@ -224,7 +228,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
     username.trim().length >= 3 &&
     password.length >= 8 &&
     (role === "admin" ||
-      (linkMode === "existing" ? !!existingId : role === "student" ? !!newName.trim() && !!newPhone.trim() : !!newName.trim() && !!newNameEn.trim()))
+      (linkMode === "existing" ? !!existingId : role === "student" ? !!newName.trim() : !!newName.trim() && !!newNameEn.trim()))
 
   const handleConfirm = () => {
     if (!isValid || isPending) return
@@ -238,6 +242,9 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           existingId: linkMode === "existing" ? existingId : undefined,
           newName: linkMode === "new" ? newName : undefined,
           newPhone: linkMode === "new" ? newPhone : undefined,
+          newWechat: linkMode === "new" ? newWechat : undefined,
+          newEmail: linkMode === "new" ? newEmail : undefined,
+          newNote: linkMode === "new" ? newNote : undefined,
           newNameEn: linkMode === "new" ? newNameEn : undefined,
         })
         router.refresh()
@@ -317,16 +324,32 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             ) : role === "student" ? (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>{t("common.name")}</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>{t("common.name")}</Label>
+                    <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("common.phone")}</Label>
+                    <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>{t("auth.wechat")}</Label>
+                    <Input value={newWechat} onChange={(e) => setNewWechat(e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("auth.email")}</Label>
+                    <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label>{t("common.phone")}</Label>
-                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+                  <Label>{t("common.notes")}</Label>
+                  <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} rows={3} />
                 </div>
-              </div>
+              </>
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
