@@ -6,6 +6,40 @@ import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers
 import { parseISODate, toISODate, isSessionActiveOn } from "@/lib/schedule-dates"
 import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
 
+// Every exported action below returns this instead of throwing its error
+// code across the client boundary. Next.js redacts a thrown Error's message
+// once it crosses a Server Action's client/server boundary in a *production*
+// build — the client only ever gets a generic message + digest, even though
+// the real message ("ALREADY_BOOKED", "NO_VALID_CARD", ...) still shows up
+// fine in `next dev` and in the server-side log. That mismatch is exactly
+// why this worked in local testing and broke silently once deployed: the
+// caller's `e.message === "ALREADY_BOOKED"` check never matches in prod, so
+// it always falls through to the generic error text. Returning the code as
+// plain data instead sidesteps that redaction entirely. See errorResult.
+export type ActionResult = { ok: true } | { ok: false; error: string }
+
+// Codes the UI is actually prepared to branch on. Anything else (a DB
+// hiccup, a genuine bug) is logged here — since it's caught and returned
+// rather than left to throw, Next.js's own logging no longer sees it — and
+// collapsed to "UNKNOWN" for the client rather than leaking internals.
+const KNOWN_ERROR_CODES = new Set([
+  "NO_VALID_CARD",
+  "SESSION_NOT_ACTIVE",
+  "ALREADY_BOOKED",
+  "NO_LINKED_STUDENT",
+  "FORBIDDEN",
+  "NOT_FOUND",
+])
+
+function errorResult(e: unknown): { ok: false; error: string } {
+  const code = e instanceof Error ? e.message : ""
+  if (!KNOWN_ERROR_CODES.has(code)) {
+    console.error("[bookings]", e)
+    return { ok: false, error: "UNKNOWN" }
+  }
+  return { ok: false, error: code }
+}
+
 // Picks which of the student's cards a booking should draw a credit from:
 // the non-unlimited, non-expired card with the soonest expiry (use the one
 // closest to running out first), falling back to an unlimited card if no
@@ -160,10 +194,15 @@ async function bookOccurrenceForStudent(
 // session at a time, not the whole weekly series. `allowDuplicate` is set
 // only after the student has already been shown and confirmed the
 // "already booked, continue anyway?" prompt (see bookOccurrenceForStudent).
-export async function bookClass(sessionId: string, date: string, allowDuplicate = false) {
+export async function bookClass(sessionId: string, date: string, allowDuplicate = false): Promise<ActionResult> {
   const { studentId } = await requireRole("STUDENT")
-  if (!studentId) throw new Error("NO_LINKED_STUDENT")
-  return bookOccurrenceForStudent(sessionId, date, studentId, { allowDuplicate })
+  if (!studentId) return { ok: false, error: "NO_LINKED_STUDENT" }
+  try {
+    await bookOccurrenceForStudent(sessionId, date, studentId, { allowDuplicate })
+    return { ok: true }
+  } catch (e) {
+    return errorResult(e)
+  }
 }
 
 // Admin-side 课时登记 — staff registering a specific student into a specific
@@ -177,9 +216,19 @@ export async function bookClass(sessionId: string, date: string, allowDuplicate 
 // `allowDuplicate` mirrors bookClass — set only after the admin confirms
 // the same "already on the list, continue?" prompt, for the same
 // bring-a-friend-under-one-account case.
-export async function adminBookStudent(sessionId: string, date: string, studentId: string, allowDuplicate = false) {
+export async function adminBookStudent(
+  sessionId: string,
+  date: string,
+  studentId: string,
+  allowDuplicate = false,
+): Promise<ActionResult> {
   await requireRole("ADMIN")
-  return bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate })
+  try {
+    await bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate })
+    return { ok: true }
+  } catch (e) {
+    return errorResult(e)
+  }
 }
 
 // Offers a just-freed BOOKED seat to whoever's been on the waitlist
@@ -275,20 +324,28 @@ async function cancelOccurrenceBooking(bookingId: string, expectedStudentId?: st
 // Self-service cancel — takes the bookingId shown in 我的预约 directly (one
 // row per booking, so a student with more than one active booking for the
 // same class cancels them one at a time, same as everyone else's roster).
-export async function cancelBooking(bookingId: string) {
+export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   const { studentId } = await requireRole("STUDENT")
-  if (!studentId) throw new Error("NO_LINKED_STUDENT")
-  const result = await cancelOccurrenceBooking(bookingId, studentId)
-  if (!result) throw new Error("NOT_FOUND")
-  return result
+  if (!studentId) return { ok: false, error: "NO_LINKED_STUDENT" }
+  try {
+    const result = await cancelOccurrenceBooking(bookingId, studentId)
+    if (!result) return { ok: false, error: "NOT_FOUND" }
+    return { ok: true }
+  } catch (e) {
+    return errorResult(e)
+  }
 }
 
 // Admin-side removal from the 课时登记 roster — takes the bookingId shown in
 // the roster list directly, rather than round-tripping (sessionId, date,
 // studentId), since that's exactly what the admin UI already has on hand.
-export async function adminCancelBooking(bookingId: string) {
+export async function adminCancelBooking(bookingId: string): Promise<ActionResult> {
   await requireRole("ADMIN")
-  const result = await cancelOccurrenceBooking(bookingId)
-  if (!result) throw new Error("NOT_FOUND")
-  return result
+  try {
+    const result = await cancelOccurrenceBooking(bookingId)
+    if (!result) return { ok: false, error: "NOT_FOUND" }
+    return { ok: true }
+  } catch (e) {
+    return errorResult(e)
+  }
 }

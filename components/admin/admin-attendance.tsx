@@ -32,7 +32,7 @@ const ERROR_KEY: Record<string, string> = {
   NO_VALID_CARD: "adm.attendance.err.noValidCard",
   SESSION_NOT_ACTIVE: "adm.attendance.err.sessionNotActive",
 }
-const errorKeyFor = (e: unknown) => ERROR_KEY[e instanceof Error ? e.message : ""] ?? "adm.users.err.generic"
+const errorKeyFor = (code: string) => ERROR_KEY[code] ?? "adm.users.err.generic"
 
 // Monday..Sunday of the week containing `d`, per this app's day convention
 // (toAppDay: 0=Mon..6=Sun).
@@ -385,8 +385,9 @@ function RosterDialog({
     setError(null)
     setPendingId(studentId)
     startTransition(async () => {
-      try {
-        await adminBookStudent(session.id, dateISO, studentId, allowDuplicate)
+      const result = await adminBookStudent(session.id, dateISO, studentId, allowDuplicate)
+      setPendingId(null)
+      if (result.ok) {
         setQuery("")
         setDuplicateConfirm(null)
         load()
@@ -397,15 +398,11 @@ function RosterDialog({
         // fetch so switching tabs shows current numbers instead of stale
         // ones from before this add.
         router.refresh()
-      } catch (e) {
-        if (e instanceof Error && e.message === "ALREADY_BOOKED") {
-          const match = students.find((x) => x.id === studentId)
-          setDuplicateConfirm({ studentId, name: match?.name ?? "" })
-        } else {
-          setError(errorKeyFor(e))
-        }
-      } finally {
-        setPendingId(null)
+      } else if (result.error === "ALREADY_BOOKED") {
+        const match = students.find((x) => x.id === studentId)
+        setDuplicateConfirm({ studentId, name: match?.name ?? "" })
+      } else {
+        setError(errorKeyFor(result.error))
       }
     })
   }
@@ -416,15 +413,14 @@ function RosterDialog({
     setError(null)
     setPendingId(bookingId)
     startTransition(async () => {
-      try {
-        await adminCancelBooking(bookingId)
+      const result = await adminCancelBooking(bookingId)
+      setPendingId(null)
+      if (result.ok) {
         load()
         onChanged()
         router.refresh()
-      } catch (e) {
-        setError(errorKeyFor(e))
-      } finally {
-        setPendingId(null)
+      } else {
+        setError(errorKeyFor(result.error))
       }
     })
   }

@@ -24,7 +24,7 @@ const BOOKING_ERROR_KEY: Record<string, string> = {
   NO_LINKED_STUDENT: "stu.schedule.err.generic",
   SESSION_NOT_ACTIVE: "stu.schedule.err.sessionNotActive",
 }
-const bookingErrorKeyFor = (e: unknown) => BOOKING_ERROR_KEY[e instanceof Error ? e.message : ""] ?? "stu.schedule.err.generic"
+const bookingErrorKeyFor = (code: string) => BOOKING_ERROR_KEY[code] ?? "stu.schedule.err.generic"
 
 const styleKeys: StyleKey[] = [
   "style.jazz",
@@ -132,26 +132,23 @@ export function StudentSchedule({
   // where each of a student's bookings (including duplicates, see below)
   // has its own row and its own cancel button. This button always tries to
   // add a booking; if the student already has an active one for this
-  // occurrence, `bookClass` throws ALREADY_BOOKED and we show the same
-  // confirm-first prompt admins see, rather than silently no-op'ing or
-  // greying the button out — a student bringing a friend along without
+  // occurrence, `bookClass` resolves with error "ALREADY_BOOKED" and we show
+  // the same confirm-first prompt admins see, rather than silently no-op'ing
+  // or greying the button out — a student bringing a friend along without
   // giving them their own account books under their own name again here.
   const attemptBook = (s: ClassSession & { myState: Occurrence["myState"] }, allowDuplicate: boolean) => {
     setError(null)
     setPendingId(s.id)
     startTransition(async () => {
-      try {
-        await bookClass(s.id, selectedDateISO, allowDuplicate)
+      const result = await bookClass(s.id, selectedDateISO, allowDuplicate)
+      setPendingId(null)
+      if (result.ok) {
         setDuplicateConfirm(null)
         router.refresh()
-      } catch (e) {
-        if (e instanceof Error && e.message === "ALREADY_BOOKED") {
-          setDuplicateConfirm(s)
-        } else {
-          setError(bookingErrorKeyFor(e))
-        }
-      } finally {
-        setPendingId(null)
+      } else if (result.error === "ALREADY_BOOKED") {
+        setDuplicateConfirm(s)
+      } else {
+        setError(bookingErrorKeyFor(result.error))
       }
     })
   }
