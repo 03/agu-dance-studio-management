@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { LanguageToggle } from "@/components/language-toggle"
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,22 @@ export function StudentApp({
   onExit: () => void | Promise<void>
 }) {
   const { t } = useLanguage()
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>("schedule")
+
+  // An admin can add/remove this student's bookings from 课时登记, or the
+  // student themselves could be doing the same thing from another device,
+  // at any moment while this is open — poll for fresh data the same way
+  // 课时登记's own roster dialog already does (see admin-attendance.tsx),
+  // so a change made elsewhere shows up here within a few seconds instead
+  // of only after the student's next login or manual reload. Refreshes
+  // everything this app reads (schedule/occurrences, upcoming/history
+  // bookings, card balance, profile) in one round trip, since `data` is
+  // one fetch (getStudentAppData) passed down as props.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 5000)
+    return () => clearInterval(id)
+  }, [router])
 
   return (
     <main className="min-h-screen bg-secondary/40 py-6">
