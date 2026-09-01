@@ -398,10 +398,16 @@ function RosterDialog({
         // fetch so switching tabs shows current numbers instead of stale
         // ones from before this add.
         router.refresh()
-      } else if (result.error === "ALREADY_BOOKED") {
+      } else if (!allowDuplicate && result.error === "ALREADY_BOOKED") {
         const match = students.find((x) => x.id === studentId)
         setDuplicateConfirm({ studentId, name: match?.name ?? "" })
       } else {
+        // Covers the confirmed retry itself failing — e.g. this was the
+        // student's last available credit and the extra 接龙 has nothing
+        // left to consume (NO_VALID_CARD). The confirm question has
+        // already been answered at this point, so close it rather than
+        // leaving it stacked on top of the error banner below.
+        setDuplicateConfirm(null)
         setError(errorKeyFor(result.error))
       }
     })
