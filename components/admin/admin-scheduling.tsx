@@ -125,6 +125,9 @@ export function AdminScheduling({
                       <p className={cn("text-xs font-bold text-card-foreground", s.status === "canceled" && "line-through")}>
                         {t(s.style)}
                       </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {lang === "zh" ? s.level.zh : s.level.en}
+                      </p>
                       <p className="truncate text-[11px] text-muted-foreground">{teacherName(s.teacherId)}</p>
                       <p className="text-[11px] text-muted-foreground">{roomName(s.roomId)}</p>
                     </button>
