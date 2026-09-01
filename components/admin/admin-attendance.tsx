@@ -228,13 +228,16 @@ export function AdminAttendance({
                           onClick={() => setSelected({ session: s, date: d })}
                           className="w-full truncate rounded-md border-l-2 bg-secondary/50 px-1.5 py-1 text-left text-[10px] leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary"
                           style={{ borderLeftColor: styleColors[s.style] }}
-                          title={`${s.start} · ${t(s.style)} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
+                          title={`${s.start} · ${t(s.style)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
                         >
                           <span className="flex items-center gap-1 font-semibold">
                             {s.start}
                             <PeriodBadge start={s.start} className="px-1 py-0 text-[7px]" />
                           </span>
                           <span className="block truncate">{t(s.style)}</span>
+                          <span className="block truncate text-muted-foreground">
+                            {lang === "zh" ? s.level.zh : s.level.en}
+                          </span>
                           <span className="block text-muted-foreground">
                             {booked}/{s.capacity}
                           </span>
