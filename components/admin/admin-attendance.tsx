@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SortableHead } from "@/components/ui/sortable-head"
 import { ChevronLeft, ChevronRight, Trash2, CalendarSearch, Link2, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { PeriodBadge } from "@/components/shared/period-badge"
 
 type RosterSortField = "name" | "remainingSessions" | "createdAt"
 type RosterSortDir = "asc" | "desc"
@@ -229,7 +230,10 @@ export function AdminAttendance({
                           style={{ borderLeftColor: styleColors[s.style] }}
                           title={`${s.start} · ${t(s.style)} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
                         >
-                          <span className="block font-semibold">{s.start}</span>
+                          <span className="flex items-center gap-1 font-semibold">
+                            {s.start}
+                            <PeriodBadge start={s.start} className="px-1 py-0 text-[7px]" />
+                          </span>
                           <span className="block truncate">{t(s.style)}</span>
                           <span className="block text-muted-foreground">
                             {booked}/{s.capacity}
