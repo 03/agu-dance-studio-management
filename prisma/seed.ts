@@ -1,9 +1,3 @@
-// Seeds the dev database with just the reference data the app needs to run
-// (teachers, rooms, the recurring class schedule, card products) and login
-// accounts for admin/teacher — no student data or booking history, so the
-// admin analytics start from an empty, real state rather than backfilled
-// synthetic activity.
-//
 // Run via `prisma db seed` (wired through prisma.config.ts -> tsx).
 import {PrismaPg} from "@prisma/adapter-pg"
 import {PrismaClient} from "../lib/generated/prisma/client"
