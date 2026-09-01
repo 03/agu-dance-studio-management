@@ -62,9 +62,7 @@ export function AdminApp({
 
   const brand = (
     <div className="flex items-center gap-2 px-5 py-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary font-display text-lg font-extrabold text-primary-foreground">
-        A
-      </div>
+      <img src="/logo-mark.png" alt="" className="h-9 w-9 rounded-xl object-cover" aria-hidden="true" />
       <div className="leading-tight">
         <p className="font-display text-sm font-bold text-sidebar-foreground">{t("brand.name")}</p>
         <p className="text-[11px] text-muted-foreground">{t("adm.title")}</p>

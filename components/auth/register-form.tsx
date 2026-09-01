@@ -46,9 +46,7 @@ export function RegisterForm({ onBack }: { onBack: () => void }) {
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-8">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display text-lg font-extrabold">
-              A
-            </div>
+            <img src="/logo-mark.png" alt="" className="h-9 w-9 rounded-xl object-cover" aria-hidden="true" />
             <span className="font-display text-lg font-bold text-foreground">{t("brand.name")}</span>
           </div>
           <LanguageToggle />

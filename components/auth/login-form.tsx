@@ -56,7 +56,7 @@ export function LoginForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-sm rounded-3xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur"
+      className="w-full max-w-sm rounded-3xl border border-border bg-card/50 p-6 shadow-xl backdrop-blur"
     >
       <div className="mb-6 flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">

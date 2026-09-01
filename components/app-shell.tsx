@@ -43,19 +43,14 @@ export function AppShell({
 
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-8">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display text-lg font-extrabold">
-              A
-            </div>
-            <span className="font-display text-lg font-bold text-foreground">{t("brand.name")}</span>
-          </div>
+          <img src="/logo-hero.png" alt={t("brand.name")} className="h-24 w-auto sm:h-28" />
           <LanguageToggle />
         </header>
 
         <div className="flex flex-1 flex-col items-center gap-10 py-12">
           <LoginForm role={initialRole} onRegister={REGISTRATION_ENABLED ? () => setMode("register") : undefined} />
 
-          <div className="w-full rounded-3xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur">
+          <div className="w-full rounded-3xl border border-border bg-card/50 p-6 shadow-xl backdrop-blur">
             <PublicSchedule
               sessions={publicData.sessions}
               occurrences={publicData.occurrences}
