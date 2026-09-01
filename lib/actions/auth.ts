@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { hashPassword, verifyPassword, createSession, destroySession, requireSession } from "@/lib/auth"
+import { REGISTRATION_ENABLED } from "@/lib/feature-flags"
 import type { UserRole } from "@/lib/generated/prisma/client"
 
 // Deliberately returns the same generic error for "no such user", "wrong
@@ -34,6 +35,11 @@ export async function register(input: {
   email: string
   password: string
 }) {
+  // Belt-and-suspenders with app-shell.tsx hiding the entry point — refuses
+  // even a direct call to this action while sign-ups are paused, not just
+  // the button that normally leads here.
+  if (!REGISTRATION_ENABLED) return { error: "auth.register.err.disabled" }
+
   const name = input.name.trim()
   const phone = input.phone.trim()
   const wechat = input.wechat.trim()

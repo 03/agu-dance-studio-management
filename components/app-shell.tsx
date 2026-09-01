@@ -7,6 +7,7 @@ import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { PublicSchedule } from "@/components/public-schedule"
 import type { PublicScheduleData } from "@/lib/data"
+import { REGISTRATION_ENABLED } from "@/lib/feature-flags"
 
 export type Role = "student" | "teacher" | "admin" | null
 
@@ -52,7 +53,7 @@ export function AppShell({
         </header>
 
         <div className="flex flex-1 flex-col items-center gap-10 py-12">
-          <LoginForm role={initialRole} onRegister={() => setMode("register")} />
+          <LoginForm role={initialRole} onRegister={REGISTRATION_ENABLED ? () => setMode("register") : undefined} />
 
           <div className="w-full rounded-3xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur">
             <PublicSchedule

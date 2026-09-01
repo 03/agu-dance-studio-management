@@ -56,6 +56,7 @@ export const dict: Dict = {
   "auth.register.err.name": { zh: "请填写姓名", en: "Please enter your name" },
   "auth.register.err.phone": { zh: "请填写手机号", en: "Please enter your phone number" },
   "auth.register.err.phoneTaken": { zh: "该手机号已注册", en: "This phone number is already registered" },
+  "auth.register.err.disabled": { zh: "暂不开放新用户注册，请联系管理员开通账号", en: "New sign-ups are paused right now — please contact the studio for an account" },
 
   // Roles
   "role.student": { zh: "学员", en: "Student" },
