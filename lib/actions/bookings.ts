@@ -68,11 +68,20 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
 // student's computed balance negative, the same way a legacy cardless
 // student's balance already can, rather than force-decrementing an actual
 // StudentCard below zero or past its own expiry.
+//
+// `occurrenceDate` backs the ledger entry's own `date` field — it must be
+// the class's actual calendar date, not "now". A booking is very often
+// created on a different day than the class it's for (an admin
+// backfilling attendance days later, a student booking a week ahead), so
+// using `new Date()` here made 已用课时历史 and the monthly consumption
+// charts (getYearlyStyleStats/getAdminAnalytics) show when the booking was
+// *registered* instead of when the class actually happened.
 async function consumeCreditForBooking(
   tx: Prisma.TransactionClient,
   studentId: string,
   bookingId: string,
   session: { style: DanceStyle; teacher: { name: string; nameEn: string } },
+  occurrenceDate: Date,
   opts: { allowNegative?: boolean } = {},
 ) {
   const card = await pickConsumableCard(tx, studentId)
@@ -107,7 +116,7 @@ async function consumeCreditForBooking(
       kind: "CONSUME",
       titleZh: `${label.zh} · ${session.teacher.name}`,
       titleEn: `${label.en} · ${session.teacher.nameEn}`,
-      date: new Date(),
+      date: occurrenceDate,
       delta: -1,
     },
     update: {},
@@ -195,7 +204,9 @@ async function bookOccurrenceForStudent(
     })
 
     if (state === "BOOKED") {
-      await consumeCreditForBooking(tx, studentId, booking.id, session, { allowNegative: opts.allowNegativeBalance })
+      await consumeCreditForBooking(tx, studentId, booking.id, session, occurrenceDate, {
+        allowNegative: opts.allowNegativeBalance,
+      })
     }
 
     return booking
@@ -267,7 +278,7 @@ async function promoteFromWaitlist(tx: Prisma.TransactionClient, sessionId: stri
 
   for (const candidate of waiting) {
     try {
-      await consumeCreditForBooking(tx, candidate.studentId, candidate.id, session)
+      await consumeCreditForBooking(tx, candidate.studentId, candidate.id, session, date)
       await tx.booking.update({ where: { id: candidate.id }, data: { state: "BOOKED" } })
       return
     } catch (e) {
