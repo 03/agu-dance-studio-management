@@ -7,6 +7,7 @@ import { weekdayKeys, type ClassSession, type ClassClosure, type Occurrence, typ
 import { bookClass, getBookedNamesForSession } from "@/lib/actions/bookings"
 import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
+import { PeriodBadge } from "@/components/shared/period-badge"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -273,6 +274,7 @@ export function StudentSchedule({
                       <Clock className="h-3.5 w-3.5" />
                       {s.start}–{s.end}
                     </span>
+                    <PeriodBadge start={s.start} />
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
                       {roomName(s.roomId)}

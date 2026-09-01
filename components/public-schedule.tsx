@@ -6,6 +6,7 @@ import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type Oc
 import { toAppDay, toISODate, occurrenceKey, nextOccurrence, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
+import { PeriodBadge } from "@/components/shared/period-badge"
 import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
 
 type ViewMode = "week" | "month"
@@ -143,7 +144,10 @@ function WeekView({
                       className="rounded-xl border-l-4 bg-secondary/40 p-2 text-left"
                       style={{ borderLeftColor: styleColors[s.style] }}
                     >
-                      <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
+                        <PeriodBadge start={s.start} />
+                      </div>
                       <p className="text-xs font-bold text-card-foreground">{t(s.style)}</p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         {lang === "zh" ? s.level.zh : s.level.en}
@@ -278,7 +282,10 @@ function MonthView({
                         className="w-full rounded-lg border-l-4 bg-secondary/40 p-1.5 text-left"
                         style={{ borderLeftColor: styleColors[s.style] }}
                       >
-                        <p className="text-[10px] font-semibold text-card-foreground">{s.start}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[10px] font-semibold text-card-foreground">{s.start}</p>
+                          <PeriodBadge start={s.start} className="px-1 text-[8px]" />
+                        </div>
                         <p className="truncate text-[10px] font-bold text-card-foreground">{t(s.style)}</p>
                         <p className="truncate text-[9px] text-muted-foreground">
                           {lang === "zh" ? s.level.zh : s.level.en}

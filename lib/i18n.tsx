@@ -13,6 +13,11 @@ export const dict: Dict = {
   "brand.tagline": { zh: "全流程管理及预约平台", en: "Studio management & booking" },
   "app.backHome": { zh: "退出登录", en: "Log out" },
 
+  // Time-of-day badge (PeriodBadge) — 00:00–11:59 / 12:00–17:59 / 18:00–23:59
+  "period.morning": { zh: "上午", en: "Morning" },
+  "period.afternoon": { zh: "下午", en: "Afternoon" },
+  "period.evening": { zh: "晚上", en: "Evening" },
+
   // Public homepage schedule
   "home.schedule.title": { zh: "课程表", en: "Weekly Class Schedule" },
   "home.schedule.week": { zh: "周视图", en: "Week" },

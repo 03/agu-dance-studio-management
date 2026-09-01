@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/table"
 import { Plus, Ban, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { PeriodBadge } from "@/components/shared/period-badge"
 
 export function AdminScheduling({
   teachers,
@@ -117,7 +118,10 @@ export function AdminScheduling({
                       )}
                       style={{ borderLeftColor: styleColors[s.style] }}
                     >
-                      <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
+                        <PeriodBadge start={s.start} />
+                      </div>
                       <p className={cn("text-xs font-bold text-card-foreground", s.status === "canceled" && "line-through")}>
                         {t(s.style)}
                       </p>
