@@ -60,11 +60,20 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
 // and ledger-writing rules. Throws NO_VALID_CARD without writing anything
 // if the student has nothing to draw from, so callers can safely treat
 // that as "this candidate can't be promoted" rather than a hard failure.
+//
+// `allowNegative` is admin-only (see adminBookStudent) — staff registering
+// someone who's simply out of credits, after an explicit confirm, rather
+// than turning them away. It skips the balance check below and always
+// leaves a real, visible trace: a cardless CONSUME entry that pushes the
+// student's computed balance negative, the same way a legacy cardless
+// student's balance already can, rather than force-decrementing an actual
+// StudentCard below zero or past its own expiry.
 async function consumeCreditForBooking(
   tx: Prisma.TransactionClient,
   studentId: string,
   bookingId: string,
   session: { style: DanceStyle; teacher: { name: string; nameEn: string } },
+  opts: { allowNegative?: boolean } = {},
 ) {
   const card = await pickConsumableCard(tx, studentId)
   let cardId: string | null = null
@@ -86,7 +95,7 @@ async function consumeCreditForBooking(
       tx.studentCard.findMany({ where: { studentId } }),
       tx.ledgerEntry.findMany({ where: { studentId } }),
     ])
-    if (computeRemainingBalance(cards, ledgerEntries) <= 0) throw new Error("NO_VALID_CARD")
+    if (computeRemainingBalance(cards, ledgerEntries) <= 0 && !opts.allowNegative) throw new Error("NO_VALID_CARD")
   }
   const label = styleLabel(styleDbToKey(session.style))
   await tx.ledgerEntry.upsert({
@@ -119,11 +128,15 @@ async function consumeCreditForBooking(
 // independent row — its own credit deduction, its own cancel — same as if
 // it were a different student, right up until they run out of credits
 // (consumeCreditForBooking throws NO_VALID_CARD same as always).
+//
+// `allowNegativeBalance` is the same confirm-first pattern for running out
+// of credits entirely — admin-only (bookClass never sets it; self-service
+// booking always hard-stops at NO_VALID_CARD), see adminBookStudent.
 async function bookOccurrenceForStudent(
   sessionId: string,
   date: string,
   studentId: string,
-  opts: { forceBooked?: boolean; allowDuplicate?: boolean } = {},
+  opts: { forceBooked?: boolean; allowDuplicate?: boolean; allowNegativeBalance?: boolean } = {},
 ) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
@@ -182,7 +195,7 @@ async function bookOccurrenceForStudent(
     })
 
     if (state === "BOOKED") {
-      await consumeCreditForBooking(tx, studentId, booking.id, session)
+      await consumeCreditForBooking(tx, studentId, booking.id, session, { allowNegative: opts.allowNegativeBalance })
     }
 
     return booking
@@ -215,16 +228,21 @@ export async function bookClass(sessionId: string, date: string, allowDuplicate 
 // register (and therefore charge) anyone through this feature.
 // `allowDuplicate` mirrors bookClass — set only after the admin confirms
 // the same "already on the list, continue?" prompt, for the same
-// bring-a-friend-under-one-account case.
+// bring-a-friend-under-one-account case. `allowNegativeBalance` is the
+// admin-only escape hatch for a student who's simply out of credits: staff
+// can still register them (after confirming) and the balance goes
+// negative, unlike bookClass's self-service path, which always hard-stops
+// at NO_VALID_CARD with no way around it.
 export async function adminBookStudent(
   sessionId: string,
   date: string,
   studentId: string,
   allowDuplicate = false,
+  allowNegativeBalance = false,
 ): Promise<ActionResult> {
   await requireRole("ADMIN")
   try {
-    await bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate })
+    await bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate, allowNegativeBalance })
     return { ok: true }
   } catch (e) {
     return errorResult(e)

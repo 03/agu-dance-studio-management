@@ -334,6 +334,14 @@ function RosterDialog({
   const [sort, setSort] = useState<{ field: RosterSortField; dir: RosterSortDir }>({ field: "createdAt", dir: "asc" })
   const [copied, setCopied] = useState(false)
   const [duplicateConfirm, setDuplicateConfirm] = useState<{ studentId: string; name: string } | null>(null)
+  // `allowDuplicate` carries forward whether this same add attempt already
+  // passed the duplicate-confirm step, so retrying from here after this
+  // second confirm doesn't lose that and re-trigger it.
+  const [negativeBalanceConfirm, setNegativeBalanceConfirm] = useState<{
+    studentId: string
+    name: string
+    allowDuplicate: boolean
+  } | null>(null)
 
   const handleShare = () => {
     const url = `${window.location.origin}/roster/${session.id}/${dateISO}`
@@ -377,19 +385,25 @@ function RosterDialog({
     return students.filter((s) => s.name.toLowerCase().includes(q) || (s.phone ?? "").includes(q)).slice(0, 8)
   }, [query, students])
 
-  // `allowDuplicate` is only ever true on the retry after the admin
-  // confirms the "already on the list, continue?" prompt below — see
-  // adminBookStudent's own comment for why that's allowed at all (bringing
-  // a friend along under the same account, "接龙两次").
-  const attemptAdd = (studentId: string, allowDuplicate: boolean) => {
+  // `allowDuplicate`/`allowNegativeBalance` are only ever true on a retry
+  // after the admin confirms the matching prompt below — see
+  // adminBookStudent's own comment for why either override is allowed at
+  // all (bringing a friend along under the same account, "接龙两次"; or
+  // registering someone who's simply out of credits rather than turning
+  // them away). The two compose: a duplicate add that then also turns out
+  // to have no credits left shows the duplicate confirm first, and — once
+  // that's answered — the negative-balance confirm next, rather than
+  // either one silently overriding the other.
+  const attemptAdd = (studentId: string, allowDuplicate: boolean, allowNegativeBalance: boolean) => {
     setError(null)
     setPendingId(studentId)
     startTransition(async () => {
-      const result = await adminBookStudent(session.id, dateISO, studentId, allowDuplicate)
+      const result = await adminBookStudent(session.id, dateISO, studentId, allowDuplicate, allowNegativeBalance)
       setPendingId(null)
       if (result.ok) {
         setQuery("")
         setDuplicateConfirm(null)
+        setNegativeBalanceConfirm(null)
         load()
         onChanged()
         // Balance/roster changes here also affect 学员管理's student list
@@ -401,19 +415,23 @@ function RosterDialog({
       } else if (!allowDuplicate && result.error === "ALREADY_BOOKED") {
         const match = students.find((x) => x.id === studentId)
         setDuplicateConfirm({ studentId, name: match?.name ?? "" })
-      } else {
-        // Covers the confirmed retry itself failing — e.g. this was the
-        // student's last available credit and the extra 接龙 has nothing
-        // left to consume (NO_VALID_CARD). The confirm question has
-        // already been answered at this point, so close it rather than
-        // leaving it stacked on top of the error banner below.
+      } else if (!allowNegativeBalance && result.error === "NO_VALID_CARD") {
+        const match = students.find((x) => x.id === studentId)
         setDuplicateConfirm(null)
+        setNegativeBalanceConfirm({ studentId, name: match?.name ?? "", allowDuplicate })
+      } else {
+        // Covers the confirmed retry itself failing for some other reason
+        // (SESSION_NOT_ACTIVE, ...). Either confirm question has already
+        // been answered at this point, so close both rather than leaving
+        // one stacked on top of the error banner below.
+        setDuplicateConfirm(null)
+        setNegativeBalanceConfirm(null)
         setError(errorKeyFor(result.error))
       }
     })
   }
 
-  const handleAdd = (studentId: string) => attemptAdd(studentId, false)
+  const handleAdd = (studentId: string) => attemptAdd(studentId, false, false)
 
   const handleRemove = (bookingId: string) => {
     setError(null)
@@ -579,7 +597,29 @@ function RosterDialog({
             </Button>
             <Button
               disabled={isPending}
-              onClick={() => duplicateConfirm && attemptAdd(duplicateConfirm.studentId, true)}
+              onClick={() => duplicateConfirm && attemptAdd(duplicateConfirm.studentId, true, false)}
+            >
+              {t("common.continue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!negativeBalanceConfirm} onOpenChange={(o) => !o && setNegativeBalanceConfirm(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">{t("booking.confirmNegativeBalance")}</DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNegativeBalanceConfirm(null)}>
+              {t("common.dismiss")}
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={() =>
+                negativeBalanceConfirm &&
+                attemptAdd(negativeBalanceConfirm.studentId, negativeBalanceConfirm.allowDuplicate, true)
+              }
             >
               {t("common.continue")}
             </Button>

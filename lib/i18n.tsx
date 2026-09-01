@@ -242,6 +242,10 @@ export const dict: Dict = {
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
   "booking.confirmDuplicate": { zh: "该学员已经在列表中，是否继续", en: "This student is already on the list — continue anyway?" },
+  "booking.confirmNegativeBalance": {
+    zh: "该学员已无剩余课时，是否继续？登记后课时余额将变为负数",
+    en: "This student has no classes left — continue anyway? Their balance will go negative",
+  },
 
   // Backup / restore
   "adm.nav.backup": { zh: "备份 / 还原", en: "Backup & restore" },
