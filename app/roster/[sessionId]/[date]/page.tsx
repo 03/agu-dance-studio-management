@@ -58,7 +58,7 @@ export default async function PublicRosterPage({
             </p>
             <p>带课老师：{view.teacherName}</p>
             <p>
-              {booked.length}/{view.capacity} 已报名
+              {booked.length} 已报名
               {waitlisted.length > 0 ? ` · ${waitlisted.length} 候补` : ""}
             </p>
           </div>

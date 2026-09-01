@@ -139,7 +139,6 @@ export async function getPublicRosterView(sessionId: string, dateISO: string) {
     roomName: session.room.name,
     roomNameEn: session.room.nameEn,
     roomAddress: session.room.address,
-    capacity: session.capacity,
     roster: bookings.map((b, i) => ({
       position: i + 1,
       name: b.student.name,
