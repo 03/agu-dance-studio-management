@@ -252,7 +252,6 @@ export function StudentSchedule({
         {filtered.map((s) => {
           const st = s.myState ?? "none"
           const isFull = s.booked >= s.capacity && st !== "booked"
-          const spotsLeft = Math.max(0, s.capacity - s.booked)
           return (
             <li
               key={s.id}
@@ -280,13 +279,7 @@ export function StudentSchedule({
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <Users className="h-3.5 w-3.5" />
-                      {isFull ? (
-                        <span className="text-destructive">{t("common.full")}</span>
-                      ) : (
-                        <>
-                          {spotsLeft} {t("common.remaining")}
-                        </>
-                      )}
+                      {s.booked} {t("home.schedule.enrolled")}
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">
