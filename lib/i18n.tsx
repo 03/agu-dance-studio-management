@@ -154,7 +154,7 @@ export const dict: Dict = {
   "stu.schedule.err.noValidCard": { zh: "剩余课时不足，请及时充值，谢谢", en: "You don't have enough classes left — please top up soon, thank you" },
   "stu.schedule.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
   "stu.schedule.err.generic": { zh: "操作失败，请重试", en: "Something went wrong — please try again" },
-  "stu.schedule.confirmSameDay": { zh: "当日接龙不能取消，是否继续？", en: "Same-day bookings can't be cancelled — continue anyway?" },
+  "stu.schedule.confirmSameDay": { zh: "当日的接龙不能取消，是否继续？", en: "Same-day bookings can't be cancelled — continue anyway?" },
   "stu.bookings.err.sameDayCancel": { zh: "当日的接龙不能取消", en: "Same-day bookings can't be cancelled — please contact your teacher" },
   "ledger.consume": { zh: "消课", en: "Class" },
   "ledger.recharge": { zh: "充值", en: "Top-up" },
