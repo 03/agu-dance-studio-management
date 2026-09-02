@@ -61,6 +61,7 @@ export function StudentSchedule({
   const [rosterLoading, setRosterLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [duplicateConfirm, setDuplicateConfirm] = useState<(ClassSession & { myState: Occurrence["myState"] }) | null>(null)
+  const [sameDayConfirm, setSameDayConfirm] = useState<(ClassSession & { myState: Occurrence["myState"] }) | null>(null)
 
   // Browsable window: the 2 days before today through the next 2 weeks
   // (today counted as day 1 of those two weeks) — 16 real calendar dates
@@ -137,15 +138,26 @@ export function StudentSchedule({
   // the same confirm-first prompt admins see, rather than silently no-op'ing
   // or greying the button out — a student bringing a friend along without
   // giving them their own account books under their own name again here.
-  const attemptBook = (s: ClassSession & { myState: Occurrence["myState"] }, allowDuplicate: boolean) => {
+  // Same-day gate is checked before the duplicate check server-side (see
+  // bookClass), so it's always resolved — confirmed or not applicable —
+  // before duplicateConfirm can ever be shown; safe for duplicateConfirm's
+  // own retry to always pass allowSameDay: true.
+  const attemptBook = (
+    s: ClassSession & { myState: Occurrence["myState"] },
+    allowDuplicate: boolean,
+    allowSameDay: boolean,
+  ) => {
     setError(null)
     setPendingId(s.id)
     startTransition(async () => {
-      const result = await bookClass(s.id, selectedDateISO, allowDuplicate)
+      const result = await bookClass(s.id, selectedDateISO, allowDuplicate, allowSameDay)
       setPendingId(null)
       if (result.ok) {
         setDuplicateConfirm(null)
+        setSameDayConfirm(null)
         router.refresh()
+      } else if (!allowSameDay && result.error === "SAME_DAY_BOOKING") {
+        setSameDayConfirm(s)
       } else if (!allowDuplicate && result.error === "ALREADY_BOOKED") {
         setDuplicateConfirm(s)
       } else {
@@ -155,6 +167,7 @@ export function StudentSchedule({
         // already been answered at this point, so close it rather than
         // leaving it stacked on top of the error banner below.
         setDuplicateConfirm(null)
+        setSameDayConfirm(null)
         setError(bookingErrorKeyFor(result.error))
       }
     })
@@ -304,7 +317,7 @@ export function StudentSchedule({
                     size="sm"
                     variant={st === "none" && isFull ? "outline" : "default"}
                     disabled={isPastDay || (isPending && pendingId === s.id)}
-                    onClick={() => attemptBook(s, false)}
+                    onClick={() => attemptBook(s, false, false)}
                   >
                     {st !== "none"
                       ? t("stu.schedule.bookAgain")
@@ -361,7 +374,26 @@ export function StudentSchedule({
             </Button>
             <Button
               disabled={isPending}
-              onClick={() => duplicateConfirm && attemptBook(duplicateConfirm, true)}
+              onClick={() => duplicateConfirm && attemptBook(duplicateConfirm, true, true)}
+            >
+              {t("common.continue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!sameDayConfirm} onOpenChange={(o) => !o && setSameDayConfirm(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">{t("stu.schedule.confirmSameDay")}</DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSameDayConfirm(null)}>
+              {t("common.dismiss")}
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={() => sameDayConfirm && attemptBook(sameDayConfirm, false, true)}
             >
               {t("common.continue")}
             </Button>

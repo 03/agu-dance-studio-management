@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type UpcomingBooking, type PastBooking, type Teacher, type Room } from "@/lib/types"
@@ -9,7 +9,12 @@ import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Clock, MapPin } from "lucide-react"
+import { Clock, MapPin, X } from "lucide-react"
+
+const CANCEL_ERROR_KEY: Record<string, string> = {
+  SAME_DAY_CANCEL_BLOCKED: "stu.bookings.err.sameDayCancel",
+}
+const cancelErrorKeyFor = (code: string) => CANCEL_ERROR_KEY[code] ?? "stu.schedule.err.generic"
 
 export function StudentBookings({
   upcoming,
@@ -25,15 +30,22 @@ export function StudentBookings({
   const { t, lang } = useLanguage()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   const teacherName = (id: string) =>
     lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
+  // Same-day bookings can't be self-cancelled at all — cancelBooking always
+  // rejects with SAME_DAY_CANCEL_BLOCKED for those, no confirm/override
+  // (unlike everywhere else this app throws a recoverable error). Point the
+  // student at their teacher instead of leaving the button silently no-op.
   const cancel = (bookingId: string) => {
+    setError(null)
     startTransition(async () => {
-      await cancelBooking(bookingId)
+      const result = await cancelBooking(bookingId)
+      if (!result.ok) setError(cancelErrorKeyFor(result.error))
       router.refresh()
     })
   }
@@ -43,6 +55,15 @@ export function StudentBookings({
       <header className="bg-primary px-4 pb-4 pt-5 text-primary-foreground">
         <h1 className="font-display text-xl font-bold">{t("stu.nav.bookings")}</h1>
       </header>
+
+      {error && (
+        <div className="mx-4 mt-3 flex items-center justify-between gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <span>{t(error)}</span>
+          <button onClick={() => setError(null)} className="shrink-0" aria-label={t("common.close")}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       <Tabs defaultValue="upcoming" className="px-4 pt-3">
         <TabsList className="grid w-full grid-cols-2">

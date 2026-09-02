@@ -7,6 +7,7 @@ import { toAppDay, toISODate, occurrenceKey, formatAppDate, isSessionActiveOn } 
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { PeriodBadge } from "@/components/shared/period-badge"
+import { PUBLIC_MONTH_VIEW_ENABLED } from "@/lib/feature-flags"
 import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
 
 type ViewMode = "week" | "month"
@@ -67,36 +68,38 @@ export function PublicSchedule({
         <h2 className="font-display text-2xl font-bold text-foreground md:text-3xl">
           {t("home.schedule.title")}
         </h2>
-        <div className="inline-flex rounded-xl border border-border bg-card p-1">
-          <button
-            onClick={() => setView("week")}
-            className={cn(
-              "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
-              view === "week"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t("home.schedule.week")}
-          </button>
-          <button
-            onClick={() => setView("month")}
-            className={cn(
-              "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
-              view === "month"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t("home.schedule.month")}
-          </button>
-        </div>
+        {PUBLIC_MONTH_VIEW_ENABLED && (
+          <div className="inline-flex rounded-xl border border-border bg-card p-1">
+            <button
+              onClick={() => setView("week")}
+              className={cn(
+                "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+                view === "week"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("home.schedule.week")}
+            </button>
+            <button
+              onClick={() => setView("month")}
+              className={cn(
+                "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+                view === "month"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("home.schedule.month")}
+            </button>
+          </div>
+        )}
       </div>
 
-      {view === "week" ? (
-        <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} />
-      ) : (
+      {PUBLIC_MONTH_VIEW_ENABLED && view === "month" ? (
         <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} rooms={rooms} />
+      ) : (
+        <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} />
       )}
 
       {/* Contact */}

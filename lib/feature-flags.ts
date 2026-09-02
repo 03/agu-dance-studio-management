@@ -8,3 +8,9 @@
 //   - lib/actions/auth.ts's `register` action refuses even a direct call
 // Flip back to true to reopen sign-ups.
 export const REGISTRATION_ENABLED = false
+
+// Public homepage schedule's 月视图 toggle, temporarily hidden — only
+// 周视图 shows. MonthView itself, and the toggle UI, are untouched and
+// still there in components/public-schedule.tsx; this just keeps both from
+// rendering. Flip back to true to bring the toggle and month view back.
+export const PUBLIC_MONTH_VIEW_ENABLED = false

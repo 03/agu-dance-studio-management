@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
-import { parseISODate, toISODate, isSessionActiveOn } from "@/lib/schedule-dates"
+import { parseISODate, toISODate, todayISO, isSessionActiveOn } from "@/lib/schedule-dates"
 import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
 
 // Every exported action below returns this instead of throwing its error
@@ -29,6 +29,8 @@ const KNOWN_ERROR_CODES = new Set([
   "NO_LINKED_STUDENT",
   "FORBIDDEN",
   "NOT_FOUND",
+  "SAME_DAY_BOOKING",
+  "SAME_DAY_CANCEL_BLOCKED",
 ])
 
 function errorResult(e: unknown): { ok: false; error: string } {
@@ -218,9 +220,23 @@ async function bookOccurrenceForStudent(
 // session at a time, not the whole weekly series. `allowDuplicate` is set
 // only after the student has already been shown and confirmed the
 // "already booked, continue anyway?" prompt (see bookOccurrenceForStudent).
-export async function bookClass(sessionId: string, date: string, allowDuplicate = false): Promise<ActionResult> {
+//
+// `allowSameDay` gates the same confirm-first pattern for booking a class
+// happening *today* — same-day bookings can't be self-cancelled (see
+// cancelBooking below), so a student should knowingly accept that before
+// it's made, not discover it later when they try to back out. Student-only:
+// admin's adminBookStudent has no such gate, and adminCancelBooking can
+// still remove a same-day booking on the student's behalf (that's the
+// "contact your teacher" escape hatch cancelBooking's own error points to).
+export async function bookClass(
+  sessionId: string,
+  date: string,
+  allowDuplicate = false,
+  allowSameDay = false,
+): Promise<ActionResult> {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) return { ok: false, error: "NO_LINKED_STUDENT" }
+  if (date === todayISO() && !allowSameDay) return { ok: false, error: "SAME_DAY_BOOKING" }
   try {
     await bookOccurrenceForStudent(sessionId, date, studentId, { allowDuplicate })
     return { ok: true }
@@ -313,10 +329,21 @@ export async function getBookedNamesForSession(sessionId: string, date: string):
 // exactly the way deleting one roster row already worked for admins.
 // `expectedStudentId`, when given, enforces that a self-service cancel can
 // only ever hit the caller's own booking, never one looked up by id alone.
-async function cancelOccurrenceBooking(bookingId: string, expectedStudentId?: string) {
+// `blockSameDay` is the student-only hard stop on cancelling a booking for
+// a class happening *today* — unlike every other gate in this file, there
+// is no confirm-and-override for it: cancelBooking always sets it, and
+// adminCancelBooking never does, so a student who needs a same-day
+// cancellation genuinely has to go through a teacher/admin rather than
+// self-serve it, matching the studio's own policy this is enforcing.
+async function cancelOccurrenceBooking(
+  bookingId: string,
+  expectedStudentId?: string,
+  opts: { blockSameDay?: boolean } = {},
+) {
   const target = await prisma.booking.findUnique({ where: { id: bookingId } })
   if (!target) return null
   if (expectedStudentId && target.studentId !== expectedStudentId) throw new Error("FORBIDDEN")
+  if (opts.blockSameDay && toISODate(target.date) === todayISO()) throw new Error("SAME_DAY_CANCEL_BLOCKED")
   if (target.state === "CANCELED") return target
 
   return prisma.$transaction(async (tx) => {
@@ -357,7 +384,7 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) return { ok: false, error: "NO_LINKED_STUDENT" }
   try {
-    const result = await cancelOccurrenceBooking(bookingId, studentId)
+    const result = await cancelOccurrenceBooking(bookingId, studentId, { blockSameDay: true })
     if (!result) return { ok: false, error: "NOT_FOUND" }
     return { ok: true }
   } catch (e) {
