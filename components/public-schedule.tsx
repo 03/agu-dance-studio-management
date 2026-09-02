@@ -3,13 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type Occurrence, type Room } from "@/lib/types"
-import { toAppDay, toISODate, occurrenceKey, nextOccurrence, isSessionActiveOn } from "@/lib/schedule-dates"
+import { toAppDay, toISODate, occurrenceKey, formatAppDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { PeriodBadge } from "@/components/shared/period-badge"
 import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
 
 type ViewMode = "week" | "month"
+
+// How far a logged-out visitor can browse away from "now" — this is the
+// public landing page, not the logged-in student/admin calendars, which
+// have no such cap.
+const WEEK_OFFSET_LIMIT = 2 // this week ± 2
+const MONTH_OFFSET_LIMIT = 1 // this month ± 1
 
 function occurrenceMapFrom(list: Occurrence[]): Map<string, Occurrence> {
   const map = new Map<string, Occurrence>()
@@ -88,7 +94,7 @@ export function PublicSchedule({
       </div>
 
       {view === "week" ? (
-        <WeekView sessions={sessions} bookedFor={bookedFor} rooms={rooms} closures={closures} />
+        <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} />
       ) : (
         <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} rooms={rooms} />
       )}
@@ -114,29 +120,104 @@ export function PublicSchedule({
 function WeekView({
   sessions,
   bookedFor,
+  ensureMonth,
   rooms,
   closures,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
+  ensureMonth: (year: number, month: number) => void
   rooms: Room[]
   closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
+  // Public, pre-login page — deliberately bounded (this week ± 2) rather
+  // than open-ended browsing, unlike the logged-in student/admin calendars.
+  const [weekOffset, setWeekOffset] = useState(0)
+  const canGoPrevWeek = weekOffset > -WEEK_OFFSET_LIMIT
+  const canGoNextWeek = weekOffset < WEEK_OFFSET_LIMIT
+
+  // Monday..Sunday of the displayed week, in the viewer's own local
+  // timezone — matches admin-attendance.tsx's identical weekDatesOf.
+  // Deliberately real dates, not each weekday's "next occurrence": that
+  // used to jump a day already past this week straight to next week (e.g.
+  // viewing this on a Wednesday, 周二 would show next Tuesday's —
+  // still-empty — count instead of the Tuesday that just happened), which
+  // visibly disagreed with MonthView's real-date counts for the same day.
+  const weekDates = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - toAppDay(today) + weekOffset * 7)
+    return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i))
+  }, [weekOffset])
+
+  // A displayed week can span two calendar months (e.g. Aug 31 – Sep 6) —
+  // load occurrence data for every month it touches, not just the first,
+  // same reasoning as admin-attendance.tsx's own neededMonths.
+  useEffect(() => {
+    const months = new Set(weekDates.map((d) => `${d.getFullYear()}-${d.getMonth()}`))
+    for (const key of months) {
+      const [y, m] = key.split("-").map(Number)
+      ensureMonth(y, m)
+    }
+  }, [weekDates, ensureMonth])
+
+  const monday = weekDates[0]
+  const sunday = weekDates[6]
+  const weekLabel =
+    lang === "zh"
+      ? monday.getFullYear() === sunday.getFullYear()
+        ? `${formatAppDate(monday)} – ${formatAppDate(sunday)}`
+        : `${formatAppDate(monday)} ${monday.getFullYear()} – ${formatAppDate(sunday)} ${sunday.getFullYear()}`
+      : monday.getFullYear() === sunday.getFullYear()
+        ? `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+        : `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-4 flex items-center justify-center gap-3">
+        <button
+          onClick={() => canGoPrevWeek && setWeekOffset((o) => o - 1)}
+          disabled={!canGoPrevWeek}
+          aria-label={t("home.schedule.prevWeek")}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="min-w-[10rem] text-center font-display text-sm font-bold text-card-foreground">{weekLabel}</p>
+        <button
+          onClick={() => canGoNextWeek && setWeekOffset((o) => o + 1)}
+          disabled={!canGoNextWeek}
+          aria-label={t("home.schedule.nextWeek")}
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        {weekOffset !== 0 && (
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="ml-1 text-xs font-semibold text-primary hover:underline"
+          >
+            {t("home.schedule.thisWeek")}
+          </button>
+        )}
+      </div>
+      <div className="overflow-x-auto">
       <div className="grid min-w-[840px] grid-cols-7">
-        {weekdayKeys.map((wk, day) => (
+        {weekDates.map((d, day) => {
+          const wk = weekdayKeys[day]
+          const dateISO = toISODate(d)
+          return (
           <div key={wk} className={cn("min-h-[220px] p-3", day !== 6 && "border-r border-border")}>
             <div className="mb-2 rounded-lg bg-secondary py-1.5 text-center text-xs font-semibold text-secondary-foreground">
-              {t(wk)}
+              {t(wk)} <span className="font-normal text-muted-foreground">{formatAppDate(d)}</span>
             </div>
             <div className="flex flex-col gap-2">
               {sessions
-                .filter((s) => s.day === day && isSessionActiveOn(s, closures, toISODate(nextOccurrence(s.day))))
+                .filter((s) => s.day === day && isSessionActiveOn(s, closures, dateISO))
                 .map((s) => {
-                  const booked = bookedFor(s.id, nextOccurrence(s.day))
+                  const booked = bookedFor(s.id, d)
                   const nameEn = roomNameEn(s.roomId)
                   return (
                     <div
@@ -166,7 +247,9 @@ function WeekView({
                 })}
             </div>
           </div>
-        ))}
+          )
+        })}
+      </div>
       </div>
     </div>
   )
@@ -187,7 +270,11 @@ function MonthView({
 }) {
   const { t, lang } = useLanguage()
   const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
+  // Public, pre-login page — deliberately bounded (this month ± 1) rather
+  // than open-ended browsing, unlike the logged-in student/admin calendars.
   const [monthOffset, setMonthOffset] = useState(0)
+  const canGoPrevMonth = monthOffset > -MONTH_OFFSET_LIMIT
+  const canGoNextMonth = monthOffset < MONTH_OFFSET_LIMIT
 
   const { weeks, monthLabel, year, month } = useMemo(() => {
     const now = new Date()
@@ -223,17 +310,19 @@ function MonthView({
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-4 flex items-center justify-center gap-3">
         <button
-          onClick={() => setMonthOffset((o) => o - 1)}
+          onClick={() => canGoPrevMonth && setMonthOffset((o) => o - 1)}
+          disabled={!canGoPrevMonth}
           aria-label={t("home.schedule.prevMonth")}
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <p className="min-w-[8rem] text-center font-display text-sm font-bold text-card-foreground">{monthLabel}</p>
         <button
-          onClick={() => setMonthOffset((o) => o + 1)}
+          onClick={() => canGoNextMonth && setMonthOffset((o) => o + 1)}
+          disabled={!canGoNextMonth}
           aria-label={t("home.schedule.nextMonth")}
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
         >
           <ChevronRight className="h-4 w-4" />
         </button>

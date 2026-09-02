@@ -63,16 +63,23 @@ function startOfMonth() {
 
 // Public, pre-login landing page data — just the recurring weekly class
 // template (style/time/teacher/room), safe to show to anyone. No student
-// PII. `occurrences` covers this calendar month plus the next 7 days (so
-// week view's "next occurrence" of each slot is always in range even when
-// it falls just past month-end); MonthView fetches further months on
-// demand via getOccurrencesForMonth (lib/actions/schedule.ts) rather than
-// this eagerly covering every month the visitor might navigate to.
+// PII. `occurrences` covers this calendar week (WeekView shows the real
+// Mon–Sun week containing today, which can start in the previous month —
+// e.g. today Wed Sep 2 means Monday is Aug 31) through the end of this
+// calendar month plus the next 7 days (so the "next occurrence" of a slot
+// whose day already passed this week is still in range); MonthView fetches
+// further months on demand via getOccurrencesForMonth (lib/actions/schedule.ts)
+// rather than this eagerly covering every month the visitor might navigate to.
 export async function getPublicScheduleData() {
   const todayIso = todayISO()
   const [y, m] = todayIso.split("-").map(Number)
   const weekEnd = parseISODate(addDays(todayIso, 7))
+  // A few days of slack past 7 covers WeekView computing "today" from the
+  // viewer's own browser timezone rather than the studio's — see that
+  // component's own note on why it's deliberately ambient-Date there.
+  const weekStart = parseISODate(addDays(todayIso, -8))
   const { start: monthStart, end: monthEnd } = monthRange(y, m - 1)
+  const rangeStart = weekStart < monthStart ? weekStart : monthStart
   const rangeEnd = weekEnd > monthEnd ? weekEnd : monthEnd
 
   const [sessionsRaw, roomsRaw, bookingsRaw, closuresRaw] = await Promise.all([
@@ -84,7 +91,7 @@ export async function getPublicScheduleData() {
     prisma.booking.findMany({
       where: {
         session: { status: "NORMAL" },
-        date: { gte: monthStart, lt: rangeEnd },
+        date: { gte: rangeStart, lt: rangeEnd },
         state: { in: ["BOOKED", "WAITLIST"] },
       },
       select: { sessionId: true, date: true, state: true, studentId: true },
