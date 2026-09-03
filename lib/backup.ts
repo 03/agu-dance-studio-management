@@ -27,6 +27,7 @@ const RESTORE_ORDER = [
   "student",
   "cardProduct",
   "booking",
+  "bookingEvent",
   "studentCard",
   "ledgerEntry",
   "payment",
@@ -43,6 +44,7 @@ const DELETE_ORDER = [...RESTORE_ORDER].reverse() as ModelName[]
 // re-hydrating from ISO strings back into Date objects before insert.
 const DATE_FIELDS: Partial<Record<ModelName, string[]>> = {
   booking: ["date", "createdAt"],
+  bookingEvent: ["date", "createdAt"],
   classClosure: ["startDate", "endDate"],
   studentCard: ["expiry"],
   ledgerEntry: ["date"],
@@ -59,8 +61,8 @@ type Delegate = {
 
 // The real Prisma delegates each want their own specific per-model input
 // type, not this generic Row shape — this utility is intentionally generic
-// across all ten business tables, so the cast trades that per-model
-// checking away in exchange for not hand-writing this loop ten times.
+// across all eleven business tables, so the cast trades that per-model
+// checking away in exchange for not hand-writing this loop eleven times.
 function delegates(client: Prisma.TransactionClient | typeof prisma): Record<ModelName, Delegate> {
   return {
     teacher: client.teacher,
@@ -70,6 +72,7 @@ function delegates(client: Prisma.TransactionClient | typeof prisma): Record<Mod
     student: client.student,
     cardProduct: client.cardProduct,
     booking: client.booking,
+    bookingEvent: client.bookingEvent,
     studentCard: client.studentCard,
     ledgerEntry: client.ledgerEntry,
     payment: client.payment,
