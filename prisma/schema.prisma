@@ -48,6 +48,13 @@ enum BookingState {
   CANCELED
 }
 
+// What a BookingEvent recorded — a student (or admin, on their behalf)
+// either joining an occurrence's roster or leaving it.
+enum BookingEventType {
+  ADD
+  CANCEL
+}
+
 // Mirrors LedgerEntry.kind in lib/mock-data.ts
 enum LedgerKind {
   CONSUME
@@ -96,28 +103,29 @@ model Room {
 }
 
 model ClassSession {
-  id        String        @id @default(cuid())
-  style     DanceStyle
-  teacher   Teacher       @relation(fields: [teacherId], references: [id])
-  teacherId String
-  room      Room          @relation(fields: [roomId], references: [id])
-  roomId    String
-  day       Int // 0 = Mon ... 6 = Sun
-  start     String // display time, e.g. "19:00"
-  end       String
-  capacity  Int
-  levelZh   String
-  levelEn   String
-  status    SessionStatus @default(NORMAL)
+  id            String         @id @default(cuid())
+  style         DanceStyle
+  teacher       Teacher        @relation(fields: [teacherId], references: [id])
+  teacherId     String
+  room          Room           @relation(fields: [roomId], references: [id])
+  roomId        String
+  day           Int // 0 = Mon ... 6 = Sun
+  start         String // display time, e.g. "19:00"
+  end           String
+  capacity      Int
+  levelZh       String
+  levelEn       String
+  status        SessionStatus  @default(NORMAL)
   // Bounds this session's own lifetime — both null (the default) means it
   // recurs indefinitely, same as before these fields existed. Set both for
   // a class that only ever exists within a window (a holiday-only intensive,
   // or a short-lived trial series). Distinct from ClassClosure, which pauses
   // an otherwise still-ongoing session rather than ending it.
-  startDate DateTime?
-  endDate   DateTime?
-  bookings  Booking[]
-  closures  ClassClosure[]
+  startDate     DateTime?
+  endDate       DateTime?
+  bookings      Booking[]
+  closures      ClassClosure[]
+  bookingEvents BookingEvent[]
 
   @@map("class_sessions")
 }
@@ -139,19 +147,19 @@ model ClassClosure {
 }
 
 model Student {
-  id            String        @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
   phone         String?
   wechat        String?
   email         String?
   code          String? // admin-facing student/member code, distinct from the internal id
   joined        String // display label, e.g. "2024-06"
-  status        StudentStatus @default(ACTIVE)
+  status        StudentStatus  @default(ACTIVE)
   // Opaque bearer credential encoded into the student's check-in QR code
   // (see lib/checkin.ts) — DB-generated so every existing row gets one for
   // free at migration time, same idea as Session.token but a stable,
   // regenerable value rather than an expiring login session.
-  checkInCode   String        @unique @default(dbgenerated("gen_random_uuid()"))
+  checkInCode   String         @unique @default(dbgenerated("gen_random_uuid()"))
   // Free-text note the student writes about themself, e.g. injuries or
   // things a teacher should know — visible to the student, their teachers,
   // and admin, but never in a bulk list another student could see (see
@@ -160,6 +168,7 @@ model Student {
   cards         StudentCard[]
   ledgerEntries LedgerEntry[]
   bookings      Booking[]
+  bookingEvents BookingEvent[]
   payments      Payment[]
   user          User?
 
@@ -182,20 +191,46 @@ model Student {
 // lean on the unique constraint (the duplicate-booking check itself,
 // checkInByCode, ...).
 model Booking {
-  id          String       @id @default(cuid())
-  student     Student      @relation(fields: [studentId], references: [id])
+  id          String         @id @default(cuid())
+  student     Student        @relation(fields: [studentId], references: [id])
   studentId   String
-  session     ClassSession @relation(fields: [sessionId], references: [id])
+  session     ClassSession   @relation(fields: [sessionId], references: [id])
   sessionId   String
   date        DateTime // the specific occurrence date, always normalized to midnight
-  state       BookingState @default(BOOKED)
-  checkedIn   Boolean      @default(false)
-  proxy       Boolean      @default(false)
-  createdAt   DateTime     @default(now())
+  state       BookingState   @default(BOOKED)
+  checkedIn   Boolean        @default(false)
+  proxy       Boolean        @default(false)
+  createdAt   DateTime       @default(now())
   ledgerEntry LedgerEntry?
+  events      BookingEvent[]
 
   @@index([studentId, sessionId, date])
   @@map("bookings")
+}
+
+// Append-only audit trail of 接龙 activity for one class occurrence —
+// distinct from Booking, which only holds *current* state and a single
+// createdAt (overwritten in meaning once a booking is cancelled, and with
+// no timestamp at all for *when* a cancel happened). 课时登记's roster
+// dialog reads this to show admin a chronological add/cancel log —
+// including cancelled bookings, which otherwise leave the roster with no
+// visible trace of who was ever there. `bookingId` is kept for traceability
+// but not required by the UI — Booking rows are never hard-deleted (see
+// cancelOccurrenceBooking), so it always resolves.
+model BookingEvent {
+  id        String           @id @default(cuid())
+  session   ClassSession     @relation(fields: [sessionId], references: [id])
+  sessionId String
+  date      DateTime // the occurrence date, same convention as Booking.date
+  student   Student          @relation(fields: [studentId], references: [id])
+  studentId String
+  booking   Booking?         @relation(fields: [bookingId], references: [id])
+  bookingId String?
+  type      BookingEventType
+  createdAt DateTime         @default(now())
+
+  @@index([sessionId, date])
+  @@map("booking_events")
 }
 
 model CardProduct {

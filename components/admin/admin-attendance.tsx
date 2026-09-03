@@ -3,10 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type Occurrence, type Teacher, type Student, type RosterEntry } from "@/lib/types"
-import { toAppDay, toISODate, parseISODate, occurrenceKey, formatAppDate } from "@/lib/schedule-dates"
+import {
+  weekdayKeys,
+  styleColors,
+  type ClassSession,
+  type Occurrence,
+  type Teacher,
+  type Student,
+  type RosterEntry,
+  type ClassClosure,
+  type BookingEventEntry,
+} from "@/lib/types"
+import { toAppDay, toISODate, parseISODate, occurrenceKey, formatAppDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
-import { getRosterForSession } from "@/lib/actions/rollcall"
+import { getRosterForSession, getBookingHistoryForSession } from "@/lib/actions/rollcall"
 import { adminBookStudent, adminCancelBooking } from "@/lib/actions/bookings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,10 +71,12 @@ export function AdminAttendance({
   sessions,
   teachers,
   students,
+  closures,
 }: {
   sessions: ClassSession[]
   teachers: Teacher[]
   students: Student[]
+  closures: ClassClosure[]
 }) {
   const { t, lang } = useLanguage()
   const [anchorDate, setAnchorDate] = useState(() => {
@@ -204,7 +216,8 @@ export function AdminAttendance({
           <div className="grid min-w-[700px] grid-cols-7 gap-1">
             {weekDates.map((d, i) => {
               const dow = toAppDay(d)
-              const daySessions = sessions.filter((s) => s.day === dow)
+              const dISO = toISODate(d)
+              const daySessions = sessions.filter((s) => s.day === dow && isSessionActiveOn(s, closures, dISO))
               return (
                 <div
                   key={i}
@@ -333,6 +346,7 @@ function RosterDialog({
   const router = useRouter()
   const dateISO = toISODate(date)
   const [roster, setRoster] = useState<RosterEntry[]>([])
+  const [history, setHistory] = useState<BookingEventEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -365,10 +379,13 @@ function RosterDialog({
 
   const load = useCallback(() => {
     setLoading(true)
-    getRosterForSession(session.id, dateISO).then((r) => {
-      setRoster(r)
-      setLoading(false)
-    })
+    Promise.all([getRosterForSession(session.id, dateISO), getBookingHistoryForSession(session.id, dateISO)]).then(
+      ([r, h]) => {
+        setRoster(r)
+        setHistory(h)
+        setLoading(false)
+      },
+    )
   }, [session.id, dateISO])
 
   useEffect(() => {
@@ -382,6 +399,7 @@ function RosterDialog({
   useEffect(() => {
     const id = setInterval(() => {
       getRosterForSession(session.id, dateISO).then(setRoster)
+      getBookingHistoryForSession(session.id, dateISO).then(setHistory)
     }, 5000)
     return () => clearInterval(id)
   }, [session.id, dateISO])
@@ -578,6 +596,47 @@ function RosterDialog({
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label>
+            {t("adm.attendance.history")} ({history.length})
+          </Label>
+          {history.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">{t("adm.attendance.historyEmpty")}</p>
+          ) : (
+            <div className="mt-2 max-h-40 overflow-x-auto overflow-y-auto rounded-xl border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">{t("adm.attendance.historyTime")}</TableHead>
+                    <TableHead>{t("common.name")}</TableHead>
+                    <TableHead>{t("adm.attendance.historyAction")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{h.createdAt}</TableCell>
+                      <TableCell className="max-w-[8rem] truncate text-card-foreground" title={h.studentName}>
+                        {h.studentName}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                            h.type === "ADD" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive",
+                          )}
+                        >
+                          {t(h.type === "ADD" ? "adm.attendance.historyAdd" : "adm.attendance.historyCancel")}
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}

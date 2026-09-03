@@ -209,6 +209,17 @@ export type RosterEntry = {
   note: string | null
 }
 
+// One 接龙/取消接龙 event for one class occurrence — admin-only 课时登记
+// history log, distinct from RosterEntry (current roster only, no
+// cancels). See prisma/schema.prisma's BookingEvent for why this needs its
+// own table rather than reading Booking.createdAt/state directly.
+export type BookingEventEntry = {
+  id: string
+  studentName: string
+  type: "ADD" | "CANCEL"
+  createdAt: string
+}
+
 export const weekdayKeys = ["day.mon", "day.tue", "day.wed", "day.thu", "day.fri", "day.sat", "day.sun"]
 
 export type AppUserRole = "student" | "teacher" | "admin"

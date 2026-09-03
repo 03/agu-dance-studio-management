@@ -1,11 +1,11 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { requireAnyRole } from "@/lib/auth"
+import { requireAnyRole, requireRole } from "@/lib/auth"
 import { parseISODate } from "@/lib/schedule-dates"
 import { computeRemainingBalance, formatLedgerDate } from "@/lib/mappers"
 import { decodeCheckInPayload } from "@/lib/checkin"
-import type { RosterEntry } from "@/lib/types"
+import type { RosterEntry, BookingEventEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
   const session = await requireAnyRole(["TEACHER", "ADMIN"])
@@ -37,6 +37,26 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
     remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
     createdAt: formatLedgerDate(b.createdAt),
     note: b.student.note,
+  }))
+}
+
+// 接龙历史 — add/cancel log for one class occurrence, newest first, shown
+// below 已登记学员 in 课时登记's roster dialog. Admin-only: unlike the
+// roster above (which teachers also see for their own roll-call), this is
+// specifically an admin audit view (see lib/actions/bookings.ts's
+// BookingEvent writes for what feeds it).
+export async function getBookingHistoryForSession(sessionId: string, date: string): Promise<BookingEventEntry[]> {
+  await requireRole("ADMIN")
+  const events = await prisma.bookingEvent.findMany({
+    where: { sessionId, date: parseISODate(date) },
+    include: { student: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  })
+  return events.map((e) => ({
+    id: e.id,
+    studentName: e.student.name,
+    type: e.type,
+    createdAt: formatLedgerDate(e.createdAt),
   }))
 }
 

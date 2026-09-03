@@ -252,6 +252,12 @@ export const dict: Dict = {
   "adm.attendance.shareLinkCopied": { zh: "链接已复制", en: "Link copied" },
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
+  "adm.attendance.history": { zh: "接龙历史", en: "Booking history" },
+  "adm.attendance.historyEmpty": { zh: "暂无记录", en: "No activity yet" },
+  "adm.attendance.historyTime": { zh: "时间", en: "Time" },
+  "adm.attendance.historyAction": { zh: "操作", en: "Action" },
+  "adm.attendance.historyAdd": { zh: "添加接龙", en: "Added" },
+  "adm.attendance.historyCancel": { zh: "取消接龙", en: "Cancelled" },
   "booking.confirmDuplicate": { zh: "该学员已经在列表中，是否继续", en: "This student is already on the list — continue anyway?" },
   "booking.confirmNegativeBalance": {
     zh: "该学员已无剩余课时，是否继续？登记后课时余额将变为负数",

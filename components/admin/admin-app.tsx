@@ -158,7 +158,12 @@ export function AdminApp({
             />
           )}
           {section === "attendance" && (
-            <AdminAttendance sessions={data.sessions} teachers={data.teachers} students={data.students} />
+            <AdminAttendance
+              sessions={data.sessions}
+              teachers={data.teachers}
+              students={data.students}
+              closures={data.closures}
+            />
           )}
           {section === "students" && (
             <AdminStudents students={data.students} cardProducts={data.cardProducts} />

@@ -204,6 +204,12 @@ async function bookOccurrenceForStudent(
     const booking = await tx.booking.create({
       data: { studentId, sessionId, date: occurrenceDate, state },
     })
+    // 接龙历史 (getBookingHistoryForSession) — every add gets a row here
+    // regardless of whether it landed BOOKED or WAITLIST, mirroring
+    // 已登记学员/roster, which shows both too.
+    await tx.bookingEvent.create({
+      data: { sessionId, date: occurrenceDate, studentId, bookingId: booking.id, type: "ADD" },
+    })
 
     if (state === "BOOKED") {
       await consumeCreditForBooking(tx, studentId, booking.id, session, occurrenceDate, {
@@ -368,6 +374,19 @@ async function cancelOccurrenceBooking(
     }
 
     const cancelled = await tx.booking.update({ where: { id: booking.id }, data: { state: "CANCELED" } })
+    // 接龙历史 — mirrors the ADD event written when this booking was
+    // created (bookOccurrenceForStudent), so the roster dialog's history
+    // shows the full add→cancel lifecycle even after the roster itself no
+    // longer lists this student.
+    await tx.bookingEvent.create({
+      data: {
+        sessionId: booking.sessionId,
+        date: booking.date,
+        studentId: booking.studentId,
+        bookingId: booking.id,
+        type: "CANCEL",
+      },
+    })
 
     if (wasBooked) {
       await promoteFromWaitlist(tx, booking.sessionId, booking.date)
