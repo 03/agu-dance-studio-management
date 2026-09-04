@@ -37,10 +37,10 @@ export function StudentBookings({
   const roomName = (id: string) =>
     lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn
 
-  // Same-day bookings can't be self-cancelled at all — cancelBooking always
-  // rejects with SAME_DAY_CANCEL_BLOCKED for those, no confirm/override
-  // (unlike everywhere else this app throws a recoverable error). Point the
-  // student at their teacher instead of leaving the button silently no-op.
+  // A class on its own day, or within 12h of starting, can't be self-cancelled
+  // at all — cancelBooking rejects with SAME_DAY_CANCEL_BLOCKED for those, no
+  // confirm/override (unlike everywhere else this app throws a recoverable
+  // error). Point the student at their teacher instead of a silent no-op.
   const cancel = (bookingId: string) => {
     setError(null)
     startTransition(async () => {

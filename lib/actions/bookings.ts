@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
-import { parseISODate, toISODate, todayISO, isSessionActiveOn } from "@/lib/schedule-dates"
+import { parseISODate, toISODate, todayISO, isSessionActiveOn, studioInstant } from "@/lib/schedule-dates"
 import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
 
 // Every exported action below returns this instead of throwing its error
@@ -335,21 +335,32 @@ export async function getBookedNamesForSession(sessionId: string, date: string):
 // exactly the way deleting one roster row already worked for admins.
 // `expectedStudentId`, when given, enforces that a self-service cancel can
 // only ever hit the caller's own booking, never one looked up by id alone.
-// `blockSameDay` is the student-only hard stop on cancelling a booking for
-// a class happening *today* — unlike every other gate in this file, there
-// is no confirm-and-override for it: cancelBooking always sets it, and
-// adminCancelBooking never does, so a student who needs a same-day
-// cancellation genuinely has to go through a teacher/admin rather than
-// self-serve it, matching the studio's own policy this is enforcing.
+// `blockLateCancel` is the student-only hard stop on cancelling a booking
+// for a class happening *today* OR starting within the next 12 hours (so an
+// evening student can't drop a next-morning class overnight). Unlike every
+// other gate in this file, there is no confirm-and-override for it:
+// cancelBooking always sets it, and adminCancelBooking never does, so a
+// student who needs a late cancellation genuinely has to go through a
+// teacher/admin rather than self-serve it, matching the studio's own policy.
+const LATE_CANCEL_CUTOFF_MS = 12 * 60 * 60 * 1000
 async function cancelOccurrenceBooking(
   bookingId: string,
   expectedStudentId?: string,
-  opts: { blockSameDay?: boolean } = {},
+  opts: { blockLateCancel?: boolean } = {},
 ) {
-  const target = await prisma.booking.findUnique({ where: { id: bookingId } })
+  const target = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { session: { select: { start: true } } },
+  })
   if (!target) return null
   if (expectedStudentId && target.studentId !== expectedStudentId) throw new Error("FORBIDDEN")
-  if (opts.blockSameDay && toISODate(target.date) === todayISO()) throw new Error("SAME_DAY_CANCEL_BLOCKED")
+  if (opts.blockLateCancel) {
+    const dateISO = toISODate(target.date)
+    const startsInMs = studioInstant(dateISO, target.session.start).getTime() - Date.now()
+    if (dateISO === todayISO() || startsInMs < LATE_CANCEL_CUTOFF_MS) {
+      throw new Error("SAME_DAY_CANCEL_BLOCKED")
+    }
+  }
   if (target.state === "CANCELED") return target
 
   return prisma.$transaction(async (tx) => {
@@ -403,7 +414,7 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   const { studentId } = await requireRole("STUDENT")
   if (!studentId) return { ok: false, error: "NO_LINKED_STUDENT" }
   try {
-    const result = await cancelOccurrenceBooking(bookingId, studentId, { blockSameDay: true })
+    const result = await cancelOccurrenceBooking(bookingId, studentId, { blockLateCancel: true })
     if (!result) return { ok: false, error: "NOT_FOUND" }
     return { ok: true }
   } catch (e) {

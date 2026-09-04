@@ -58,6 +58,21 @@ function studioMidnightUTC(year: number, month: number, day: number): Date {
   return new Date(guess.getTime() - offsetMs)
 }
 
+// The UTC instant of STUDIO_TZ wall-clock `hm` ("HH:MM") on calendar date
+// `dateISO` ("YYYY-MM-DD") — same guess-and-correct offset discovery as
+// studioMidnightUTC, so it's DST-aware and independent of the runtime's own
+// timezone. Use to turn an occurrence (Booking.date + ClassSession.start/end)
+// into a real instant for "how long until this class" comparisons.
+export function studioInstant(dateISO: string, hm: string): Date {
+  const [y, m, d] = dateISO.split("-").map(Number)
+  const [hh, mm] = hm.split(":").map(Number)
+  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm))
+  const asStudio = studioParts(guess)
+  const asIfUTC = Date.UTC(asStudio.year, asStudio.month - 1, asStudio.day, asStudio.hour, asStudio.minute, asStudio.second)
+  const offsetMs = asIfUTC - guess.getTime()
+  return new Date(guess.getTime() - offsetMs)
+}
+
 export function toAppDay(d: Date): number {
   const { year, month, day } = studioParts(d)
   const jsDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay() // 0 = Sun ... 6 = Sat
