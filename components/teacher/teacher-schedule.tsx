@@ -26,6 +26,14 @@ export function TeacherSchedule({
     return o?.booked ?? 0
   }
 
+  // Chronological order — soonest upcoming class first. `sessions` arrives in
+  // recurring weekly order (Mon→Sun), which puts e.g. a Monday class ahead of
+  // today's Thursday one; sort by each class's next real occurrence instead.
+  const nextAt = new Map(myClasses.map((s) => [s.id, nextOccurrence(s.day).getTime()]))
+  const orderedClasses = [...myClasses].sort(
+    (a, b) => (nextAt.get(a.id) ?? 0) - (nextAt.get(b.id) ?? 0) || a.start.localeCompare(b.start),
+  )
+
   return (
     <div className="p-4">
       <div className="mb-4 grid grid-cols-2 gap-2">
@@ -41,7 +49,7 @@ export function TeacherSchedule({
 
       <h2 className="mb-2 text-sm font-semibold text-foreground">{t("tea.mySchedule")}</h2>
       <ul className="flex flex-col gap-3">
-        {myClasses.map((s) => {
+        {orderedClasses.map((s) => {
           const occurrenceDate = nextOccurrence(s.day)
           const booked = bookedFor(s.id, occurrenceDate)
           return (
