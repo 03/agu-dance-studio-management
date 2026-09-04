@@ -27,6 +27,7 @@ import {
   todayISO,
   addDays,
   studioDateParts,
+  occurrenceHasEnded,
 } from "@/lib/schedule-dates"
 import type { StyleKey, Occurrence, UpcomingBooking } from "@/lib/types"
 import type { BookingState } from "@/lib/generated/prisma/client"
@@ -195,10 +196,14 @@ export async function getStudentAppData(studentId: string) {
         orderBy: { date: "asc" },
       }),
       prisma.booking.findMany({
-        where: { studentId, date: { lt: today }, state: "BOOKED" },
+        // include today too — today's already-finished classes belong in
+        // history (they're filtered by end time below, same cut as `upcoming`).
+        // take a little extra to absorb today's not-yet-ended rows that the
+        // filter drops off the top of this desc-ordered page.
+        where: { studentId, date: { lte: today }, state: "BOOKED" },
         include: { session: true },
         orderBy: { date: "desc" },
-        take: 50,
+        take: 55,
       }),
       prisma.classClosure.findMany(),
     ])
@@ -223,8 +228,20 @@ export async function getStudentAppData(studentId: string) {
       me: meRow ? mapStudent({ ...meRow, ledgerEntries: ledgerRaw }, { includeCardDetails: true, includeCheckInCode: true, includeNote: true }) : null,
       cards: meRow ? meRow.cards.map(mapStudentCard) : [],
       ledger: ledgerRaw.map(mapLedgerEntryDateOnly),
-      upcoming: upcomingRaw.map(mapUpcomingBooking),
-      history: historyRaw.map(mapPastBooking),
+      // The query only bounds this by calendar date (>= today), so a class
+      // booked for *today* that has already finished is still in the result —
+      // drop those so both the "即将上课" list and its count exclude classes
+      // whose end time has already passed.
+      upcoming: upcomingRaw
+        .filter((b) => !occurrenceHasEnded(toISODate(b.date), b.session.end))
+        .map(mapUpcomingBooking),
+      // Mirror of the `upcoming` cut: a class is "history" exactly once its end
+      // time has passed — so today's finished classes appear here immediately
+      // instead of only after midnight. Trim back to the intended ~50.
+      history: historyRaw
+        .filter((b) => occurrenceHasEnded(toISODate(b.date), b.session.end))
+        .slice(0, 50)
+        .map(mapPastBooking),
       attendanceRate,
     },
   }

@@ -105,6 +105,19 @@ export function todayISO(): string {
   return toISODate(new Date())
 }
 
+// True once real time has moved past the end of a specific class occurrence:
+// the one on calendar date `dateISO` ("YYYY-MM-DD") finishing at wall-clock
+// `endHM` ("HH:MM", zero-padded — the ClassSession.end format). Anchored to
+// STUDIO_TZ like the rest of this file, so it's correct regardless of where the
+// process runs. `now` is injectable for tests.
+export function occurrenceHasEnded(dateISO: string, endHM: string, now: Date = new Date()): boolean {
+  const { year, month, day, hour, minute } = studioParts(now)
+  const nowDateISO = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  if (dateISO !== nowDateISO) return dateISO < nowDateISO
+  const nowHM = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  return nowHM >= endHM
+}
+
 // `iso` shifted by `days` calendar days (may be negative). Pure calendar-date
 // arithmetic on the Y-M-D triple — no timezone conversion involved, since a
 // day-count offset between two calendar dates doesn't depend on where the
