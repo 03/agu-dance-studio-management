@@ -34,7 +34,7 @@ export type CreateUserInput = {
 // on first login.
 export async function createUser(input: CreateUserInput) {
   await requireRole("ADMIN")
-  if (input.username.trim().length < 3) throw new Error("INVALID_USERNAME")
+  if (input.username.trim().length < 1) throw new Error("INVALID_USERNAME")
   if (input.password.length < 8) throw new Error("INVALID_PASSWORD")
 
   const data: Prisma.UserCreateInput = {
@@ -81,7 +81,7 @@ export async function createUser(input: CreateUserInput) {
 
 export async function updateUser(userId: string, username: string) {
   await requireRole("ADMIN")
-  if (username.trim().length < 3) throw new Error("INVALID_USERNAME")
+  if (username.trim().length < 1) throw new Error("INVALID_USERNAME")
   await prisma.user.update({ where: { id: userId }, data: { username: username.trim() } })
 }
 

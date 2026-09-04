@@ -205,6 +205,12 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
   const [role, setRole] = useState<AppUserRole>("student")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  // The bottom-of-form `hint` below only ever shows the *first* unmet
+  // requirement, so it moves off the 8-char password rule the instant a
+  // later field (name, ...) becomes the new blocker — easy to miss even
+  // though the password is still too short. Track blur so the field gets
+  // its own persistent inline warning the moment it's left invalid.
+  const [passwordTouched, setPasswordTouched] = useState(false)
   const [linkMode, setLinkMode] = useState<"existing" | "new">("existing")
   const [existingId, setExistingId] = useState("")
   const [newName, setNewName] = useState("")
@@ -225,10 +231,30 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
   const options = role === "student" ? unlinked.students : role === "teacher" ? unlinked.teachers : []
 
   const isValid =
-    username.trim().length >= 3 &&
+    username.trim().length >= 1 &&
     password.length >= 8 &&
     (role === "admin" ||
       (linkMode === "existing" ? !!existingId : role === "student" ? !!newName.trim() : !!newName.trim() && !!newNameEn.trim()))
+
+  // Mirrors isValid's checks in order, but names *which* requirement is
+  // still unmet — isValid alone just disables 确认 with no explanation, so
+  // an admin under the password's min-length rule (8 chars, shown nowhere
+  // else in the UI) or the "已有档案" empty-list case had no way to tell
+  // why the button stayed grey. Reuses the same i18n keys the equivalent
+  // server-side rejection (lib/actions/users.ts) already uses, so the
+  // wording matches whichever path actually fires.
+  const validationHint = (): string | null => {
+    if (username.trim().length < 1) return "adm.users.err.invalidUsername"
+    // Skip once touched — the password field shows this same message
+    // inline right under itself then, so repeating it down here would just
+    // be the identical text twice on screen.
+    if (password.length < 8) return passwordTouched ? null : "adm.users.err.invalidPassword"
+    if (role === "admin") return null
+    if (linkMode === "existing") return existingId ? null : "adm.users.err.missingLink"
+    if (role === "student") return newName.trim() ? null : "adm.users.err.missingStudentFields"
+    return newName.trim() && newNameEn.trim() ? null : "adm.users.err.missingTeacherFields"
+  }
+  const hint = validationHint()
 
   const handleConfirm = () => {
     if (!isValid || isPending) return
@@ -282,7 +308,16 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid gap-2">
             <Label>{t("auth.password")}</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => setPasswordTouched(true)}
+              className={cn(passwordTouched && password.length < 8 && "border-destructive")}
+            />
+            {passwordTouched && password.length < 8 && (
+              <p className="text-xs text-destructive">{t("adm.users.err.invalidPassword")}</p>
+            )}
           </div>
         </div>
 
@@ -366,6 +401,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
         )}
 
         {error && <p className="text-sm text-destructive">{t(error)}</p>}
+        {!error && hint && <p className="text-xs text-muted-foreground">{t(hint)}</p>}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose} disabled={isPending}>
@@ -387,7 +423,7 @@ function EditUserForm({ user, onClose }: { user: AppUser; onClose: () => void })
   const [error, setError] = useState<string | null>(null)
 
   const handleConfirm = () => {
-    if (username.trim().length < 3 || isPending) return
+    if (username.trim().length < 1 || isPending) return
     startTransition(async () => {
       try {
         await updateUser(user.id, username)
@@ -415,7 +451,7 @@ function EditUserForm({ user, onClose }: { user: AppUser; onClose: () => void })
         <Button variant="outline" onClick={onClose} disabled={isPending}>
           {t("common.close")}
         </Button>
-        <Button onClick={handleConfirm} disabled={username.trim().length < 3 || isPending}>
+        <Button onClick={handleConfirm} disabled={username.trim().length < 1 || isPending}>
           {t("common.save")}
         </Button>
       </DialogFooter>
@@ -428,6 +464,7 @@ function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => vo
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [password, setPassword] = useState("")
+  const [passwordTouched, setPasswordTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleConfirm = () => {
@@ -452,7 +489,16 @@ function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => vo
         <p className="text-sm text-muted-foreground">{t("adm.users.resetPasswordDesc")}</p>
         <div className="grid gap-2">
           <Label>{t("auth.newPassword")}</Label>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
+            className={cn(passwordTouched && password.length < 8 && "border-destructive")}
+          />
+          {passwordTouched && password.length < 8 && (
+            <p className="text-xs text-destructive">{t("adm.users.err.invalidPassword")}</p>
+          )}
         </div>
         {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>
