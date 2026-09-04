@@ -99,6 +99,22 @@ export async function checkInByCode(
   return { bookingId: booking.id, name: student.name }
 }
 
+// "全部签到" — mark every not-yet-checked-in BOOKED student for this occurrence
+// as present in one go. Deliberately:
+//   - BOOKED only — waitlisted students aren't confirmed in the class
+//   - checkedIn:false only — leaves already-checked-in rows (incl. QR scans and
+//     代签) exactly as they are
+//   - proxy:false — counts as a normal check-in, per the roster's own semantics
+// Returns the fresh roster so the caller doesn't have to guess what changed.
+export async function checkInAll(sessionId: string, date: string): Promise<RosterEntry[]> {
+  await assertOwnsSession(sessionId)
+  await prisma.booking.updateMany({
+    where: { sessionId, date: parseISODate(date), state: "BOOKED", checkedIn: false },
+    data: { checkedIn: true, proxy: false },
+  })
+  return getRosterForSession(sessionId, date)
+}
+
 export async function setCheckedIn(bookingId: string, checkedIn: boolean, proxy = false) {
   const session = await requireAnyRole(["TEACHER", "ADMIN"])
   if (session.role !== "ADMIN") {

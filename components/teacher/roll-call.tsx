@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
 import type { ClassSession, Room, RosterEntry } from "@/lib/types"
-import { getRosterForSession, setCheckedIn, checkInByCode } from "@/lib/actions/rollcall"
+import { getRosterForSession, setCheckedIn, checkInByCode, checkInAll } from "@/lib/actions/rollcall"
 import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
 import { StyleDot } from "@/components/shared/style-dot"
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ export function RollCall({
   const session = sessions.find((s) => s.id === sessionId)!
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     let cancelled = false
@@ -62,6 +62,15 @@ export function RollCall({
     setRoster((prev) => prev.map((r) => (r.id === id ? { ...r, checkedIn: nextCheckedIn, proxy: nextProxy } : r)))
     startTransition(async () => {
       await setCheckedIn(id, nextCheckedIn, nextProxy)
+    })
+  }
+
+  const someUnchecked = roster.some((r) => !r.checkedIn)
+  const checkAll = () => {
+    // Server checks in every not-yet-checked-in BOOKED student and returns the
+    // fresh roster (waitlisted rows stay untouched), so no optimistic guess.
+    startTransition(async () => {
+      setRoster(await checkInAll(sessionId, date))
     })
   }
 
@@ -120,14 +129,26 @@ export function RollCall({
           {t("tea.mySchedule")}
         </button>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <StyleDot style={session.style} />
-            <span className="font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
+            <span className="truncate font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
           </div>
-          <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs" onClick={() => setScannerOpen(true)}>
-            <ScanLine className="mr-1 h-3.5 w-3.5" />
-            {t("tea.scanCheckIn")}
-          </Button>
+          <div className="flex shrink-0 gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2.5 text-xs"
+              disabled={loading || isPending || !someUnchecked}
+              onClick={checkAll}
+            >
+              <UserCheck className="mr-1 h-3.5 w-3.5" />
+              {t("tea.checkInAll")}
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs" onClick={() => setScannerOpen(true)}>
+              <ScanLine className="mr-1 h-3.5 w-3.5" />
+              {t("tea.scanCheckIn")}
+            </Button>
+          </div>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {formatAppDate(parseISODate(date))} · {session.start}–{session.end} · {roomName}

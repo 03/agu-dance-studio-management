@@ -181,6 +181,7 @@ export const dict: Dict = {
   "tea.scanErr.invalidCode": { zh: "无效的签到码", en: "Not a valid check-in code" },
   "tea.scanErr.notRegistered": { zh: "该学员未报名此课程", en: "This student isn't registered for this class" },
   "tea.scanErr.cameraDenied": { zh: "无法访问摄像头，请检查浏览器权限设置", en: "Can't access the camera — check your browser permissions" },
+  "tea.checkInAll": { zh: "全部签到", en: "Check in all" },
 
   // Admin
   "adm.title": { zh: "教务管理后台", en: "Admin console" },
