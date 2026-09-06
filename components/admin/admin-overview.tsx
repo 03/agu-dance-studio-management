@@ -13,6 +13,12 @@ import type { AdminAppData, YearlyCashFlow, YearlyStyleStats, MonthlySessionDeta
 
 const styleKeys = Object.keys(styleColors) as StyleKey[]
 
+// A flat per-session rate for the "每日课时" dialog's back-of-envelope
+// revenue estimate — real pricing varies per card/product, so this is
+// deliberately just illustrative, not a substitute for the real numbers
+// the 现金流 chart already shows from actual Payment rows.
+const ESTIMATED_RATE_PER_SESSION = 40
+
 export function AdminOverview({
   admin,
   teachers,
@@ -256,6 +262,16 @@ function SessionStatsSection({
             <DialogTitle className="font-display">
               {t("adm.chart.sessionDetail")} · {stats.year} {lang === "zh" ? detailMonth?.label : detailMonth?.labelEn}
             </DialogTitle>
+            {detail &&
+              (() => {
+                const monthTotal = detail.days.reduce((sum, d) => sum + d.total, 0)
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    {t("adm.chart.sessionDetail.estimate")}：{ESTIMATED_RATE_PER_SESSION} × {monthTotal} = {t("unit.currency")}
+                    {(ESTIMATED_RATE_PER_SESSION * monthTotal).toLocaleString()}
+                  </p>
+                )
+              })()}
           </DialogHeader>
           {detailLoading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}…</p>

@@ -301,6 +301,7 @@ export const dict: Dict = {
   "adm.chart.teacherHeads": { zh: "教师上课人次", en: "Teacher attendance" },
   "adm.chart.sessionDetail": { zh: "每日课时", en: "Daily sessions" },
   "adm.chart.sessionDetail.empty": { zh: "本月暂无课耗记录", en: "No sessions consumed this month" },
+  "adm.chart.sessionDetail.estimate": { zh: "月金额估算", en: "Estimated monthly amount" },
   "adm.schedule.weekly": { zh: "每周循环课表", en: "Weekly recurring schedule" },
   "adm.schedule.add": { zh: "新增排课", en: "Add class" },
   "adm.schedule.editSingle": { zh: "单次调整", en: "Edit single session" },
