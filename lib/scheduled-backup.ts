@@ -6,12 +6,14 @@
 // for cron-expression parsing this app will only ever use one line of.
 //
 // This depends on the server process actually staying up continuously —
-// true for a persistent Node process (`next start`, which is how this app
-// runs), but NOT true if the host recycles/sleeps an idle process, in which
-// case backups would silently stop happening with no error anywhere. If
-// that turns out to be the case on whatever host this ends up on, the more
-// robust fallback is an external cron hitting a scheduled endpoint instead
-// of relying on in-process uptime — ask if that's needed.
+// true for a persistent Node process (`next start`, which is how the demo
+// deploy on Hostinger runs), but NOT true on Vercel, whose serverless
+// functions don't stay warm between requests — this loop would just never
+// get a chance to tick, with no error anywhere to say so. See
+// app/api/cron/backup/route.ts + vercel.json for that deploy's actual
+// mechanism (Vercel Cron hitting a route instead of relying on in-process
+// uptime); startScheduledBackup() below skips itself there rather than
+// logging "armed" for a timer that was never going to fire.
 import { studioDateParts } from "@/lib/schedule-dates"
 import { runBackupCycle } from "@/lib/backup"
 
@@ -54,6 +56,12 @@ async function checkAndRun() {
 export function startScheduledBackup() {
   if (started) return
   started = true
+  // Vercel sets this automatically — see the module comment above for why
+  // this timer is skipped there rather than armed for nothing.
+  if (process.env.VERCEL) {
+    console.log("[scheduled-backup] on Vercel — using Cron (app/api/cron/backup) instead, not arming the in-process timer")
+    return
+  }
   checkAndRun() // covers the process starting up already inside the 02:00 hour
   setInterval(checkAndRun, CHECK_INTERVAL_MS)
   console.log("[scheduled-backup] armed — will run daily at 02:00 Australia/Melbourne")
