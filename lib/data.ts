@@ -416,6 +416,47 @@ export async function getYearlyCashFlow(year: number) {
 
 export type YearlyCashFlow = Awaited<ReturnType<typeof getYearlyCashFlow>>
 
+// One calendar month's individual Payment rows, oldest first — backs the
+// admin overview's "click a cash-flow month bar to see that month's income
+// list" feature. `month` is 0-indexed (0=Jan..11=Dec), matching
+// monthRange/getYearlyCashFlow's `months` array. Reuses the same
+// CashierEntry shape/mapper as the 营销记录 cashier feed rather than
+// inventing a slightly-different one for what's ultimately the same kind
+// of row.
+export async function getMonthlyCashFlowDetail(year: number, month: number) {
+  const { start, end } = monthRange(year, month)
+  const payments = await prisma.payment.findMany({
+    where: { paidAt: { gte: start, lt: end } },
+    include: { student: { select: { name: true } }, card: { select: { nameZh: true, nameEn: true } } },
+    orderBy: { paidAt: "asc" },
+  })
+  return payments.map(mapCashierEntry)
+}
+
+export type MonthlyCashFlowDetail = Awaited<ReturnType<typeof getMonthlyCashFlowDetail>>
+
+// One calendar month's daily consumed-class-hours totals, day 1..N in
+// order (N = however many days that month actually has) — backs the admin
+// overview's "click a 课时数 month bar to see a daily bar chart" feature.
+// Every day is present (0 if nothing was consumed that day) so the chart
+// has a consistent, gap-free x-axis rather than only the days with data.
+export async function getMonthlySessionDetail(year: number, month: number) {
+  const { start, end } = monthRange(year, month)
+  const entries = await prisma.ledgerEntry.findMany({
+    where: { kind: "CONSUME", date: { gte: start, lt: end } },
+    select: { delta: true, date: true },
+  })
+
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  const days = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, total: 0 }))
+  for (const e of entries) {
+    days[studioDateParts(e.date).day - 1].total += Math.abs(e.delta)
+  }
+  return { year, month, days }
+}
+
+export type MonthlySessionDetail = Awaited<ReturnType<typeof getMonthlySessionDetail>>
+
 async function getAdminAnalytics() {
   const [thisMonthPayments, checkedInCount, activeStudents, monthConsumed] = await Promise.all([
     prisma.payment.findMany({ where: { paidAt: { gte: startOfMonth() } }, select: { amount: true } }),

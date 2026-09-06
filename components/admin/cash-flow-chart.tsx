@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
-import { getCashFlowForYear } from "@/lib/actions/analytics"
+import { getCashFlowForYear, getCashFlowDetailForMonth } from "@/lib/actions/analytics"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
-import type { YearlyCashFlow } from "@/lib/data"
+import type { YearlyCashFlow, MonthlyCashFlowDetail } from "@/lib/data"
 
 // Shared by the admin overview dashboard and the finance page — both show
 // the same real, year-navigable cash flow (sum of Payment rows per month).
@@ -15,10 +16,27 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
   const [isPending, startTransition] = useTransition()
   const thisYear = new Date().getFullYear()
 
+  // The clicked month's income list — monthIndex is 0-indexed (0=Jan),
+  // matching cashFlow.months' own array order, so it doubles as the
+  // `month` argument getCashFlowDetailForMonth expects.
+  const [detailMonth, setDetailMonth] = useState<{ monthIndex: number; label: string; labelEn: string } | null>(null)
+  const [detail, setDetail] = useState<MonthlyCashFlowDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+
   const goToYear = (year: number) => {
     if (year < cashFlow.minYear || year > cashFlow.maxYear || isPending) return
     startTransition(async () => {
       setCashFlow(await getCashFlowForYear(year))
+    })
+  }
+
+  const openMonth = (monthIndex: number, label: string, labelEn: string) => {
+    setDetailMonth({ monthIndex, label, labelEn })
+    setDetail(null)
+    setDetailLoading(true)
+    getCashFlowDetailForMonth(cashFlow.year, monthIndex).then((rows) => {
+      setDetail(rows)
+      setDetailLoading(false)
     })
   }
 
@@ -65,8 +83,13 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
         </div>
       </div>
       <div className="flex h-52 items-end justify-between gap-2">
-        {cashFlow.months.map((c) => (
-          <div key={c.month} className="flex flex-1 flex-col items-center gap-2">
+        {cashFlow.months.map((c, i) => (
+          <button
+            key={c.month}
+            type="button"
+            onClick={() => openMonth(i, c.month, c.en)}
+            className="flex flex-1 flex-col items-center gap-2 rounded-lg py-1 transition-colors hover:bg-secondary/50"
+          >
             <span className="text-[11px] font-medium text-foreground">
               {c.value > 0 ? `${t("unit.currency")}${(c.value / 1000).toFixed(0)}k` : ""}
             </span>
@@ -75,9 +98,44 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
               style={{ height: `${(c.value / maxFlow) * 160}px` }}
             />
             <span className="text-[11px] text-muted-foreground">{lang === "zh" ? c.month : c.en}</span>
-          </div>
+          </button>
         ))}
       </div>
+
+      <Dialog open={!!detailMonth} onOpenChange={(o) => !o && setDetailMonth(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {t("adm.chart.cashflow.monthDetail")} · {cashFlow.year} {lang === "zh" ? detailMonth?.label : detailMonth?.labelEn}
+            </DialogTitle>
+          </DialogHeader>
+          {detailLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}…</p>
+          ) : !detail || detail.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("adm.chart.cashflow.monthEmpty")}</p>
+          ) : (
+            <ul className="max-h-96 overflow-y-auto rounded-2xl border border-border">
+              {detail.map((c, i) => (
+                <li
+                  key={c.id}
+                  className={`flex items-center justify-between px-4 py-3 ${i !== detail.length - 1 ? "border-b border-border" : ""}`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-card-foreground">{c.studentName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {c.cardName ? (lang === "zh" ? c.cardName.zh : c.cardName.en) : "—"} · {t(c.method)} · {c.paidAt}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-display text-base font-bold text-chart-5">
+                    +{t("unit.currency")}
+                    {c.amount.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

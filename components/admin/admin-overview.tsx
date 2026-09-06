@@ -6,9 +6,10 @@ import { styleColors, type StyleKey } from "@/lib/types"
 import { StyleDot } from "@/components/shared/style-dot"
 import { CashFlowChart } from "./cash-flow-chart"
 import { Button } from "@/components/ui/button"
-import { getSessionStatsForYear } from "@/lib/actions/analytics"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { getSessionStatsForYear, getSessionStatsDetailForMonth } from "@/lib/actions/analytics"
 import { TrendingUp, Flame, Users, UserCheck, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
-import type { AdminAppData, YearlyCashFlow, YearlyStyleStats } from "@/lib/data"
+import type { AdminAppData, YearlyCashFlow, YearlyStyleStats, MonthlySessionDetail } from "@/lib/data"
 
 const styleKeys = Object.keys(styleColors) as StyleKey[]
 
@@ -76,11 +77,28 @@ function SessionStatsSection({
   const thisYear = new Date().getFullYear()
   const maxHeads = Math.max(1, ...stats.teacherStats.map((s) => s.heads))
 
+  // The clicked month's daily breakdown — monthIndex is 0-indexed (0=Jan),
+  // matching stats.months' own array order and getSessionStatsDetailForMonth's
+  // `month` argument.
+  const [detailMonth, setDetailMonth] = useState<{ monthIndex: number; label: string; labelEn: string } | null>(null)
+  const [detail, setDetail] = useState<MonthlySessionDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+
   const goTo = (year: number) => {
     if (year < stats.minYear || year > stats.maxYear || isPending) return
     startTransition(async () => {
       const next = await getSessionStatsForYear(year)
       setStats(next)
+    })
+  }
+
+  const openMonth = (monthIndex: number, label: string, labelEn: string) => {
+    setDetailMonth({ monthIndex, label, labelEn })
+    setDetail(null)
+    setDetailLoading(true)
+    getSessionStatsDetailForMonth(stats.year, monthIndex).then((d) => {
+      setDetail(d)
+      setDetailLoading(false)
     })
   }
 
@@ -203,8 +221,13 @@ function SessionStatsSection({
       </div>
 
       <div className="flex h-52 items-end justify-between gap-2">
-        {stats.months.map((m) => (
-          <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
+        {stats.months.map((m, i) => (
+          <button
+            key={m.month}
+            type="button"
+            onClick={() => openMonth(i, m.month, m.en)}
+            className="flex flex-1 flex-col items-center gap-2 rounded-lg py-1 transition-colors hover:bg-secondary/50"
+          >
             <span className="text-[11px] font-medium text-muted-foreground">{m.total || ""}</span>
             <div
               className="flex w-full flex-col overflow-hidden rounded-t-lg"
@@ -223,9 +246,42 @@ function SessionStatsSection({
                 ))}
             </div>
             <span className="text-[11px] text-muted-foreground">{lang === "zh" ? m.month : m.en}</span>
-          </div>
+          </button>
         ))}
       </div>
+
+      <Dialog open={!!detailMonth} onOpenChange={(o) => !o && setDetailMonth(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {t("adm.chart.sessionDetail")} · {stats.year} {lang === "zh" ? detailMonth?.label : detailMonth?.labelEn}
+            </DialogTitle>
+          </DialogHeader>
+          {detailLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}…</p>
+          ) : !detail || detail.days.every((d) => d.total === 0) ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("adm.chart.sessionDetail.empty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="flex h-48 min-w-max items-end gap-1.5 pb-1">
+                {(() => {
+                  const maxDayTotal = Math.max(1, ...detail.days.map((d) => d.total))
+                  return detail.days.map((d) => (
+                    <div key={d.day} className="flex w-7 flex-col items-center gap-1.5">
+                      <span className="text-[10px] font-medium text-muted-foreground">{d.total || ""}</span>
+                      <div
+                        className="w-full rounded-t-md bg-primary transition-all"
+                        style={{ height: `${(d.total / maxDayTotal) * 140}px` }}
+                      />
+                      <span className="text-[10px] text-muted-foreground">{d.day}</span>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
