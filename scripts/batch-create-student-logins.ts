@@ -6,13 +6,14 @@
 // are created with mustChangePassword=true, so each student sets their own
 // on first login.
 // Run via `npx tsx scripts/batch-create-student-logins.ts`.
-import { PrismaPg } from "@prisma/adapter-pg"
+import { PrismaMariaDb } from "@prisma/adapter-mariadb"
 import { PrismaClient } from "../lib/generated/prisma/client"
+import { parseConnectionString } from "../lib/db"
 import { hashPassword } from "../lib/password"
 
 const INITIAL_PASSWORD = "agudance"
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaMariaDb(parseConnectionString(process.env.DATABASE_URL))
 const prisma = new PrismaClient({ adapter })
 
 async function main() {

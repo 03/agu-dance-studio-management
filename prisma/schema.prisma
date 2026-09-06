@@ -1,7 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// mysql-demo branch: datasource swapped to MySQL (was postgresql on main).
+// Two knock-on changes elsewhere in this file for things Postgres has that
+// MySQL doesn't — see Student.checkInCode and Teacher.styles' own comments.
 
 generator client {
   provider = "prisma-client"
@@ -9,7 +11,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // Mirrors StyleKey in lib/mock-data.ts
@@ -78,11 +80,15 @@ enum UserRole {
 }
 
 model Teacher {
-  id       String         @id @default(cuid())
-  name     String
-  nameEn   String
-  avatar   String
-  styles   DanceStyle[]
+  id     String @id @default(cuid())
+  name   String
+  nameEn String
+  avatar String
+  // Was DanceStyle[] on main (a native Postgres array column) — MySQL has
+  // no scalar list column type in Prisma, only Postgres/CockroachDB/Mongo
+  // do. Stored as a JSON array of the same DanceStyle string values
+  // instead; lib/mappers.ts casts it back on read (only read/write site).
+  styles   Json
   sessions ClassSession[]
   user     User?
 
@@ -159,7 +165,10 @@ model Student {
   // (see lib/checkin.ts) — DB-generated so every existing row gets one for
   // free at migration time, same idea as Session.token but a stable,
   // regenerable value rather than an expiring login session.
-  checkInCode   String         @unique @default(dbgenerated("gen_random_uuid()"))
+  // gen_random_uuid() on main is Postgres-only; MySQL 8's equivalent is
+  // uuid(), which needs the parens-wrapped form to be usable as a column
+  // DEFAULT expression.
+  checkInCode   String         @unique @default(dbgenerated("(uuid())"))
   // Free-text note the student writes about themself, e.g. injuries or
   // things a teacher should know — visible to the student, their teachers,
   // and admin, but never in a bulk list another student could see (see

@@ -1,4 +1,6 @@
 services:
+  # Main-branch local dev DB (Postgres) — left untouched so switching to
+  # this branch never disturbs whatever's already running against it.
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -11,5 +13,23 @@ services:
     volumes:
       - agu_pgdata:/var/lib/postgresql/data
 
+  # mysql-demo branch's local dev DB — separate service/port/volume from
+  # `db` above so both can run side by side; start just this one with
+  # `docker compose up -d mysql`. Root is used directly (rather than a
+  # scoped MYSQL_USER) since `prisma migrate dev` needs CREATE DATABASE
+  # privileges for its shadow database, same throwaway-local-creds
+  # tradeoff `db` above already makes.
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: agu
+      MYSQL_DATABASE: agu
+    ports:
+      - "3306:3306"
+    volumes:
+      - agu_mysqldata:/var/lib/mysql
+
 volumes:
   agu_pgdata:
+  agu_mysqldata:
