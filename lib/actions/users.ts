@@ -97,13 +97,18 @@ export async function deleteUser(userId: string) {
   await prisma.user.delete({ where: { id: userId } })
 }
 
-// Forces re-login everywhere by deleting every existing session for this user.
+// Forces re-login everywhere by deleting every existing session for this
+// user. Reports back whether the caller reset their own account (rather
+// than another user's), since that destroys the admin's own session too —
+// the caller uses this to redirect to a fresh login instead of refreshing
+// a page it no longer has a session for (see admin-users.tsx).
 export async function adminResetPassword(userId: string, newPassword: string) {
-  await requireRole("ADMIN")
+  const session = await requireRole("ADMIN")
   if (newPassword.length < 8) throw new Error("INVALID_PASSWORD")
   const passwordHash = await hashPassword(newPassword)
   await prisma.$transaction([
     prisma.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true } }),
     prisma.session.deleteMany({ where: { userId } }),
   ])
+  return { selfReset: userId === session.userId }
 }

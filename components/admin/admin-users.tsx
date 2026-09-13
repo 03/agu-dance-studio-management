@@ -471,9 +471,18 @@ function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => vo
     if (password.length < 8 || isPending) return
     startTransition(async () => {
       try {
-        await adminResetPassword(user.id, password)
-        router.refresh()
-        onClose()
+        const result = await adminResetPassword(user.id, password)
+        if (result.selfReset) {
+          // Our own session was just destroyed along with the password
+          // change — router.refresh() would re-render this same page with
+          // no session, which falls back to the public homepage's default
+          // (student) login form instead of an admin one. A hard
+          // navigation to /admin lands on the right login form instead.
+          router.push("/admin")
+        } else {
+          router.refresh()
+          onClose()
+        }
       } catch (e) {
         setError(errorKeyFor(e))
       }
