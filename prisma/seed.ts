@@ -267,6 +267,43 @@ async function seedDemoHistory() {
       paidAt: joinedDate,
     })
 
+    // A slice of active students "renew" with a second card paid this
+    // month or last month — without this, every payment's paidAt is the
+    // student's joinedDate (2-8 months back per tenureMonths above), so
+    // both 运营总览's 本月现金流 KPI (sums Payment.amount where paidAt is in
+    // the current month — see getAdminAnalytics in lib/data.ts) and 营销记录
+    // (lists Payment rows, newest first) would look dead for the most
+    // recent two months despite plenty of historical revenue further back.
+    if (status === "ACTIVE" && n % 10 === 0) {
+      const isLastMonth = n % 20 === 0 // half this month, half last month
+      const renewProduct = isLastMonth
+        ? { id: "p2", sessions: 21, price: 800, validityDays: 365, nameZh: "21 次卡", nameEn: "21-class pack" }
+        : { id: "p1", sessions: 10, price: 400, validityDays: 180, nameZh: "10 次卡", nameEn: "10-class card" }
+      const renewCardId = `dc${n}-2`
+      const renewMonth = today.getMonth() - (isLastMonth ? 1 : 0)
+      const daysInRenewMonth = new Date(today.getFullYear(), renewMonth + 1, 0).getDate()
+      const dayOfMonth = isLastMonth ? 1 + (n % daysInRenewMonth) : 1 + (n % Math.max(1, today.getDate()))
+      const paidAt = new Date(today.getFullYear(), renewMonth, dayOfMonth)
+      cards.push({
+        id: renewCardId,
+        studentId: students[students.length - 1].id,
+        productId: renewProduct.id,
+        type: "TIMES",
+        nameZh: renewProduct.nameZh,
+        nameEn: renewProduct.nameEn,
+        balance: renewProduct.sessions,
+        total: renewProduct.sessions,
+        expiry: new Date(paidAt.getFullYear(), paidAt.getMonth(), paidAt.getDate() + renewProduct.validityDays),
+      })
+      payments.push({
+        id: `dp${n}-2`,
+        studentId: students[students.length - 1].id,
+        cardId: renewCardId,
+        amount: renewProduct.price,
+        paidAt,
+      })
+    }
+
     consumed.forEach((occurrenceDate, idx) => {
       const bookingId = `db${n}-${idx}`
       // A real registration timestamp, not literal midnight — spread across
