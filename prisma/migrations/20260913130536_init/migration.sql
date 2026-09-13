@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "DanceStyle" AS ENUM ('JAZZ', 'HIPHOP', 'BALLET', 'KPOP', 'CONTEMPORARY', 'LATIN', 'JAZZ_KPOP');
 
@@ -15,6 +12,9 @@ CREATE TYPE "SessionStatus" AS ENUM ('NORMAL', 'CANCELED');
 
 -- CreateEnum
 CREATE TYPE "BookingState" AS ENUM ('BOOKED', 'WAITLIST', 'CANCELED');
+
+-- CreateEnum
+CREATE TYPE "BookingEventType" AS ENUM ('ADD', 'CANCEL');
 
 -- CreateEnum
 CREATE TYPE "LedgerKind" AS ENUM ('CONSUME', 'RECHARGE', 'GIFT', 'REFUND', 'ADJUST');
@@ -113,6 +113,19 @@ CREATE TABLE "bookings" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "bookings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "booking_events" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "bookingId" TEXT,
+    "type" "BookingEventType" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "booking_events_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -216,7 +229,10 @@ CREATE TABLE "backup_records" (
 CREATE UNIQUE INDEX "students_checkInCode_key" ON "students"("checkInCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bookings_studentId_sessionId_date_key" ON "bookings"("studentId", "sessionId", "date");
+CREATE INDEX "bookings_studentId_sessionId_date_idx" ON "bookings"("studentId", "sessionId", "date");
+
+-- CreateIndex
+CREATE INDEX "booking_events_sessionId_date_idx" ON "booking_events"("sessionId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ledger_entries_bookingId_key" ON "ledger_entries"("bookingId");
@@ -249,6 +265,15 @@ ALTER TABLE "bookings" ADD CONSTRAINT "bookings_studentId_fkey" FOREIGN KEY ("st
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "class_sessions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "booking_events" ADD CONSTRAINT "booking_events_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "class_sessions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "booking_events" ADD CONSTRAINT "booking_events_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "booking_events" ADD CONSTRAINT "booking_events_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "student_cards" ADD CONSTRAINT "student_cards_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "students"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -277,4 +302,3 @@ ALTER TABLE "users" ADD CONSTRAINT "users_teacherId_fkey" FOREIGN KEY ("teacherI
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
