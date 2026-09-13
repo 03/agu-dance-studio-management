@@ -8,7 +8,7 @@
 // Run via `npx tsx scripts/batch-create-student-logins.ts`.
 import { PrismaMariaDb } from "@prisma/adapter-mariadb"
 import { PrismaClient } from "../lib/generated/prisma/client"
-import { parseConnectionString } from "../lib/db"
+import { parseConnectionString } from "../lib/db-connection"
 import { hashPassword } from "../lib/password"
 
 const INITIAL_PASSWORD = "agudance"

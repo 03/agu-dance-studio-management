@@ -1,7 +1,7 @@
 // Run via `prisma db seed` (wired through prisma.config.ts -> tsx).
 import {PrismaMariaDb} from "@prisma/adapter-mariadb"
 import {PrismaClient} from "../lib/generated/prisma/client"
-import {parseConnectionString} from "../lib/db"
+import {parseConnectionString} from "../lib/db-connection"
 import {hashPassword} from "../lib/password"
 
 const adapter = new PrismaMariaDb(parseConnectionString(process.env.DATABASE_URL))
