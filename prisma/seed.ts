@@ -4,6 +4,7 @@ import {PrismaClient} from "../lib/generated/prisma/client"
 import {parseConnectionString} from "../lib/db-connection"
 import {hashPassword} from "../lib/password"
 import {styleDbToKey, styleLabel} from "../lib/mappers"
+import {parseISODate} from "../lib/schedule-dates"
 
 const adapter = new PrismaMariaDb(parseConnectionString(process.env.DATABASE_URL))
 const prisma = new PrismaClient({ adapter })
@@ -62,17 +63,41 @@ async function main() {
   console.log("Seed complete.")
 }
 
-// Purely additive demo history — students, one extra teacher, and past
-// bookings/payments — so a freshly seeded install doesn't look like it was
-// created five minutes ago. Deliberately never touches the teacher/room/
-// class_sessions/card_products/admin+agu1 data seeded above: every id here
-// is its own new row, and every booking below is against one of the
-// existing class_sessions (c1-c8) rather than inventing a new one.
+// Purely additive demo history — students, a few extra teachers and class
+// sessions in other dance styles, and past bookings/payments — so a freshly
+// seeded install doesn't look like it was created five minutes ago and
+// doesn't look like a one-style studio. Deliberately never touches the
+// teacher/room/class_sessions/card_products/admin+agu1 data seeded above:
+// every id here is its own new row, and every new class session below is
+// scheduled into a day/room/time slot the fixed c1-c8 schedule doesn't use
+// (so nothing double-books a room).
 async function seedDemoHistory() {
-  const DEMO_TEACHER = { id: "t2", name: "小美", nameEn: "Mia", avatar: "/placeholder-user.jpg", styles: ["HIPHOP", "LATIN"] as const }
-  await prisma.teacher.create({ data: DEMO_TEACHER })
-  await prisma.user.create({
-    data: { username: "mia1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: DEMO_TEACHER.id },
+  const EXTRA_TEACHERS = [
+    { id: "t2", name: "小美", nameEn: "Mia", avatar: "/placeholder-user.jpg", styles: ["HIPHOP", "LATIN"] as const },
+    { id: "t3", name: "思婷", nameEn: "Sophie", avatar: "/placeholder-user.jpg", styles: ["BALLET"] as const },
+    { id: "t4", name: "俊宇", nameEn: "Jun", avatar: "/placeholder-user.jpg", styles: ["CONTEMPORARY"] as const },
+  ]
+  await prisma.teacher.createMany({ data: EXTRA_TEACHERS })
+  await prisma.user.createMany({
+    data: [
+      { username: "mia1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: "t2" },
+      { username: "sophie1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: "t3" },
+      { username: "jun1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: "t4" },
+    ],
+  })
+
+  // New class sessions in styles the fixed c1-c8 schedule never uses
+  // (those are all JAZZ_KPOP) — each in a day/room/time slot free of the
+  // existing schedule, so 课程表 gains variety without touching it.
+  await prisma.classSession.createMany({
+    data: [
+      { id: "c9", style: "JAZZ", teacherId: "t1", roomId: "r2", day: 0, start: "09:30", end: "11:00", capacity: 30, levelZh: "进阶班", levelEn: "Advanced" },
+      { id: "c10", style: "HIPHOP", teacherId: "t2", roomId: "r1", day: 0, start: "19:30", end: "21:00", capacity: 30, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c11", style: "LATIN", teacherId: "t2", roomId: "r3", day: 0, start: "19:00", end: "20:30", capacity: 25, levelZh: "入门班", levelEn: "Beginner" },
+      { id: "c12", style: "BALLET", teacherId: "t3", roomId: "r3", day: 2, start: "18:00", end: "19:30", capacity: 20, levelZh: "形体基础班", levelEn: "Beginner" },
+      { id: "c13", style: "CONTEMPORARY", teacherId: "t4", roomId: "r1", day: 4, start: "19:30", end: "21:00", capacity: 25, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c14", style: "KPOP", teacherId: "t1", roomId: "r2", day: 5, start: "14:00", end: "15:30", capacity: 30, levelZh: "入门班", levelEn: "Beginner" },
+    ],
   })
 
   // Fictional names only — not a real student's name from anywhere this
@@ -83,28 +108,54 @@ async function seedDemoHistory() {
     "谢佳琪", "Ethan 江", "韩雪儿", "Vivian 潘", "冯梓涵", "Jason 蔡", "曹语彤", "Nancy 邓",
   ]
 
+  // One entry per bookable session (the fixed c1-c8 plus the new c9-c14
+  // above), with the style/teacher a booking against it should show in
+  // 课时消费's ledger title — every session here is JAZZ_KPOP/阿古 for
+  // c1-c8, but each new session has its own style and teacher.
   const CLASS_SESSIONS = [
-    { id: "c1", day: 1 }, { id: "c2", day: 3 }, { id: "c3", day: 5 }, { id: "c4", day: 6 },
-    { id: "c5", day: 2 }, { id: "c6", day: 3 }, { id: "c7", day: 4 }, { id: "c8", day: 6 },
+    { id: "c1", day: 1, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c2", day: 3, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c3", day: 5, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c4", day: 6, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c5", day: 2, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c6", day: 3, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c7", day: 4, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c8", day: 6, style: "JAZZ_KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c9", day: 0, style: "JAZZ" as const, teacherName: "阿古", teacherNameEn: "Agu" },
+    { id: "c10", day: 0, style: "HIPHOP" as const, teacherName: "小美", teacherNameEn: "Mia" },
+    { id: "c11", day: 0, style: "LATIN" as const, teacherName: "小美", teacherNameEn: "Mia" },
+    { id: "c12", day: 2, style: "BALLET" as const, teacherName: "思婷", teacherNameEn: "Sophie" },
+    { id: "c13", day: 4, style: "CONTEMPORARY" as const, teacherName: "俊宇", teacherNameEn: "Jun" },
+    { id: "c14", day: 5, style: "KPOP" as const, teacherName: "阿古", teacherNameEn: "Agu" },
   ]
   // 0 = Mon..6 = Sun (this app's day convention) for a plain JS Date.
   const toAppDay = (d: Date) => (d.getDay() + 6) % 7
+  const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 
   // Every date a given weekday actually fell on between [from, to)
   // (exclusive of `to`, so "yesterday" as the upper bound never includes
-  // today itself).
+  // today itself). Returned as the same Melbourne-midnight UTC instant
+  // parseISODate produces everywhere else in this app (Booking.date,
+  // LedgerEntry.date, ...) — NOT plain `new Date(y,m,d)`, which encodes
+  // midnight in whichever timezone the *process running this script*
+  // happens to be in. That's fine when this happens to run somewhere
+  // already set to Australia/Melbourne (silently "worked" locally), and
+  // wrong everywhere else (a plain UTC container, e.g. deploying this
+  // seed to a remote host) — off by the UTC offset, which every exact-date
+  // lookup in this app (课时登记's roster, 接龙历史) requires matching
+  // precisely; a monthly aggregate merely bucketing by day still looked
+  // right by coincidence, which is what made this easy to miss.
   function occurrencesOf(appDay: number, from: Date, to: Date): Date[] {
     const dates: Date[] = []
     const d = new Date(from)
     d.setHours(0, 0, 0, 0)
     while (d < to) {
-      if (toAppDay(d) === appDay) dates.push(new Date(d))
+      if (toAppDay(d) === appDay) dates.push(parseISODate(isoOf(d)))
       d.setDate(d.getDate() + 1)
     }
     return dates
   }
 
-  const label = styleLabel(styleDbToKey("JAZZ_KPOP")) // every existing session is this style
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -112,7 +163,8 @@ async function seedDemoHistory() {
   const cards: { id: string; studentId: string; productId: string; type: "TIMES"; nameZh: string; nameEn: string; balance: number; total: number; expiry: Date }[] = []
   const payments: { id: string; studentId: string; cardId: string; amount: number; paidAt: Date }[] = []
   const bookings: { id: string; studentId: string; sessionId: string; date: Date; checkedIn: boolean; createdAt: Date }[] = []
-  const ledgerEntries: { id: string; studentId: string; cardId: string; bookingId: string; date: Date; delta: number }[] = []
+  const ledgerEntries: { id: string; studentId: string; cardId: string; bookingId: string; date: Date; delta: number; titleZh: string; titleEn: string }[] = []
+  const bookingEvents: { id: string; sessionId: string; studentId: string; bookingId: string; date: Date; createdAt: Date }[] = []
 
   DEMO_STUDENT_NAMES.forEach((name, i) => {
     const n = i + 1
@@ -140,6 +192,7 @@ async function seedDemoHistory() {
     // Cap consumption at the card's own size (minus a small cushion so the
     // remaining balance looks like an active student, not one who's run out).
     const consumed = attended.slice(0, Math.max(0, product.sessions - 1 - (n % 3)))
+    const label = styleLabel(styleDbToKey(home.style))
 
     const cardId = `dc${n}`
     cards.push({
@@ -163,13 +216,16 @@ async function seedDemoHistory() {
 
     consumed.forEach((occurrenceDate, idx) => {
       const bookingId = `db${n}-${idx}`
+      // A real registration timestamp, not literal midnight — spread across
+      // the day so 报名时间/接龙历史 don't all show the same 00:00.
+      const registeredAt = new Date(occurrenceDate.getTime() + ((idx * 37 + n * 13) % 20) * 3_600_000)
       bookings.push({
         id: bookingId,
         studentId: students[students.length - 1].id,
         sessionId: home.id,
         date: occurrenceDate,
         checkedIn: idx % 9 !== 8, // the occasional no-show
-        createdAt: occurrenceDate,
+        createdAt: registeredAt,
       })
       ledgerEntries.push({
         id: `dl${n}-${idx}`,
@@ -178,6 +234,19 @@ async function seedDemoHistory() {
         bookingId,
         date: occurrenceDate,
         delta: -1,
+        titleZh: `${label.zh} · ${home.teacherName}`,
+        titleEn: `${label.en} · ${home.teacherNameEn}`,
+      })
+      // Every real booking has a matching BookingEvent (see
+      // lib/actions/bookings.ts) — without one here, 课时登记's 接龙历史
+      // would show these seeded bookings as if they'd never happened.
+      bookingEvents.push({
+        id: `de${n}-${idx}`,
+        sessionId: home.id,
+        studentId: students[students.length - 1].id,
+        bookingId,
+        date: occurrenceDate,
+        createdAt: registeredAt,
       })
     })
   })
@@ -187,12 +256,10 @@ async function seedDemoHistory() {
   await prisma.payment.createMany({ data: payments.map((p) => ({ ...p, method: "TRANSFER" as const })) })
   await prisma.booking.createMany({ data: bookings.map((b) => ({ ...b, state: "BOOKED" as const })) })
   await prisma.ledgerEntry.createMany({
-    data: ledgerEntries.map((l) => ({
-      ...l,
-      kind: "CONSUME" as const,
-      titleZh: `${label.zh} · 阿古`,
-      titleEn: `${label.en} · Agu`,
-    })),
+    data: ledgerEntries.map((l) => ({ ...l, kind: "CONSUME" as const })),
+  })
+  await prisma.bookingEvent.createMany({
+    data: bookingEvents.map((e) => ({ ...e, type: "ADD" as const })),
   })
 }
 
