@@ -178,7 +178,10 @@ export const mapTeacher = (t: DbTeacher): Teacher => ({
   name: t.name,
   nameEn: t.nameEn,
   avatar: t.avatar,
-  styles: t.styles.map(styleDbToKey),
+  // t.styles is Json on this branch (see Teacher's own schema comment for
+  // why) — always written as a plain DanceStyle[] array, just not typed as
+  // one by Prisma.
+  styles: (t.styles as DanceStyle[]).map(styleDbToKey),
 })
 
 export const mapRoom = (r: DbRoom): Room => ({

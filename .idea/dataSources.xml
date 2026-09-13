@@ -13,7 +13,7 @@
       </jdbc-additional-properties>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="postgres production" uuid="0e5a54ed-fc17-48e1-8a53-a7273be58414">
+    <data-source source="LOCAL" name="agustudio [prod]" uuid="0e5a54ed-fc17-48e1-8a53-a7273be58414">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
