@@ -11,6 +11,11 @@ export const dict: Dict = {
   // Brand / global
   "brand.name": { zh: "Agu 舞蹈工作室", en: "Agu Dance Studio" },
   "brand.tagline": { zh: "全流程管理及预约平台", en: "Studio management & booking" },
+  "home.demo.title": { zh: "Demo 演示", en: "Demo" },
+  "home.demo.credentials": {
+    zh: "学员 student1，教师 teacher1，管理员 admin1，密码均为 demo1234",
+    en: "Student: student1, Teacher: teacher1, Admin: admin1 — password demo1234 for all",
+  },
   "app.backHome": { zh: "退出登录", en: "Log out" },
 
   // Time-of-day badge (PeriodBadge) — 00:00–11:59 / 12:00–17:59 / 18:00–23:59

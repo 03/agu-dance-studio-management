@@ -14,3 +14,9 @@ export const REGISTRATION_ENABLED = false
 // still there in components/public-schedule.tsx; this just keeps both from
 // rendering. Flip back to true to bring the toggle and month view back.
 export const PUBLIC_MONTH_VIEW_ENABLED = false
+
+// Shows a "Demo演示" banner with the shared demo login credentials above
+// the login card on the homepage (components/app-shell.tsx). Only meant
+// for the public Hostinger demo deploy — leave false on a real studio's
+// own deployment, where these credentials wouldn't even exist.
+export const DEMO_MODE_ENABLED = true

@@ -49,12 +49,14 @@ async function main() {
     ],
   })
 
-  // ---- Login accounts. Admin, plus a teacher login linked to t1. No
-  // student login — there's no Student data seeded for one to link to. ----
+  // ---- Login accounts. This is the public demo deploy (see app-shell.tsx's
+  // DEMO_MODE_ENABLED banner), so these use one shared, easy-to-type
+  // password rather than a real studio's actual admin credential. student1
+  // is linked below in seedDemoHistory(), once demo Student rows exist. ----
   await prisma.user.createMany({
     data: [
-      { username: "admin", passwordHash: await hashPassword("admin1234"), role: "ADMIN" },
-      { username: "agu1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: "t1" },
+      { username: "admin1", passwordHash: await hashPassword("demo1234"), role: "ADMIN" },
+      { username: "teacher1", passwordHash: await hashPassword("demo1234"), role: "TEACHER", teacherId: "t1" },
     ],
   })
 
@@ -67,7 +69,7 @@ async function main() {
 // sessions in other dance styles, and past bookings/payments — so a freshly
 // seeded install doesn't look like it was created five minutes ago and
 // doesn't look like a one-style studio. Deliberately never touches the
-// teacher/room/class_sessions/card_products/admin+agu1 data seeded above:
+// teacher/room/class_sessions/card_products/admin1+teacher1 data seeded above:
 // every id here is its own new row, and every new class session below is
 // scheduled into a day/room/time slot the fixed c1-c8 schedule doesn't use
 // (so nothing double-books a room).
@@ -101,12 +103,63 @@ async function seedDemoHistory() {
   })
 
   // Fictional names only — not a real student's name from anywhere this
-  // app has ever actually been used with.
-  const DEMO_STUDENT_NAMES = [
+  // app has ever actually been used with. The 24 hand-picked ones come
+  // first (kept as-is, including the two note-bearing students below which
+  // index into this array), then generateDemoNames() fills the rest by
+  // combining surname/given-name/English-name pools so every class ends up
+  // with enough students to reach a realistic 5-15 sign-ups per occurrence
+  // (see STUDENT_COUNT below) without hand-typing that many names.
+  const HAND_PICKED_NAMES = [
     "王小美", "Sunny 陈", "李佳怡", "Coco 张", "林晓彤", "Bella 黄", "赵梦琪", "Tiffany 刘",
     "周雨萱", "Kevin 吴", "孙悦", "Amy 徐", "郑思涵", "Leo 马", "何雨欣", "Grace 何",
     "谢佳琪", "Ethan 江", "韩雪儿", "Vivian 潘", "冯梓涵", "Jason 蔡", "曹语彤", "Nancy 邓",
   ]
+  const SURNAMES = [
+    "王", "李", "张", "刘", "陈", "杨", "黄", "赵", "周", "吴", "徐", "孙", "胡", "朱", "高",
+    "林", "何", "郭", "马", "罗", "梁", "宋", "郑", "谢", "韩", "唐", "冯", "于", "董", "萧",
+    "程", "曹", "袁", "邓", "许", "傅", "沈", "曾", "彭", "吕",
+  ]
+  const GIVEN_NAMES = [
+    "雨萱", "佳怡", "梦琪", "雪儿", "思涵", "语彤", "晓彤", "梓涵", "若曦", "欣怡",
+    "诗涵", "梦洁", "雅婷", "子涵", "晨曦", "心怡", "佳琪", "雨欣", "梓萱", "雨桐",
+    "梦瑶", "欣妍", "雨凝", "思佳", "梦琳", "雅琪", "雨嫣", "诗琪", "梦妍", "雨薇",
+  ]
+  const EN_NAMES = [
+    "Sunny", "Coco", "Bella", "Tiffany", "Amy", "Grace", "Vivian", "Nancy", "Kevin", "Leo",
+    "Ethan", "Jason", "Mia", "Zoe", "Ivy", "Ella", "Ruby", "Kate", "Lily", "Sam",
+    "Max", "Owen", "Alex", "Chris", "Emma", "Olivia", "Luna", "Nora", "Iris", "Cleo",
+  ]
+  function generateDemoNames(count: number): string[] {
+    const names: string[] = [...HAND_PICKED_NAMES]
+    const seen = new Set(names)
+    let si = 0, gi = 7, ei = 0 // gi starts offset from si so the pairing doesn't repeat in lockstep
+    while (names.length < count) {
+      const useEnglish = names.length % 3 === 0
+      let candidate: string
+      if (useEnglish) {
+        const en = EN_NAMES[ei % EN_NAMES.length]
+        const sur = SURNAMES[Math.floor(ei / EN_NAMES.length) % SURNAMES.length]
+        candidate = `${en} ${sur}`
+        ei++
+      } else {
+        const sur = SURNAMES[si % SURNAMES.length]
+        const giv = GIVEN_NAMES[gi % GIVEN_NAMES.length]
+        candidate = `${sur}${giv}`
+        si++
+        gi++
+      }
+      if (!seen.has(candidate)) {
+        seen.add(candidate)
+        names.push(candidate)
+      }
+    }
+    return names
+  }
+  // 14 sessions, ~75% attendance per home student — this count targets an
+  // average of ~10 registered students per class occurrence (180 * 0.75 /
+  // 14 ≈ 9.6), landing in the requested 5-15 range.
+  const STUDENT_COUNT = 180
+  const DEMO_STUDENT_NAMES = generateDemoNames(STUDENT_COUNT)
 
   // One entry per bookable session (the fixed c1-c8 plus the new c9-c14
   // above), with the style/teacher a booking against it should show in
@@ -252,6 +305,11 @@ async function seedDemoHistory() {
   })
 
   await prisma.student.createMany({ data: students })
+  // Demo login for the public homepage banner — links to the first demo
+  // student (ds1, ACTIVE) so student1 has a normal-looking card/history.
+  await prisma.user.create({
+    data: { username: "student1", passwordHash: await hashPassword("demo1234"), role: "STUDENT", studentId: "ds1" },
+  })
   await prisma.studentCard.createMany({ data: cards })
   await prisma.payment.createMany({ data: payments.map((p) => ({ ...p, method: "TRANSFER" as const })) })
   await prisma.booking.createMany({ data: bookings.map((b) => ({ ...b, state: "BOOKED" as const })) })

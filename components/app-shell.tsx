@@ -7,7 +7,7 @@ import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { PublicSchedule } from "@/components/public-schedule"
 import type { PublicScheduleData } from "@/lib/data"
-import { REGISTRATION_ENABLED } from "@/lib/feature-flags"
+import { DEMO_MODE_ENABLED, REGISTRATION_ENABLED } from "@/lib/feature-flags"
 
 export type Role = "student" | "teacher" | "admin" | null
 
@@ -48,6 +48,12 @@ export function AppShell({
         </header>
 
         <div className="flex flex-1 flex-col items-center gap-10 py-12">
+          {DEMO_MODE_ENABLED && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-5 py-3 text-center backdrop-blur">
+              <p className="text-sm font-semibold text-primary">{t("home.demo.title")}</p>
+              <p className="text-xs text-muted-foreground">{t("home.demo.credentials")}</p>
+            </div>
+          )}
           <LoginForm role={initialRole} onRegister={REGISTRATION_ENABLED ? () => setMode("register") : undefined} />
 
           <div className="w-full rounded-3xl border border-border bg-card/50 p-6 shadow-xl backdrop-blur">
