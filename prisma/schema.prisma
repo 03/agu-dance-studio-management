@@ -101,9 +101,11 @@ model Teacher {
   categories Json
   // The coach's own rating (e.g. a chess.com/lichess-style blitz rating) —
   // nullable so a teacher without one on file still renders fine.
-  rating     Int?
-  sessions   ClassSession[]
-  user       User?
+  rating       Int?
+  sessions     ClassSession[]
+  gameReviews  GameReview[]
+  gameComments GameComment[]
+  user         User?
 
   @@map("teachers")
 }
@@ -198,6 +200,7 @@ model Student {
   bookings      Booking[]
   bookingEvents BookingEvent[]
   payments      Payment[]
+  gameReviews   GameReview[]
   user          User?
 
   @@map("students")
@@ -327,6 +330,47 @@ model Payment {
   paidAt    DateTime      @default(now())
 
   @@map("payments")
+}
+
+// A student-submitted game (pasted as PGN) for a coach to review — the
+// "课后复盘" feature. Distinct from any live-play concept: this app never
+// hosts an actual game, just annotates one played elsewhere. `teacherId`
+// starts null and is claimed by whichever coach leaves the first comment
+// (see addGameComment in lib/actions/game-reviews.ts) rather than needing
+// a separate assignment step.
+model GameReview {
+  id        String        @id @default(cuid())
+  student   Student       @relation(fields: [studentId], references: [id])
+  studentId String
+  teacher   Teacher?      @relation(fields: [teacherId], references: [id])
+  teacherId String?
+  title     String
+  pgn       String        @db.Text
+  // Cached from the PGN's [Result] tag ("1-0"/"0-1"/"1/2-1/2") so the
+  // review list can show it without re-parsing the PGN.
+  result    String?
+  createdAt DateTime      @default(now())
+  comments  GameComment[]
+
+  @@map("game_reviews")
+}
+
+// One coach comment pinned to a specific half-move (ply, 0-indexed) of a
+// GameReview's PGN — not a zh/en pair like the app's own UI strings
+// elsewhere, since this is free-text content the coach writes themselves
+// (same convention as Student.note).
+model GameComment {
+  id        String     @id @default(cuid())
+  review    GameReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId  String
+  ply       Int
+  teacher   Teacher    @relation(fields: [teacherId], references: [id])
+  teacherId String
+  text      String     @db.Text
+  createdAt DateTime   @default(now())
+
+  @@index([reviewId])
+  @@map("game_comments")
 }
 
 // A login account. Optionally linked 1:1 to the business record it acts as

@@ -26,6 +26,8 @@ import type {
   User as DbUser,
   BackupRecord as DbBackupRecord,
   ClassClosure as DbClassClosure,
+  GameReview as DbGameReview,
+  GameComment as DbGameComment,
 } from "@/lib/generated/prisma/client"
 import type {
   CategoryKey,
@@ -47,6 +49,8 @@ import type {
   AppUser,
   AppUserRole,
   BackupRecordEntry,
+  GameReview,
+  GameComment,
 } from "@/lib/types"
 import { toISODate, studioDateParts } from "@/lib/schedule-dates"
 
@@ -390,5 +394,35 @@ export function mapStudent(
     checkInCode: opts.includeCheckInCode ? s.checkInCode : undefined,
     note: opts.includeNote ? s.note : undefined,
     rating: s.rating,
+  }
+}
+
+export const mapGameComment = (c: DbGameComment & { teacher: { name: string } }): GameComment => ({
+  id: c.id,
+  ply: c.ply,
+  teacherName: c.teacher.name,
+  text: c.text,
+  createdAt: formatLedgerDate(c.createdAt),
+})
+
+export function mapGameReview(
+  r: DbGameReview & {
+    student: { name: string }
+    teacher: { name: string } | null
+    comments: (DbGameComment & { teacher: { name: string } })[]
+  },
+  opts: { includeStudentName?: boolean } = {},
+): GameReview {
+  return {
+    id: r.id,
+    studentId: r.studentId,
+    studentName: opts.includeStudentName ? r.student.name : undefined,
+    teacherId: r.teacherId,
+    teacherName: r.teacher?.name,
+    title: r.title,
+    pgn: r.pgn,
+    result: r.result,
+    createdAt: formatDateOnly(r.createdAt),
+    comments: r.comments.map(mapGameComment),
   }
 }

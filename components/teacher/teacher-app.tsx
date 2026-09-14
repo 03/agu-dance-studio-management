@@ -7,9 +7,18 @@ import { Button } from "@/components/ui/button"
 import { MobileFrame } from "@/components/shared/mobile-frame"
 import { TeacherSchedule } from "./teacher-schedule"
 import { RollCall } from "./roll-call"
+import { TeacherReviews } from "./teacher-reviews"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, CalendarDays, ScrollText } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { TeacherAppData } from "@/lib/data"
+
+type View = "schedule" | "reviews"
+
+const views: { key: View; labelKey: string; Icon: typeof CalendarDays }[] = [
+  { key: "schedule", labelKey: "tea.nav.schedule", Icon: CalendarDays },
+  { key: "reviews", labelKey: "tea.nav.reviews", Icon: ScrollText },
+]
 
 export function TeacherApp({
   data,
@@ -19,6 +28,7 @@ export function TeacherApp({
   onExit: () => void | Promise<void>
 }) {
   const { t, lang } = useLanguage()
+  const [view, setView] = useState<View>("schedule")
   // active roll-call (which session, which real occurrence date), or null
   // when viewing the schedule
   const [rollCall, setRollCall] = useState<{ sessionId: string; date: string } | null>(null)
@@ -67,15 +77,36 @@ export function TeacherApp({
                   rooms={data.rooms}
                   onBack={() => setRollCall(null)}
                 />
-              ) : (
+              ) : view === "schedule" ? (
                 <TeacherSchedule
                   sessions={data.teacher.sessions}
                   occurrences={data.occurrences}
                   rooms={data.rooms}
                   onStartRollCall={(sessionId, date) => setRollCall({ sessionId, date })}
                 />
+              ) : (
+                <TeacherReviews reviews={data.gameReviews} />
               )}
             </div>
+
+            {!rollCall && (
+              <nav className="grid grid-cols-2 border-t border-border bg-card">
+                {views.map(({ key, labelKey, Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setView(key)}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
+                      view === key ? "text-primary" : "text-muted-foreground",
+                    )}
+                    aria-current={view === key ? "page" : undefined}
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={view === key ? 2.4 : 1.8} />
+                    {t(labelKey)}
+                  </button>
+                ))}
+              </nav>
+            )}
           </div>
         </MobileFrame>
       </div>

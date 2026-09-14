@@ -235,6 +235,32 @@ export type AppUser = {
   createdAt: string // display date, e.g. "2026-08-14"
 }
 
+// One coach comment on a GameReview, pinned to a specific half-move (ply,
+// 0-indexed) — see prisma/schema.prisma's GameComment for why `text` is a
+// single free-text field, not a zh/en pair.
+export type GameComment = {
+  id: string
+  ply: number
+  teacherName: string
+  text: string
+  createdAt: string // display datetime, e.g. "2026-09-14 14:20"
+}
+
+// A student-submitted PGN for a coach to review ("课后复盘"). `teacherId`
+// null means no coach has picked it up yet (see lib/actions/game-reviews.ts).
+export type GameReview = {
+  id: string
+  studentId: string
+  studentName?: string // populated for the teacher's cross-student list only
+  teacherId: string | null
+  teacherName?: string
+  title: string
+  pgn: string
+  result: string | null
+  createdAt: string // display date, e.g. "2026-09-10"
+  comments: GameComment[]
+}
+
 // One row of the 备份/还原 audit log (lib/backup.ts, app/api/admin/{backup,restore}).
 export type BackupRecordEntry = {
   id: string

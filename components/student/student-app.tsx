@@ -10,16 +10,18 @@ import { StudentSchedule } from "./student-schedule"
 import { StudentBookings } from "./student-bookings"
 import { StudentCards } from "./student-cards"
 import { StudentProfile } from "./student-profile"
-import { CalendarDays, Ticket, CreditCard, User, ChevronLeft } from "lucide-react"
+import { StudentReviews } from "./student-reviews"
+import { CalendarDays, Ticket, CreditCard, User, ChevronLeft, ScrollText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { StudentAppData } from "@/lib/data"
 
-type Tab = "schedule" | "bookings" | "cards" | "me"
+type Tab = "schedule" | "bookings" | "cards" | "reviews" | "me"
 
 const tabs: { key: Tab; labelKey: string; Icon: typeof CalendarDays }[] = [
   { key: "schedule", labelKey: "stu.nav.schedule", Icon: CalendarDays },
   { key: "bookings", labelKey: "stu.nav.bookings", Icon: Ticket },
   { key: "cards", labelKey: "stu.nav.cards", Icon: CreditCard },
+  { key: "reviews", labelKey: "stu.nav.reviews", Icon: ScrollText },
   { key: "me", labelKey: "stu.nav.me", Icon: User },
 ]
 
@@ -80,6 +82,7 @@ export function StudentApp({
                 />
               )}
               {tab === "cards" && <StudentCards cards={data.student.cards} ledger={data.student.ledger} />}
+              {tab === "reviews" && <StudentReviews reviews={data.gameReviews} />}
               {tab === "me" && (
                 <StudentProfile
                   me={data.student.me!}
@@ -89,7 +92,7 @@ export function StudentApp({
               )}
             </div>
 
-            <nav className="grid grid-cols-4 border-t border-border bg-card">
+            <nav className="grid grid-cols-5 border-t border-border bg-card">
               {tabs.map(({ key, labelKey, Icon }) => (
                 <button
                   key={key}

@@ -412,6 +412,52 @@ async function seedDemoHistory() {
   await prisma.bookingEvent.createMany({
     data: bookingEvents.map((e) => ({ ...e, type: "ADD" as const })),
   })
+
+  // ---- Post-lesson game reviews ("课后复盘") ----
+  // Two short, real, well-known games rather than synthetic ones, so the
+  // move list/board actually look like a real lesson. gr1 (Légal's Mate) is
+  // already claimed by t1 with comments at a few plies, so the feature
+  // doesn't look empty/unused on first load; gr2 (Scholar's Mate) is left
+  // unclaimed (teacherId: null) to demonstrate the "待回复" state.
+  const legalsTrapPgn = `[Event "Casual Game"]
+[Site "Paris"]
+[Date "1750.??.??"]
+[White "Legall"]
+[Black "Saint Brie"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0`
+  const scholarsMatePgn = `[Event "Casual Game"]
+[Result "1-0"]
+
+1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7# 1-0`
+
+  await prisma.gameReview.create({
+    data: {
+      id: "gr1",
+      studentId: "ds1",
+      teacherId: "t1",
+      title: "vs. 俱乐部同学，09.10",
+      pgn: legalsTrapPgn,
+      result: "1-0",
+      comments: {
+        create: [
+          { id: "gc1", ply: 5, teacherId: "t1", text: "这步 ...Bg4 直接把象钉在了皇后上，但没注意到白方马踩 e5 的威胁——钉住的子力不能动，是个常见陷阱。" },
+          { id: "gc2", ply: 9, teacherId: "t1", text: "吃后固然诱人，但这一步之后白方有 Bxf7+ 强将，局面已经无法挽回了。下次遇到弃子邀请，先算清楚对方的后续攻击。" },
+          { id: "gc3", ply: 12, teacherId: "t1", text: "Nd5 双将杀，经典的 Légal 陷阱。建议多熟悉几个开局阶段的战术陷阱，进攻和防守都用得上。" },
+        ],
+      },
+    },
+  })
+  await prisma.gameReview.create({
+    data: {
+      id: "gr2",
+      studentId: "ds2",
+      title: "跟朋友的快棋，还没找到问题在哪",
+      pgn: scholarsMatePgn,
+      result: "1-0",
+    },
+  })
 }
 
 main()

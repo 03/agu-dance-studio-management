@@ -17,6 +17,7 @@ import {
   categoryDbToKey,
   categoryLabel,
   bookingStateToMyState,
+  mapGameReview,
 } from "@/lib/mappers"
 import {
   toISODate,
@@ -181,6 +182,7 @@ export async function getStudentAppData(studentId: string) {
     upcomingRaw,
     historyRaw,
     closuresRaw,
+    gameReviewsRaw,
   ] = await Promise.all([
       prisma.teacher.findMany({ orderBy: { id: "asc" } }),
       prisma.room.findMany({ orderBy: { id: "asc" } }),
@@ -208,6 +210,11 @@ export async function getStudentAppData(studentId: string) {
         take: 55,
       }),
       prisma.classClosure.findMany(),
+      prisma.gameReview.findMany({
+        where: { studentId },
+        include: { student: { select: { name: true } }, teacher: { select: { name: true } }, comments: { include: { teacher: { select: { name: true } } } } },
+        orderBy: { createdAt: "desc" },
+      }),
     ])
 
   const meRow = studentRow[0]
@@ -222,6 +229,7 @@ export async function getStudentAppData(studentId: string) {
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     occurrences: buildOccurrences(occurrenceBookings, studentId),
     closures: closuresRaw.map(mapClassClosure),
+    gameReviews: gameReviewsRaw.map((r) => mapGameReview(r)),
     student: {
       // ledgerRaw folded in so legacy-migrated students (no StudentCard rows,
       // whole card history lives only in ledger_entries) get a correct
@@ -258,7 +266,7 @@ export async function getTeacherAppData(teacherId: string) {
   const today = parseISODate(todayIso)
   const weekEnd = parseISODate(addDays(todayIso, 7))
 
-  const [teacherRow, rooms, sessionsRaw, occurrenceBookings] = await Promise.all([
+  const [teacherRow, rooms, sessionsRaw, occurrenceBookings, gameReviewsRaw] = await Promise.all([
     prisma.teacher.findUnique({ where: { id: teacherId } }),
     prisma.room.findMany({ orderBy: { id: "asc" } }),
     prisma.classSession.findMany({
@@ -269,11 +277,18 @@ export async function getTeacherAppData(teacherId: string) {
       where: { session: { teacherId }, date: { gte: today, lt: weekEnd }, state: { in: ["BOOKED", "WAITLIST"] } },
       select: { sessionId: true, date: true, state: true, studentId: true },
     }),
+    // Every coach's shared queue, not scoped to teacherId — any coach in
+    // this small studio can pick up any student's submitted game.
+    prisma.gameReview.findMany({
+      include: { student: { select: { name: true } }, teacher: { select: { name: true } }, comments: { include: { teacher: { select: { name: true } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
   ])
 
   return {
     rooms: rooms.map(mapRoom),
     occurrences: buildOccurrences(occurrenceBookings),
+    gameReviews: gameReviewsRaw.map((r) => mapGameReview(r, { includeStudentName: true })),
     teacher: {
       me: teacherRow ? mapTeacher(teacherRow) : null,
       sessions: sessionsRaw.map((s) => mapClassSession(s)),
