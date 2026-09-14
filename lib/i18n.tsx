@@ -20,7 +20,34 @@ export const dict: Dict = {
     zh: "学员 student1，教师 teacher1，管理员 admin1，密码均为 demo1234",
     en: "Student: student1, Teacher: teacher1, Admin: admin1 — password demo1234 for all",
   },
+  "home.demo.tryStudent": { zh: "学员一键体验", en: "Try as student" },
+  "home.demo.tryTeacher": { zh: "教师一键体验", en: "Try as teacher" },
+  "home.demo.tryAdmin": { zh: "管理员一键体验", en: "Try as admin" },
   "app.backHome": { zh: "退出登录", en: "Log out" },
+
+  // Marketing intro — shown above the login card only in demo mode
+  // (DEMO_MODE_ENABLED), pitching this as a customizable booking system
+  // rather than describing this specific fictional studio.
+  "home.marketing.headline": {
+    zh: "全能预约管理系统 · 适合舞蹈、瑜伽、球类，棋类培训等各类课程业务",
+    en: "A complete class-booking system — for dance, yoga, tutoring & more",
+  },
+  "home.marketing.feature1": { zh: "智能排课与容量管理", en: "Smart scheduling & capacity control" },
+  "home.marketing.feature2": { zh: "学员打卡与课时卡包", en: "Check-in & class-card wallets" },
+  "home.marketing.feature3": { zh: "财务报表与运营总览", en: "Finance reports & operations dashboard" },
+
+  // Contact CTA — shown above the login card only in demo mode, same flag
+  // as the marketing intro above.
+  "home.cta.title": { zh: "想拥有属于您自己的预约系统？", en: "Want your own booking system?" },
+  "home.cta.desc": { zh: "功能与界面均可按需定制，欢迎联系开发者", en: "Every feature and screen here is customizable — get in touch" },
+  "home.cta.pricingBasic": {
+    zh: "基础版：沿用本演示的功能与界面，快速上线",
+    en: "Basic: this demo's features & design, ready to deploy",
+  },
+  "home.cta.pricingCustom": {
+    zh: "定制版：按您的业务量身定制功能与界面",
+    en: "Custom: tailored to your own business",
+  },
 
   // Time-of-day badge (PeriodBadge) — 00:00–11:59 / 12:00–17:59 / 18:00–23:59
   "period.morning": { zh: "上午", en: "Morning" },

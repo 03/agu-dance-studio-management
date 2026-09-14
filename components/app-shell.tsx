@@ -6,6 +6,9 @@ import { LanguageToggle } from "@/components/language-toggle"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { PublicSchedule } from "@/components/public-schedule"
+import { MarketingIntro } from "@/components/marketing-intro"
+import { DemoQuickLogin } from "@/components/demo-quick-login"
+import { Mail } from "lucide-react"
 import type { PublicScheduleData } from "@/lib/data"
 import { DEMO_MODE_ENABLED, REGISTRATION_ENABLED } from "@/lib/feature-flags"
 
@@ -48,11 +51,29 @@ export function AppShell({
         </header>
 
         <div className="flex flex-1 flex-col items-center gap-10 py-12">
+          {DEMO_MODE_ENABLED && <MarketingIntro />}
+
           {DEMO_MODE_ENABLED && (
-            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-5 py-3 text-center backdrop-blur">
-              <p className="text-sm font-semibold text-primary">{t("home.demo.title")}</p>
-              <p className="text-xs text-muted-foreground">{t("home.demo.switchRoleHint")}</p>
-              <p className="text-xs text-muted-foreground">{t("home.demo.credentials")}</p>
+            <div className="flex w-full max-w-xl flex-col items-center gap-4 rounded-2xl border border-primary/30 bg-primary/10 px-5 py-4 text-center backdrop-blur">
+              <div>
+                <p className="text-sm font-semibold text-primary">{t("home.demo.title")}</p>
+                <p className="mt-2 text-sm font-semibold text-card-foreground">{t("home.cta.title")}</p>
+                <p className="text-xs text-muted-foreground">{t("home.cta.desc")}</p>
+                <div className="mt-1.5 flex flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:justify-center sm:gap-4">
+                  <p>{t("home.cta.pricingBasic")}</p>
+                  <p>{t("home.cta.pricingCustom")}</p>
+                </div>
+                <a
+                  href="mailto:windboxx@gmail.com"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Luke · windboxx@gmail.com
+                </a>
+                <p className="mt-3 text-xs text-muted-foreground">{t("home.demo.switchRoleHint")}</p>
+                <p className="text-xs text-muted-foreground">{t("home.demo.credentials")}</p>
+              </div>
+              <DemoQuickLogin />
             </div>
           )}
           <LoginForm role={initialRole} onRegister={REGISTRATION_ENABLED ? () => setMode("register") : undefined} />

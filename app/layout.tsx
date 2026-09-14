@@ -17,10 +17,13 @@ const sora = Sora({
   variable: '--font-sora',
 })
 
+const title = '课程预约系统 · 全流程管理及预约'
+const description =
+  'ClassBook — 课程预约、课时卡包、教务排课与运营报表一体化管理平台。Booking, class cards, scheduling and studio operations in one place.'
+
 export const metadata: Metadata = {
-  title: '课程预约系统 · 全流程管理及预约',
-  description:
-    'ClassBook — 课程预约、课时卡包、教务排课与运营报表一体化管理平台。Booking, class cards, scheduling and studio operations in one place.',
+  title,
+  description,
   // iOS ignores the web manifest for "Add to Home Screen" — this is what it
   // reads instead to launch fullscreen (no Safari chrome) from the home
   // screen icon rather than opening back into Safari.
@@ -29,6 +32,11 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: '课程预约',
   },
+  // Preview card shown when this link is shared (WeChat, Xiaohongshu,
+  // etc.) — the actual image comes from app/opengraph-image.png, which
+  // Next.js picks up automatically by filename convention.
+  openGraph: { title, description, type: 'website' },
+  twitter: { card: 'summary_large_image', title, description },
 }
 
 export const viewport: Viewport = {
