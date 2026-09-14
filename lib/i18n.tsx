@@ -9,7 +9,7 @@ type Dict = Record<string, { zh: string; en: string }>
 // Central bilingual dictionary. Keys are grouped by prefix for readability.
 export const dict: Dict = {
   // Brand / global
-  "brand.name": { zh: "棋艺预约", en: "ChessBook" },
+  "brand.name": { zh: "e棋会友", en: "e棋会友" },
   "brand.tagline": { zh: "教学管理及预约平台", en: "Coaching management & booking" },
   "home.demo.title": { zh: "可定制Demo演示", en: "Customizable — Demo" },
   "home.demo.switchRoleHint": {

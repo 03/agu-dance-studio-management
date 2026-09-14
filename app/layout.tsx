@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '棋艺预约',
+    title: 'e棋会友',
   },
   // Preview card shown when this link is shared (WeChat, Xiaohongshu,
   // etc.) — the actual image comes from app/opengraph-image.png, which

@@ -19,4 +19,4 @@ export const PUBLIC_MONTH_VIEW_ENABLED = false
 // the login card on the homepage (components/app-shell.tsx). Only meant
 // for the public Hostinger demo deploy — leave false on a real studio's
 // own deployment, where these credentials wouldn't even exist.
-export const DEMO_MODE_ENABLED = true
+export const DEMO_MODE_ENABLED = false

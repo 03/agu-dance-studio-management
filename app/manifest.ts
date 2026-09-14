@@ -12,7 +12,7 @@ import type { MetadataRoute } from "next"
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "国际象棋教学预约系统",
-    short_name: "棋艺预约",
+    short_name: "e棋会友",
     description: "私教课程、锦标赛报名、课时卡包、教练排课与运营报表一体化管理平台",
     start_url: "/",
     display: "standalone",

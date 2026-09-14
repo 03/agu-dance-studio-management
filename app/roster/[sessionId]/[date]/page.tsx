@@ -39,9 +39,9 @@ export default async function PublicRosterPage({
       <div className="mx-auto flex max-w-md flex-col gap-4">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-[11px] font-extrabold text-primary-foreground">
-            C
+            e
           </span>
-          棋艺预约 · 课程报名名单
+          e棋会友 · 课程报名名单
         </div>
 
         <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
