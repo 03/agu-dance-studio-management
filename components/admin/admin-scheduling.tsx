@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type StyleKey, type Teacher, type Room, type Studio } from "@/lib/types"
+import { weekdayKeys, categoryColors, type ClassSession, type ClassClosure, type CategoryKey, type Teacher, type Room, type Studio } from "@/lib/types"
+import { toAppDay } from "@/lib/schedule-dates"
 import {
   createClassSession,
   updateClassSession,
@@ -37,7 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Ban, Pencil, Trash2 } from "lucide-react"
+import { Plus, Ban, Pencil, Trash2, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PeriodBadge } from "@/components/shared/period-badge"
 
@@ -116,14 +117,15 @@ export function AdminScheduling({
                         "rounded-xl border-l-4 bg-secondary/40 p-2 text-left transition-colors hover:bg-secondary",
                         s.status === "canceled" && "opacity-40",
                       )}
-                      style={{ borderLeftColor: styleColors[s.style] }}
+                      style={{ borderLeftColor: categoryColors[s.category] }}
                     >
                       <div className="flex items-center gap-1.5">
                         <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
                         <PeriodBadge start={s.start} />
+                        {s.kind === "tournament" && <Trophy className="h-3 w-3 shrink-0 text-primary" />}
                       </div>
                       <p className={cn("text-xs font-bold text-card-foreground", s.status === "canceled" && "line-through")}>
-                        {t(s.style)}
+                        {t(s.category)}
                       </p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         {lang === "zh" ? s.level.zh : s.level.en}
@@ -179,7 +181,7 @@ export function AdminScheduling({
   )
 }
 
-const styleKeys = Object.keys(styleColors) as StyleKey[]
+const categoryKeys = Object.keys(categoryColors) as CategoryKey[]
 
 function AddForm({
   teachers,
@@ -195,10 +197,12 @@ function AddForm({
   onCancel: () => void
 }) {
   const { t, lang } = useLanguage()
-  const [style, setStyle] = useState<StyleKey>(styleKeys[0])
+  const [category, setCategory] = useState<CategoryKey>(categoryKeys[0])
+  const [kind, setKind] = useState<"regular" | "tournament">("regular")
   const [teacherId, setTeacherId] = useState(teachers[0].id)
   const [roomId, setRoomId] = useState(rooms[0].id)
   const [day, setDay] = useState("0")
+  const [tournamentDate, setTournamentDate] = useState("")
   const teacherLabel = (id: string) => (lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn)
   const roomLabel = (id: string) => (lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn)
   const [start, setStart] = useState("")
@@ -216,22 +220,28 @@ function AddForm({
     levelZh.trim() !== "" &&
     levelEn.trim() !== "" &&
     Number.isFinite(capacityNum) &&
-    capacityNum > 0
+    capacityNum > 0 &&
+    (kind === "regular" || tournamentDate !== "")
 
   const handleAdd = () => {
     if (!isValid) return
+    // A tournament is a one-off event, not a weekly slot — startDate ==
+    // endDate == that single date makes isSessionActiveOn (schedule-dates.ts)
+    // active on exactly that day and never again, with zero other new logic.
+    const resolvedDay = kind === "tournament" ? toAppDay(new Date(tournamentDate)) : Number.parseInt(day, 10)
     onAdd({
-      style,
+      category,
+      kind,
       teacherId,
       roomId,
-      day: Number.parseInt(day, 10),
+      day: resolvedDay,
       start: start.trim(),
       end: end.trim(),
       capacity: capacityNum,
       levelZh: levelZh.trim(),
       levelEn: levelEn.trim(),
-      startDate: startDate || null,
-      endDate: endDate || null,
+      startDate: kind === "tournament" ? tournamentDate : startDate || null,
+      endDate: kind === "tournament" ? tournamentDate : endDate || null,
     })
   }
 
@@ -241,20 +251,34 @@ function AddForm({
         <DialogTitle className="font-display">{t("adm.schedule.add")}</DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4 py-2">
-        <div className="grid gap-2">
-          <Label>{t("stu.filter.style")}</Label>
-          <Select value={style} onValueChange={(v) => setStyle(v as StyleKey)}>
-            <SelectTrigger>
-              <SelectValue>{(v: StyleKey) => t(v)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {styleKeys.map((sk) => (
-                <SelectItem key={sk} value={sk}>
-                  {t(sk)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("stu.filter.category")}</Label>
+            <Select value={category} onValueChange={(v) => setCategory(v as CategoryKey)}>
+              <SelectTrigger>
+                <SelectValue>{(v: CategoryKey) => t(v)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {categoryKeys.map((ck) => (
+                  <SelectItem key={ck} value={ck}>
+                    {t(ck)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.kind")}</Label>
+            <Select value={kind} onValueChange={(v) => setKind(v as "regular" | "tournament")}>
+              <SelectTrigger>
+                <SelectValue>{(v: "regular" | "tournament") => t(v === "tournament" ? "session.kind.tournament" : "session.kind.regular")}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="regular">{t("session.kind.regular")}</SelectItem>
+                <SelectItem value="tournament">{t("session.kind.tournament")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
@@ -288,21 +312,28 @@ function AddForm({
             </Select>
           </div>
         </div>
-        <div className="grid gap-2">
-          <Label>{t("adm.schedule.day")}</Label>
-          <Select value={day} onValueChange={setDay}>
-            <SelectTrigger>
-              <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {weekdayKeys.map((wk, i) => (
-                <SelectItem key={wk} value={String(i)}>
-                  {t(wk)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {kind === "tournament" ? (
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.tournamentDate")}</Label>
+            <Input type="date" value={tournamentDate} onChange={(e) => setTournamentDate(e.target.value)} />
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.day")}</Label>
+            <Select value={day} onValueChange={setDay}>
+              <SelectTrigger>
+                <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {weekdayKeys.map((wk, i) => (
+                  <SelectItem key={wk} value={String(i)}>
+                    {t(wk)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label>{t("adm.schedule.startTime")}</Label>
@@ -367,10 +398,12 @@ function EditForm({
   onCancelClass: () => void
 }) {
   const { t, lang } = useLanguage()
-  const [style, setStyle] = useState<StyleKey>(session.style)
+  const [category, setCategory] = useState<CategoryKey>(session.category)
+  const [kind, setKind] = useState<"regular" | "tournament">(session.kind)
   const [teacherId, setTeacherId] = useState(session.teacherId)
   const [roomId, setRoomId] = useState(session.roomId)
   const [day, setDay] = useState(String(session.day))
+  const [tournamentDate, setTournamentDate] = useState(session.startDate ?? "")
   const teacherLabel = (id: string) => (lang === "zh" ? teachers.find((x) => x.id === id)?.name : teachers.find((x) => x.id === id)?.nameEn)
   const roomLabel = (id: string) => (lang === "zh" ? rooms.find((x) => x.id === id)?.name : rooms.find((x) => x.id === id)?.nameEn)
   const [start, setStart] = useState(session.start)
@@ -388,23 +421,26 @@ function EditForm({
     levelZh.trim() !== "" &&
     levelEn.trim() !== "" &&
     Number.isFinite(capacityNum) &&
-    capacityNum > 0
+    capacityNum > 0 &&
+    (kind === "regular" || tournamentDate !== "")
 
   const handleSave = () => {
     if (!isValid) return
+    const resolvedDay = kind === "tournament" ? toAppDay(new Date(tournamentDate)) : Number.parseInt(day, 10)
     onSave({
       id: session.id,
-      style,
+      category,
+      kind,
       teacherId,
       roomId,
-      day: Number.parseInt(day, 10),
+      day: resolvedDay,
       start: start.trim(),
       end: end.trim(),
       capacity: capacityNum,
       levelZh: levelZh.trim(),
       levelEn: levelEn.trim(),
-      startDate: startDate || null,
-      endDate: endDate || null,
+      startDate: kind === "tournament" ? tournamentDate : startDate || null,
+      endDate: kind === "tournament" ? tournamentDate : endDate || null,
     })
   }
 
@@ -412,24 +448,38 @@ function EditForm({
     <>
       <DialogHeader>
         <DialogTitle className="font-display">
-          {t("adm.schedule.editSingle")} · {t(session.style)}
+          {t("adm.schedule.editSingle")} · {t(session.category)}
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4 py-2">
-        <div className="grid gap-2">
-          <Label>{t("stu.filter.style")}</Label>
-          <Select value={style} onValueChange={(v) => setStyle(v as StyleKey)}>
-            <SelectTrigger>
-              <SelectValue>{(v: StyleKey) => t(v)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {styleKeys.map((sk) => (
-                <SelectItem key={sk} value={sk}>
-                  {t(sk)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>{t("stu.filter.category")}</Label>
+            <Select value={category} onValueChange={(v) => setCategory(v as CategoryKey)}>
+              <SelectTrigger>
+                <SelectValue>{(v: CategoryKey) => t(v)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {categoryKeys.map((ck) => (
+                  <SelectItem key={ck} value={ck}>
+                    {t(ck)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.kind")}</Label>
+            <Select value={kind} onValueChange={(v) => setKind(v as "regular" | "tournament")}>
+              <SelectTrigger>
+                <SelectValue>{(v: "regular" | "tournament") => t(v === "tournament" ? "session.kind.tournament" : "session.kind.regular")}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="regular">{t("session.kind.regular")}</SelectItem>
+                <SelectItem value="tournament">{t("session.kind.tournament")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
@@ -463,21 +513,28 @@ function EditForm({
             </Select>
           </div>
         </div>
-        <div className="grid gap-2">
-          <Label>{t("adm.schedule.day")}</Label>
-          <Select value={day} onValueChange={setDay}>
-            <SelectTrigger>
-              <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {weekdayKeys.map((wk, i) => (
-                <SelectItem key={wk} value={String(i)}>
-                  {t(wk)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {kind === "tournament" ? (
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.tournamentDate")}</Label>
+            <Input type="date" value={tournamentDate} onChange={(e) => setTournamentDate(e.target.value)} />
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label>{t("adm.schedule.day")}</Label>
+            <Select value={day} onValueChange={setDay}>
+              <SelectTrigger>
+                <SelectValue>{(v: string) => t(weekdayKeys[Number(v)])}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {weekdayKeys.map((wk, i) => (
+                  <SelectItem key={wk} value={String(i)}>
+                    {t(wk)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label>{t("adm.schedule.startTime")}</Label>
@@ -556,7 +613,7 @@ function ClosuresSection({
     if (!s) return "—"
     const teacher = teachers.find((x) => x.id === s.teacherId)
     const teacherName = teacher ? (lang === "zh" ? teacher.name : teacher.nameEn) : ""
-    return `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.style)} · ${teacherName}`
+    return `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.category)} · ${teacherName}`
   }
 
   return (
@@ -646,7 +703,7 @@ function ClosureForm({ sessions, onClose }: { sessions: ClassSession[]; onClose:
   const sessionLabel = (id: string) => {
     if (id === ALL_CLASSES_VALUE) return t("adm.schedule.allClasses")
     const s = sessions.find((x) => x.id === id)
-    return s ? `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.style)}` : ""
+    return s ? `${t(weekdayKeys[s.day])} ${s.start} · ${t(s.category)}` : ""
   }
 
   const isValid = startDate.trim() !== "" && endDate.trim() !== ""
@@ -696,7 +753,7 @@ function ClosureForm({ sessions, onClose }: { sessions: ClassSession[]; onClose:
               <SelectItem value={ALL_CLASSES_VALUE}>{t("adm.schedule.allClasses")}</SelectItem>
               {sessions.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {t(weekdayKeys[s.day])} {s.start} · {t(s.style)}
+                  {t(weekdayKeys[s.day])} {s.start} · {t(s.category)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -2,12 +2,13 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { styleKeyToDb } from "@/lib/mappers"
+import { categoryKeyToDb, sessionKindKeyToDb } from "@/lib/mappers"
 import { parseISODate } from "@/lib/schedule-dates"
-import type { StyleKey } from "@/lib/types"
+import type { CategoryKey } from "@/lib/types"
 
 export async function createClassSession(input: {
-  style: StyleKey
+  category: CategoryKey
+  kind?: "regular" | "tournament"
   teacherId: string
   roomId: string
   day: number
@@ -22,7 +23,8 @@ export async function createClassSession(input: {
   await requireRole("ADMIN")
   await prisma.classSession.create({
     data: {
-      style: styleKeyToDb(input.style),
+      category: categoryKeyToDb(input.category),
+      kind: sessionKindKeyToDb(input.kind ?? "regular"),
       teacherId: input.teacherId,
       roomId: input.roomId,
       day: input.day,
@@ -40,7 +42,8 @@ export async function createClassSession(input: {
 export async function updateClassSession(
   id: string,
   input: {
-    style: StyleKey
+    category: CategoryKey
+    kind?: "regular" | "tournament"
     teacherId: string
     roomId: string
     day: number
@@ -57,7 +60,8 @@ export async function updateClassSession(
   await prisma.classSession.update({
     where: { id },
     data: {
-      style: styleKeyToDb(input.style),
+      category: categoryKeyToDb(input.category),
+      ...(input.kind !== undefined && { kind: sessionKindKeyToDb(input.kind) }),
       teacherId: input.teacherId,
       roomId: input.roomId,
       day: input.day,

@@ -3,10 +3,10 @@
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, type ClassSession, type ClassClosure, type Occurrence, type StyleKey, type Teacher, type Room } from "@/lib/types"
+import { weekdayKeys, type ClassSession, type ClassClosure, type Occurrence, type CategoryKey, type Teacher, type Room } from "@/lib/types"
 import { bookClass, getBookedNamesForSession } from "@/lib/actions/bookings"
 import { toAppDay, toISODate, occurrenceKey, formatAppDate as formatDate, isSessionActiveOn } from "@/lib/schedule-dates"
-import { StyleDot } from "@/components/shared/style-dot"
+import { CategoryDot } from "@/components/shared/category-dot"
 import { PeriodBadge } from "@/components/shared/period-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Clock, MapPin, Users, ListOrdered, X } from "lucide-react"
+import { Clock, MapPin, Users, ListOrdered, X, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const BOOKING_ERROR_KEY: Record<string, string> = {
@@ -27,14 +27,13 @@ const BOOKING_ERROR_KEY: Record<string, string> = {
 }
 const bookingErrorKeyFor = (code: string) => BOOKING_ERROR_KEY[code] ?? "stu.schedule.err.generic"
 
-const styleKeys: StyleKey[] = [
-  "style.jazz",
-  "style.hiphop",
-  "style.ballet",
-  "style.kpop",
-  "style.contemporary",
-  "style.latin",
-  "style.jazzKpop",
+const categoryKeys: CategoryKey[] = [
+  "category.bullet",
+  "category.blitz",
+  "category.rapid",
+  "category.classical",
+  "category.openings",
+  "category.endgame",
 ]
 
 export function StudentSchedule({
@@ -54,7 +53,7 @@ export function StudentSchedule({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [styleFilter, setStyleFilter] = useState<string>("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [teacherFilter, setTeacherFilter] = useState<string>("all")
   const [rosterSessionId, setRosterSessionId] = useState<string | null>(null)
   const [rosterNames, setRosterNames] = useState<string[]>([])
@@ -107,7 +106,7 @@ export function StudentSchedule({
   }, [allSessions, selectedDayOfWeek, occurrenceMap, selectedDateISO])
 
   const filtered = dayList.filter((s) => {
-    if (styleFilter !== "all" && s.style !== styleFilter) return false
+    if (categoryFilter !== "all" && s.category !== categoryFilter) return false
     if (teacherFilter !== "all" && s.teacherId !== teacherFilter) return false
     return true
   })
@@ -116,6 +115,7 @@ export function StudentSchedule({
     const tc = teachers.find((x) => x.id === id)
     return tc ? (lang === "zh" ? tc.name : tc.nameEn) : ""
   }
+  const teacherRating = (id: string) => teachers.find((x) => x.id === id)?.rating ?? null
   const roomName = (id: string) => {
     const r = rooms.find((x) => x.id === id)
     return r ? (lang === "zh" ? r.name : r.nameEn) : ""
@@ -215,15 +215,15 @@ export function StudentSchedule({
 
       {/* Filters */}
       <div className="flex gap-2 px-4 py-3">
-        <Select value={styleFilter} onValueChange={setStyleFilter}>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="h-8 flex-1 text-xs">
-            <SelectValue placeholder={t("stu.filter.style")}>
+            <SelectValue placeholder={t("stu.filter.category")}>
               {(v: string) => (v === "all" ? t("common.all") : t(v))}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.all")}</SelectItem>
-            {styleKeys.map((k) => (
+            {categoryKeys.map((k) => (
               <SelectItem key={k} value={k}>
                 {t(k)}
               </SelectItem>
@@ -274,13 +274,19 @@ export function StudentSchedule({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <StyleDot style={s.style} />
+                    <CategoryDot category={s.category} />
                     <span className="truncate font-display text-base font-bold text-card-foreground">
-                      {t(s.style)}
+                      {t(s.category)}
                     </span>
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
                       {lang === "zh" ? s.level.zh : s.level.en}
                     </span>
+                    {s.kind === "tournament" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <Trophy className="h-3 w-3" />
+                        {t("session.kind.tournament")}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
@@ -299,6 +305,7 @@ export function StudentSchedule({
                   </div>
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">
                     {teacherName(s.teacherId)}
+                    {teacherRating(s.teacherId) != null && ` · ${teacherRating(s.teacherId)}`}
                   </p>
                 </div>
 

@@ -3,7 +3,7 @@
 import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type ClassSession, type Occurrence, type Room } from "@/lib/types"
 import { nextOccurrence, formatAppDate, toISODate, occurrenceKey } from "@/lib/schedule-dates"
-import { StyleDot } from "@/components/shared/style-dot"
+import { CategoryDot } from "@/components/shared/category-dot"
 import { Button } from "@/components/ui/button"
 import { Clock, MapPin, Users, ClipboardCheck } from "lucide-react"
 
@@ -55,8 +55,8 @@ export function TeacherSchedule({
           return (
             <li key={s.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2">
-                <StyleDot style={s.style} />
-                <span className="font-display text-base font-bold text-card-foreground">{t(s.style)}</span>
+                <CategoryDot category={s.category} />
+                <span className="font-display text-base font-bold text-card-foreground">{t(s.category)}</span>
                 <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
                   {t(weekdayKeys[s.day])} {formatAppDate(occurrenceDate)}
                 </span>

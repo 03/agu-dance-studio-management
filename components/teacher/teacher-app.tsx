@@ -49,6 +49,11 @@ export function TeacherApp({
                   <p className="font-display text-lg font-bold">
                     {lang === "zh" ? me.name : me.nameEn}
                   </p>
+                  {me.rating != null && (
+                    <p className="text-xs text-primary-foreground/70">
+                      {t("coach.ratingBlitz")} {me.rating}
+                    </p>
+                  )}
                 </div>
               </div>
             </header>

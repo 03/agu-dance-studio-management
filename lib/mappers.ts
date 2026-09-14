@@ -5,7 +5,8 @@
 // against.
 
 import type {
-  DanceStyle,
+  ChessCategory,
+  SessionKind as DbSessionKind,
   CardType as DbCardType,
   PaymentMethod as DbPaymentMethod,
   SessionStatus,
@@ -27,7 +28,7 @@ import type {
   ClassClosure as DbClassClosure,
 } from "@/lib/generated/prisma/client"
 import type {
-  StyleKey,
+  CategoryKey,
   Teacher,
   Room,
   Studio,
@@ -51,36 +52,39 @@ import { toISODate, studioDateParts } from "@/lib/schedule-dates"
 
 // ---- enum <-> view-model key conversions ----
 
-const STYLE_TO_KEY: Record<DanceStyle, StyleKey> = {
-  JAZZ: "style.jazz",
-  HIPHOP: "style.hiphop",
-  BALLET: "style.ballet",
-  KPOP: "style.kpop",
-  CONTEMPORARY: "style.contemporary",
-  LATIN: "style.latin",
-  JAZZ_KPOP: "style.jazzKpop",
+const CATEGORY_TO_KEY: Record<ChessCategory, CategoryKey> = {
+  BULLET: "category.bullet",
+  BLITZ: "category.blitz",
+  RAPID: "category.rapid",
+  CLASSICAL: "category.classical",
+  OPENINGS: "category.openings",
+  ENDGAME: "category.endgame",
 }
-const KEY_TO_STYLE = Object.fromEntries(
-  Object.entries(STYLE_TO_KEY).map(([db, key]) => [key, db]),
-) as Record<StyleKey, DanceStyle>
+const KEY_TO_CATEGORY = Object.fromEntries(
+  Object.entries(CATEGORY_TO_KEY).map(([db, key]) => [key, db]),
+) as Record<CategoryKey, ChessCategory>
 
-export const styleKeyToDb = (key: StyleKey): DanceStyle => KEY_TO_STYLE[key]
-export const styleDbToKey = (style: DanceStyle): StyleKey => STYLE_TO_KEY[style]
+export const categoryKeyToDb = (key: CategoryKey): ChessCategory => KEY_TO_CATEGORY[key]
+export const categoryDbToKey = (category: ChessCategory): CategoryKey => CATEGORY_TO_KEY[category]
 
 // Small standalone zh/en label lookup for server-side ledger-entry titling
 // (lib/actions/bookings.ts). Deliberately not sourced from lib/i18n.tsx's
 // `dict` — that module is "use client", and server actions shouldn't depend
 // on a client-boundary module even for plain data.
-const STYLE_LABEL: Record<StyleKey, { zh: string; en: string }> = {
-  "style.jazz": { zh: "爵士舞", en: "Jazz" },
-  "style.hiphop": { zh: "嘻哈街舞", en: "Hip-Hop" },
-  "style.ballet": { zh: "芭蕾形体", en: "Ballet" },
-  "style.kpop": { zh: "韩舞", en: "K-Pop" },
-  "style.contemporary": { zh: "现代舞", en: "Contemporary" },
-  "style.latin": { zh: "拉丁舞", en: "Latin" },
-  "style.jazzKpop": { zh: "爵士舞/韩舞", en: "Jazz/Kpop" },
+const CATEGORY_LABEL: Record<CategoryKey, { zh: string; en: string }> = {
+  "category.bullet": { zh: "超快棋", en: "Bullet" },
+  "category.blitz": { zh: "快棋", en: "Blitz" },
+  "category.rapid": { zh: "慢棋", en: "Rapid" },
+  "category.classical": { zh: "古典赛", en: "Classical" },
+  "category.openings": { zh: "开局训练", en: "Openings" },
+  "category.endgame": { zh: "残局训练", en: "Endgame" },
 }
-export const styleLabel = (key: StyleKey): { zh: string; en: string } => STYLE_LABEL[key]
+export const categoryLabel = (key: CategoryKey): { zh: string; en: string } => CATEGORY_LABEL[key]
+
+export const sessionKindDbToKey = (kind: DbSessionKind): "regular" | "tournament" =>
+  kind === "TOURNAMENT" ? "tournament" : "regular"
+export const sessionKindKeyToDb = (kind: "regular" | "tournament"): DbSessionKind =>
+  kind === "tournament" ? "TOURNAMENT" : "REGULAR"
 
 const CARD_TYPE_TO_KEY: Record<DbCardType, CardType> = {
   TIMES: "stu.card.times",
@@ -178,10 +182,11 @@ export const mapTeacher = (t: DbTeacher): Teacher => ({
   name: t.name,
   nameEn: t.nameEn,
   avatar: t.avatar,
-  // t.styles is Json on this branch (see Teacher's own schema comment for
-  // why) — always written as a plain DanceStyle[] array, just not typed as
-  // one by Prisma.
-  styles: (t.styles as DanceStyle[]).map(styleDbToKey),
+  // t.categories is Json on this branch (see Teacher's own schema comment
+  // for why) — always written as a plain ChessCategory[] array, just not
+  // typed as one by Prisma.
+  categories: (t.categories as ChessCategory[]).map(categoryDbToKey),
+  rating: t.rating,
 })
 
 export const mapRoom = (r: DbRoom): Room => ({
@@ -207,7 +212,8 @@ export const mapStudio = (r: DbRoom): Studio => ({
 export function mapClassSession(s: DbClassSession): ClassSession {
   return {
     id: s.id,
-    style: styleDbToKey(s.style),
+    category: categoryDbToKey(s.category),
+    kind: sessionKindDbToKey(s.kind),
     teacherId: s.teacherId,
     roomId: s.roomId,
     day: s.day,
@@ -238,7 +244,7 @@ export function mapUpcomingBooking(b: DbBooking & { session: DbClassSession }): 
   return {
     bookingId: b.id,
     sessionId: b.sessionId,
-    style: styleDbToKey(b.session.style),
+    category: categoryDbToKey(b.session.category),
     teacherId: b.session.teacherId,
     roomId: b.session.roomId,
     day: b.session.day,
@@ -255,7 +261,7 @@ export function mapPastBooking(b: DbBooking & { session: DbClassSession }): Past
   return {
     bookingId: b.id,
     sessionId: b.sessionId,
-    style: styleDbToKey(b.session.style),
+    category: categoryDbToKey(b.session.category),
     teacherId: b.session.teacherId,
     roomId: b.session.roomId,
     day: b.session.day,
@@ -383,5 +389,6 @@ export function mapStudent(
     usageHistory,
     checkInCode: opts.includeCheckInCode ? s.checkInCode : undefined,
     note: opts.includeNote ? s.note : undefined,
+    rating: s.rating,
   }
 }

@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/i18n"
 import type { ClassSession, Room, RosterEntry } from "@/lib/types"
 import { getRosterForSession, setCheckedIn, checkInByCode, checkInAll } from "@/lib/actions/rollcall"
 import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
-import { StyleDot } from "@/components/shared/style-dot"
+import { CategoryDot } from "@/components/shared/category-dot"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -130,8 +130,8 @@ export function RollCall({
         </button>
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <StyleDot style={session.style} />
-            <span className="truncate font-display text-lg font-bold text-card-foreground">{t(session.style)}</span>
+            <CategoryDot category={session.category} />
+            <span className="truncate font-display text-lg font-bold text-card-foreground">{t(session.category)}</span>
           </div>
           <div className="flex shrink-0 gap-1.5">
             <Button

@@ -4,23 +4,21 @@
 // static mock array — keeping the shapes stable is what let the DB wiring
 // swap data sources without rewriting the JSX.
 
-export type StyleKey =
-  | "style.jazz"
-  | "style.hiphop"
-  | "style.ballet"
-  | "style.kpop"
-  | "style.contemporary"
-  | "style.latin"
-  | "style.jazzKpop"
+export type CategoryKey =
+  | "category.bullet"
+  | "category.blitz"
+  | "category.rapid"
+  | "category.classical"
+  | "category.openings"
+  | "category.endgame"
 
-export const styleColors: Record<StyleKey, string> = {
-  "style.jazz": "var(--chart-1)",
-  "style.hiphop": "var(--chart-4)",
-  "style.ballet": "var(--chart-3)",
-  "style.kpop": "var(--chart-2)",
-  "style.contemporary": "var(--chart-5)",
-  "style.latin": "var(--accent)",
-  "style.jazzKpop": "var(--chart-6)",
+export const categoryColors: Record<CategoryKey, string> = {
+  "category.bullet": "var(--chart-1)",
+  "category.blitz": "var(--chart-2)",
+  "category.rapid": "var(--chart-3)",
+  "category.classical": "var(--chart-4)",
+  "category.openings": "var(--chart-5)",
+  "category.endgame": "var(--accent)",
 }
 
 export type Teacher = {
@@ -28,7 +26,8 @@ export type Teacher = {
   name: string
   nameEn: string
   avatar: string
-  styles: StyleKey[]
+  categories: CategoryKey[]
+  rating: number | null
 }
 
 export type Room = {
@@ -56,7 +55,8 @@ export type Studio = {
 // sense for one specific occurrence of this slot (see Occurrence below).
 export type ClassSession = {
   id: string
-  style: StyleKey
+  category: CategoryKey
+  kind: "regular" | "tournament"
   teacherId: string
   roomId: string
   day: number // 0 = Mon ... 6 = Sun
@@ -100,7 +100,7 @@ export type Occurrence = {
 export type UpcomingBooking = {
   bookingId: string
   sessionId: string
-  style: StyleKey
+  category: CategoryKey
   teacherId: string
   roomId: string
   day: number
@@ -116,7 +116,7 @@ export type UpcomingBooking = {
 export type PastBooking = {
   bookingId: string
   sessionId: string
-  style: StyleKey
+  category: CategoryKey
   teacherId: string
   roomId: string
   day: number
@@ -177,6 +177,8 @@ export type Student = {
   // Visible to the student, their teachers (via RosterEntry.note), and
   // admin — but never in a bulk list another student could see.
   note?: string | null
+  // A chess.com/lichess-style rating — null for a student without one yet.
+  rating: number | null
 }
 
 export type CardProduct = {

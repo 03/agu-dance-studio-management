@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLanguage } from "@/lib/i18n"
-import { weekdayKeys, styleColors, type ClassSession, type ClassClosure, type Occurrence, type Room } from "@/lib/types"
+import { weekdayKeys, categoryColors, type ClassSession, type ClassClosure, type Occurrence, type Room, type Teacher } from "@/lib/types"
 import { toAppDay, toISODate, occurrenceKey, formatAppDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { PeriodBadge } from "@/components/shared/period-badge"
 import { PUBLIC_MONTH_VIEW_ENABLED } from "@/lib/feature-flags"
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import { ChevronLeft, ChevronRight, MapPin, Trophy } from "lucide-react"
 
 type ViewMode = "week" | "month"
 
@@ -29,11 +29,13 @@ export function PublicSchedule({
   occurrences,
   rooms,
   closures,
+  teachers,
 }: {
   sessions: ClassSession[]
   occurrences: Occurrence[]
   rooms: Room[]
   closures: ClassClosure[]
+  teachers: Teacher[]
 }) {
   const { t } = useLanguage()
   const [view, setView] = useState<ViewMode>("week")
@@ -97,9 +99,9 @@ export function PublicSchedule({
       </div>
 
       {PUBLIC_MONTH_VIEW_ENABLED && view === "month" ? (
-        <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} rooms={rooms} />
+        <MonthView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} closures={closures} rooms={rooms} teachers={teachers} />
       ) : (
-        <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} />
+        <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} teachers={teachers} />
       )}
     </div>
   )
@@ -111,15 +113,18 @@ function WeekView({
   ensureMonth,
   rooms,
   closures,
+  teachers,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
   ensureMonth: (year: number, month: number) => void
   rooms: Room[]
   closures: ClassClosure[]
+  teachers: Teacher[]
 }) {
   const { t, lang } = useLanguage()
   const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
+  const teacherFor = (teacherId: string) => teachers.find((tc) => tc.id === teacherId)
   // Public, pre-login page — deliberately bounded (this week ± 2) rather
   // than open-ended browsing, unlike the logged-in student/admin calendars.
   const [weekOffset, setWeekOffset] = useState(0)
@@ -207,20 +212,28 @@ function WeekView({
                 .map((s) => {
                   const booked = bookedFor(s.id, d)
                   const nameEn = roomNameEn(s.roomId)
+                  const teacher = teacherFor(s.teacherId)
                   return (
                     <div
                       key={s.id}
                       className="rounded-xl border-l-4 bg-secondary/40 p-2 text-left"
-                      style={{ borderLeftColor: styleColors[s.style] }}
+                      style={{ borderLeftColor: categoryColors[s.category] }}
                     >
                       <div className="flex items-center gap-1.5">
                         <p className="text-[11px] font-semibold text-card-foreground">{s.start}</p>
                         <PeriodBadge start={s.start} />
+                        {s.kind === "tournament" && <Trophy className="h-3 w-3 shrink-0 text-primary" />}
                       </div>
-                      <p className="text-xs font-bold text-card-foreground">{t(s.style)}</p>
+                      <p className="text-xs font-bold text-card-foreground">{t(s.category)}</p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         {lang === "zh" ? s.level.zh : s.level.en}
                       </p>
+                      {teacher && (
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {lang === "zh" ? teacher.name : teacher.nameEn}
+                          {teacher.rating != null && ` · ${t("category.blitz")} ${teacher.rating}`}
+                        </p>
+                      )}
                       {nameEn && (
                         <p className="mt-1 flex items-start gap-1 text-[11px] text-muted-foreground">
                           <MapPin className="mt-[1px] h-3 w-3 shrink-0" />
@@ -249,15 +262,18 @@ function MonthView({
   ensureMonth,
   closures,
   rooms,
+  teachers,
 }: {
   sessions: ClassSession[]
   bookedFor: (sessionId: string, date: Date) => number
   ensureMonth: (year: number, month: number) => void
   closures: ClassClosure[]
   rooms: Room[]
+  teachers: Teacher[]
 }) {
   const { t, lang } = useLanguage()
   const roomNameEn = (roomId: string) => rooms.find((r) => r.id === roomId)?.nameEn
+  const teacherFor = (teacherId: string) => teachers.find((tc) => tc.id === teacherId)
   // Public, pre-login page — deliberately bounded (this month ± 1) rather
   // than open-ended browsing, unlike the logged-in student/admin calendars.
   const [monthOffset, setMonthOffset] = useState(0)
@@ -353,20 +369,28 @@ function MonthView({
                   {daySessions.map((s) => {
                     const booked = bookedFor(s.id, d)
                     const nameEn = roomNameEn(s.roomId)
+                    const teacher = teacherFor(s.teacherId)
                     return (
                       <div
                         key={s.id}
                         className="w-full rounded-lg border-l-4 bg-secondary/40 p-1.5 text-left"
-                        style={{ borderLeftColor: styleColors[s.style] }}
+                        style={{ borderLeftColor: categoryColors[s.category] }}
                       >
                         <div className="flex items-center gap-1">
                           <p className="text-[10px] font-semibold text-card-foreground">{s.start}</p>
                           <PeriodBadge start={s.start} className="px-1 text-[8px]" />
+                          {s.kind === "tournament" && <Trophy className="h-2.5 w-2.5 shrink-0 text-primary" />}
                         </div>
-                        <p className="truncate text-[10px] font-bold text-card-foreground">{t(s.style)}</p>
+                        <p className="truncate text-[10px] font-bold text-card-foreground">{t(s.category)}</p>
                         <p className="truncate text-[9px] text-muted-foreground">
                           {lang === "zh" ? s.level.zh : s.level.en}
                         </p>
+                        {teacher && (
+                          <p className="truncate text-[9px] text-muted-foreground">
+                            {lang === "zh" ? teacher.name : teacher.nameEn}
+                            {teacher.rating != null && ` · ${teacher.rating}`}
+                          </p>
+                        )}
                         {nameEn && (
                           <p className="flex items-start gap-1 truncate text-[9px] text-muted-foreground">
                             <MapPin className="mt-[1px] h-2.5 w-2.5 shrink-0" />

@@ -14,8 +14,8 @@ import {
   mapUpcomingBooking,
   mapPastBooking,
   mapClassClosure,
-  styleDbToKey,
-  styleLabel,
+  categoryDbToKey,
+  categoryLabel,
   bookingStateToMyState,
 } from "@/lib/mappers"
 import {
@@ -29,7 +29,7 @@ import {
   studioDateParts,
   occurrenceHasEnded,
 } from "@/lib/schedule-dates"
-import type { StyleKey, Occurrence, UpcomingBooking } from "@/lib/types"
+import type { CategoryKey, Occurrence, UpcomingBooking } from "@/lib/types"
 import type { BookingState } from "@/lib/generated/prisma/client"
 
 const MONTH_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -83,7 +83,8 @@ export async function getPublicScheduleData() {
   const rangeStart = weekStart < monthStart ? weekStart : monthStart
   const rangeEnd = weekEnd > monthEnd ? weekEnd : monthEnd
 
-  const [sessionsRaw, roomsRaw, bookingsRaw, closuresRaw] = await Promise.all([
+  const [teachersRaw, sessionsRaw, roomsRaw, bookingsRaw, closuresRaw] = await Promise.all([
+    prisma.teacher.findMany({ orderBy: { id: "asc" } }),
     prisma.classSession.findMany({
       where: { status: "NORMAL" },
       orderBy: [{ day: "asc" }, { start: "asc" }],
@@ -101,6 +102,7 @@ export async function getPublicScheduleData() {
   ])
 
   return {
+    teachers: teachersRaw.map(mapTeacher),
     sessions: sessionsRaw.map((s) => mapClassSession(s)),
     rooms: roomsRaw.map(mapRoom),
     occurrences: buildOccurrences(bookingsRaw),
@@ -133,10 +135,10 @@ export async function getPublicRosterView(sessionId: string, dateISO: string) {
     orderBy: { createdAt: "asc" },
   })
 
-  const label = styleLabel(styleDbToKey(session.style))
+  const label = categoryLabel(categoryDbToKey(session.category))
   return {
-    styleZh: label.zh,
-    styleEn: label.en,
+    categoryZh: label.zh,
+    categoryEn: label.en,
     levelZh: session.levelZh,
     levelEn: session.levelEn,
     dateISO,
@@ -324,7 +326,7 @@ export async function getAdminAppData() {
   const currentYear = Number(todayISO().split("-")[0])
   const [admin, sessionStats, cashFlow] = await Promise.all([
     getAdminAnalytics(),
-    getYearlyStyleStats(currentYear),
+    getYearlyCategoryStats(currentYear),
     getYearlyCashFlow(currentYear),
   ])
 
@@ -345,13 +347,13 @@ export async function getAdminAppData() {
   }
 }
 
-// Monthly, per-style breakdown of consumed class-hours for one calendar
+// Monthly, per-category breakdown of consumed class-hours for one calendar
 // year — backs both the admin overview's default (current year) and the
 // on-demand year navigation in lib/actions/analytics.ts. Also rolls up a
 // per-teacher yearly total from the same entries, so the teacher-attendance
 // list shown alongside it shares the same selected year. Entries without a
 // linked booking (older synthetic seed data) are skipped.
-export async function getYearlyStyleStats(year: number) {
+export async function getYearlyCategoryStats(year: number) {
   const { start, end } = yearRange(year)
   const [entries, earliest] = await Promise.all([
     prisma.ledgerEntry.findMany({
@@ -359,7 +361,7 @@ export async function getYearlyStyleStats(year: number) {
       select: {
         delta: true,
         date: true,
-        booking: { select: { session: { select: { style: true, teacherId: true } } } },
+        booking: { select: { session: { select: { category: true, teacherId: true } } } },
       },
     }),
     prisma.ledgerEntry.aggregate({ where: { kind: "CONSUME" }, _min: { date: true } }),
@@ -369,17 +371,17 @@ export async function getYearlyStyleStats(year: number) {
     month: `${i + 1}月`,
     en: MONTH_EN[i],
     total: 0,
-    byStyle: {} as Partial<Record<StyleKey, number>>,
+    byCategory: {} as Partial<Record<CategoryKey, number>>,
   }))
   const teacherHeads = new Map<string, number>()
   for (const e of entries) {
-    const style = e.booking?.session?.style
-    if (!style) continue
-    const key = styleDbToKey(style)
+    const category = e.booking?.session?.category
+    if (!category) continue
+    const key = categoryDbToKey(category)
     const amt = Math.abs(e.delta)
     const m = months[studioDateParts(e.date).month - 1]
     m.total += amt
-    m.byStyle[key] = (m.byStyle[key] ?? 0) + amt
+    m.byCategory[key] = (m.byCategory[key] ?? 0) + amt
     const teacherId = e.booking!.session!.teacherId
     teacherHeads.set(teacherId, (teacherHeads.get(teacherId) ?? 0) + amt)
   }
@@ -392,11 +394,11 @@ export async function getYearlyStyleStats(year: number) {
   return { year, months, minYear, maxYear, teacherStats }
 }
 
-export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
+export type YearlyCategoryStats = Awaited<ReturnType<typeof getYearlyCategoryStats>>
 
 // Full-year, per-month cash flow (sum of real Payment.amount rows) — backs
 // the admin finance page's cash flow chart with the same on-demand
-// year-navigation pattern as getYearlyStyleStats/getSessionStatsForYear.
+// year-navigation pattern as getYearlyCategoryStats/getSessionStatsForYear.
 export async function getYearlyCashFlow(year: number) {
   const { start, end } = yearRange(year)
   const [payments, earliest] = await Promise.all([

@@ -69,7 +69,7 @@ export async function createUser(input: CreateUserInput) {
     } else if (input.linkMode === "new") {
       if (!input.newName?.trim() || !input.newNameEn?.trim()) throw new Error("MISSING_TEACHER_FIELDS")
       data.teacher = {
-        create: { name: input.newName.trim(), nameEn: input.newNameEn.trim(), avatar: "", styles: [] },
+        create: { name: input.newName.trim(), nameEn: input.newNameEn.trim(), avatar: "", categories: [] },
       }
     } else {
       throw new Error("MISSING_LINK")

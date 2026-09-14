@@ -41,11 +41,11 @@ export default async function PublicRosterPage({
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-[11px] font-extrabold text-primary-foreground">
             C
           </span>
-          课程预约系统 · 课程接龙名单
+          棋艺预约 · 课程报名名单
         </div>
 
         <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <p className="font-display text-xl font-bold text-card-foreground">{view.styleZh}</p>
+          <p className="font-display text-xl font-bold text-card-foreground">{view.categoryZh}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">{view.levelZh}</p>
 
           <div className="mt-4 flex flex-col gap-1.5 text-sm text-card-foreground">
@@ -65,9 +65,9 @@ export default async function PublicRosterPage({
         </div>
 
         <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-card-foreground">接龙名单</p>
+          <p className="mb-3 text-sm font-semibold text-card-foreground">报名名单</p>
           {view.roster.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">还没有人接龙</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">还没有人报名</p>
           ) : (
             <ol className="flex flex-col gap-2">
               {view.roster.map((r) => (

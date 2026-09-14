@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useLanguage } from "@/lib/i18n"
 import {
   weekdayKeys,
-  styleColors,
+  categoryColors,
   type ClassSession,
   type Occurrence,
   type Teacher,
@@ -240,14 +240,14 @@ export function AdminAttendance({
                           key={s.id}
                           onClick={() => setSelected({ session: s, date: d })}
                           className="w-full truncate rounded-md border-l-2 bg-secondary/50 px-1.5 py-1 text-left text-[10px] leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary"
-                          style={{ borderLeftColor: styleColors[s.style] }}
-                          title={`${s.start} · ${t(s.style)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
+                          style={{ borderLeftColor: categoryColors[s.category] }}
+                          title={`${s.start} · ${t(s.category)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
                         >
                           <span className="flex items-center gap-1 font-semibold">
                             {s.start}
                             <PeriodBadge start={s.start} className="px-1 py-0 text-[7px]" />
                           </span>
-                          <span className="block truncate">{t(s.style)}</span>
+                          <span className="block truncate">{t(s.category)}</span>
                           <span className="block truncate text-muted-foreground">
                             {lang === "zh" ? s.level.zh : s.level.en}
                           </span>
@@ -478,7 +478,7 @@ function RosterDialog({
     <>
       <DialogHeader>
         <DialogTitle className="font-display">
-          {t(session.style)} · {formatAppDate(date)} {session.start}–{session.end}
+          {t(session.category)} · {formatAppDate(date)} {session.start}–{session.end}
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4 py-2">

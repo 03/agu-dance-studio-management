@@ -17,9 +17,9 @@ const sora = Sora({
   variable: '--font-sora',
 })
 
-const title = '课程预约系统 · 全流程管理及预约'
+const title = '国际象棋教学预约系统 · 全流程管理及预约'
 const description =
-  'ClassBook — 课程预约、课时卡包、教务排课与运营报表一体化管理平台。Booking, class cards, scheduling and studio operations in one place.'
+  'ChessBook — 私教课程、锦标赛报名、课时卡包、教练排课与运营报表一体化管理平台。Chess lesson booking, tournament sign-up, and coaching studio operations in one place.'
 
 export const metadata: Metadata = {
   title,
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '课程预约',
+    title: '棋艺预约',
   },
   // Preview card shown when this link is shared (WeChat, Xiaohongshu,
   // etc.) — the actual image comes from app/opengraph-image.png, which

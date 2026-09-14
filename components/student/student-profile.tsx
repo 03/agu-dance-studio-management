@@ -51,9 +51,16 @@ export function StudentProfile({
           </Avatar>
           <div>
             <p className="font-display text-lg font-bold">{me.name}</p>
-            <span className="mt-1 inline-block rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[11px]">
-              {t("stu.me.member")} · {me.joined}
-            </span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <span className="inline-block rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[11px]">
+                {t("stu.me.member")} · {me.joined}
+              </span>
+              {me.rating != null && (
+                <span className="inline-block rounded-full bg-primary-foreground/15 px-2 py-0.5 text-[11px]">
+                  {t("coach.ratingBlitz")} {me.rating}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </header>

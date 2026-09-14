@@ -84,6 +84,7 @@ export function AppShell({
               occurrences={publicData.occurrences}
               rooms={publicData.rooms}
               closures={publicData.closures}
+              teachers={publicData.teachers}
             />
           </div>
         </div>

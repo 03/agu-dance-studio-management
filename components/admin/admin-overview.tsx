@@ -2,16 +2,16 @@
 
 import { useState, useTransition } from "react"
 import { useLanguage } from "@/lib/i18n"
-import { styleColors, type StyleKey } from "@/lib/types"
-import { StyleDot } from "@/components/shared/style-dot"
+import { categoryColors, type CategoryKey } from "@/lib/types"
+import { CategoryDot } from "@/components/shared/category-dot"
 import { CashFlowChart } from "./cash-flow-chart"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { getSessionStatsForYear, getSessionStatsDetailForMonth } from "@/lib/actions/analytics"
 import { TrendingUp, Flame, Users, UserCheck, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
-import type { AdminAppData, YearlyCashFlow, YearlyStyleStats, MonthlySessionDetail } from "@/lib/data"
+import type { AdminAppData, YearlyCashFlow, YearlyCategoryStats, MonthlySessionDetail } from "@/lib/data"
 
-const styleKeys = Object.keys(styleColors) as StyleKey[]
+const categoryKeys = Object.keys(categoryColors) as CategoryKey[]
 
 // A flat per-session rate for the "每日课时" dialog's back-of-envelope
 // revenue estimate — real pricing varies per card/product, so this is
@@ -28,7 +28,7 @@ export function AdminOverview({
   admin: AdminAppData["admin"]
   teachers: AdminAppData["teachers"]
   cashFlow: YearlyCashFlow
-  sessionStats: YearlyStyleStats
+  sessionStats: YearlyCategoryStats
 }) {
   const { t } = useLanguage()
   const { kpis: adminKpis } = admin
@@ -74,7 +74,7 @@ function SessionStatsSection({
   initial,
   teachers,
 }: {
-  initial: YearlyStyleStats
+  initial: YearlyCategoryStats
   teachers: AdminAppData["teachers"]
 }) {
   const { t, lang } = useLanguage()
@@ -111,15 +111,15 @@ function SessionStatsSection({
   const maxMonthTotal = Math.max(1, ...stats.months.map((m) => m.total))
   const yearTotal = stats.months.reduce((sum, m) => sum + m.total, 0)
 
-  const byStyleTotal = new Map<StyleKey, number>()
+  const byCategoryTotal = new Map<CategoryKey, number>()
   for (const m of stats.months) {
-    for (const k of styleKeys) {
-      const v = m.byStyle[k]
-      if (v) byStyleTotal.set(k, (byStyleTotal.get(k) ?? 0) + v)
+    for (const k of categoryKeys) {
+      const v = m.byCategory[k]
+      if (v) byCategoryTotal.set(k, (byCategoryTotal.get(k) ?? 0) + v)
     }
   }
-  const styleRows = styleKeys
-    .map((k) => ({ style: k, value: byStyleTotal.get(k) ?? 0 }))
+  const categoryRows = categoryKeys
+    .map((k) => ({ category: k, value: byCategoryTotal.get(k) ?? 0 }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value)
   const totalForPct = Math.max(1, yearTotal)
@@ -162,21 +162,21 @@ function SessionStatsSection({
             )}
           </div>
 
-          {/* Yearly totals by style */}
+          {/* Yearly totals by category */}
           <div className="w-52">
-            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{t("adm.chart.byStyle")}</p>
-            {styleRows.length === 0 ? (
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{t("adm.chart.byCategory")}</p>
+            {categoryRows.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t("adm.sessionStats.noData")}</p>
             ) : (
               <ul className="flex flex-col gap-1.5">
-                {styleRows.map((r) => {
+                {categoryRows.map((r) => {
                   const pct = Math.round((r.value / totalForPct) * 100)
                   return (
-                    <li key={r.style}>
+                    <li key={r.category}>
                       <div className="mb-0.5 flex items-center justify-between text-[11px]">
                         <span className="inline-flex items-center gap-1.5 font-medium text-card-foreground">
-                          <StyleDot style={r.style} />
-                          {t(r.style)}
+                          <CategoryDot category={r.category} />
+                          {t(r.category)}
                         </span>
                         <span className="text-muted-foreground">
                           {r.value} · {pct}%
@@ -185,7 +185,7 @@ function SessionStatsSection({
                       <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: styleColors[r.style] }}
+                          style={{ width: `${pct}%`, backgroundColor: categoryColors[r.category] }}
                         />
                       </div>
                     </li>
@@ -239,14 +239,14 @@ function SessionStatsSection({
               className="flex w-full flex-col overflow-hidden rounded-t-lg"
               style={{ height: `${(m.total / maxMonthTotal) * 160}px` }}
             >
-              {styleKeys
-                .filter((k) => m.byStyle[k])
+              {categoryKeys
+                .filter((k) => m.byCategory[k])
                 .map((k) => (
                   <div
                     key={k}
                     style={{
-                      height: `${((m.byStyle[k] ?? 0) / (m.total || 1)) * 100}%`,
-                      backgroundColor: styleColors[k],
+                      height: `${((m.byCategory[k] ?? 0) / (m.total || 1)) * 100}%`,
+                      backgroundColor: categoryColors[k],
                     }}
                   />
                 ))}

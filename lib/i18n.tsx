@@ -9,8 +9,8 @@ type Dict = Record<string, { zh: string; en: string }>
 // Central bilingual dictionary. Keys are grouped by prefix for readability.
 export const dict: Dict = {
   // Brand / global
-  "brand.name": { zh: "课程预约系统", en: "ClassBook" },
-  "brand.tagline": { zh: "全流程管理及预约平台", en: "Studio management & booking" },
+  "brand.name": { zh: "棋艺预约", en: "ChessBook" },
+  "brand.tagline": { zh: "教学管理及预约平台", en: "Coaching management & booking" },
   "home.demo.title": { zh: "可定制Demo演示", en: "Customizable — Demo" },
   "home.demo.switchRoleHint": {
     zh: "点击\"登录\"按钮下方的图标可以切换角色登录",
@@ -29,17 +29,20 @@ export const dict: Dict = {
   // (DEMO_MODE_ENABLED), pitching this as a customizable booking system
   // rather than describing this specific fictional studio.
   "home.marketing.headline": {
-    zh: "全能预约管理系统 · 适合舞蹈、瑜伽、球类，棋类培训等各类课程业务",
-    en: "A complete class-booking system — for dance, yoga, tutoring & more",
+    zh: "国际象棋教学预约系统 · 由 2200+ 快棋等级分棋手打造",
+    en: "Chess coaching & lesson booking — built by a 2200+ blitz-rated player",
   },
-  "home.marketing.feature1": { zh: "智能排课与容量管理", en: "Smart scheduling & capacity control" },
-  "home.marketing.feature2": { zh: "学员打卡与课时卡包", en: "Check-in & class-card wallets" },
-  "home.marketing.feature3": { zh: "财务报表与运营总览", en: "Finance reports & operations dashboard" },
+  "home.marketing.feature1": { zh: "私教课程与锦标赛报名", en: "Private lessons & tournament sign-up" },
+  "home.marketing.feature2": { zh: "签到打卡与课时卡包", en: "Check-in & lesson-pack wallets" },
+  "home.marketing.feature3": { zh: "教练等级分与运营总览", en: "Coach ratings & operations dashboard" },
 
   // Contact CTA — shown above the login card only in demo mode, same flag
   // as the marketing intro above.
-  "home.cta.title": { zh: "想拥有属于您自己的预约系统？", en: "Want your own booking system?" },
-  "home.cta.desc": { zh: "功能与界面均可按需定制，欢迎联系开发者", en: "Every feature and screen here is customizable — get in touch" },
+  "home.cta.title": { zh: "想为你的业务定制一套预约系统？", en: "Want a booking system built for your business?" },
+  "home.cta.desc": {
+    zh: "这套系统可服务舞蹈、棋类、球类等各类课程业务，欢迎联系开发者",
+    en: "The same engine powers dance, chess, sports and tutoring businesses alike — get in touch",
+  },
   "home.cta.pricingBasic": {
     zh: "基础版：沿用本演示的功能与界面，快速上线",
     en: "Basic: this demo's features & design, ready to deploy",
@@ -141,14 +144,18 @@ export const dict: Dict = {
   "day.sat": { zh: "周六", en: "Sat" },
   "day.sun": { zh: "周日", en: "Sun" },
 
-  // Dance styles
-  "style.jazz": { zh: "爵士舞", en: "Jazz" },
-  "style.hiphop": { zh: "嘻哈街舞", en: "Hip-Hop" },
-  "style.ballet": { zh: "芭蕾形体", en: "Ballet" },
-  "style.kpop": { zh: "韩舞", en: "K-Pop" },
-  "style.contemporary": { zh: "现代舞", en: "Contemporary" },
-  "style.latin": { zh: "拉丁舞", en: "Latin" },
-  "style.jazzKpop": { zh: "爵士舞/韩舞", en: "Jazz/Kpop" },
+  // Chess categories
+  "category.bullet": { zh: "超快棋", en: "Bullet" },
+  "category.blitz": { zh: "快棋", en: "Blitz" },
+  "category.rapid": { zh: "慢棋", en: "Rapid" },
+  "category.classical": { zh: "古典赛", en: "Classical" },
+  "category.openings": { zh: "开局训练", en: "Openings" },
+  "category.endgame": { zh: "残局训练", en: "Endgame" },
+
+  // Session kind (regular recurring class vs. one-off tournament) and
+  // rating badges (Teacher.rating / Student.rating)
+  "session.kind.tournament": { zh: "锦标赛", en: "Tournament" },
+  "coach.ratingBlitz": { zh: "快棋等级分", en: "Blitz rating" },
 
   // Student nav
   "stu.nav.schedule": { zh: "课表", en: "Schedule" },
@@ -156,8 +163,8 @@ export const dict: Dict = {
   "stu.nav.cards": { zh: "卡包", en: "Cards" },
   "stu.nav.me": { zh: "我的", en: "Me" },
   "stu.schedule.title": { zh: "课程预约", en: "Book a class" },
-  "stu.schedule.bookAgain": { zh: "再接龙一位", en: "Add another spot" },
-  "stu.filter.style": { zh: "舞种", en: "Style" },
+  "stu.schedule.bookAgain": { zh: "再报一位", en: "Add another spot" },
+  "stu.filter.category": { zh: "分类", en: "Category" },
   "stu.filter.teacher": { zh: "老师", en: "Teacher" },
   "stu.filter.room": { zh: "教室", en: "Room" },
   "stu.bookings.upcoming": { zh: "即将上课", en: "Upcoming" },
@@ -181,14 +188,14 @@ export const dict: Dict = {
   "stu.profile.changePassword": { zh: "修改密码", en: "Change password" },
   "stu.profile.notesPlaceholder": { zh: "写点想让老师和管理员知道的备注，比如伤病情况…", en: "A note for your teachers and admin, e.g. an injury…" },
   "stu.profile.notesHint": { zh: "老师和管理员可见", en: "Visible to your teachers and admin" },
-  "stu.roster.button": { zh: "接龙名单", en: "Roster" },
-  "stu.roster.title": { zh: "接龙名单", en: "Roster" },
-  "stu.roster.empty": { zh: "暂无学员接龙", en: "No one has joined yet" },
+  "stu.roster.button": { zh: "报名名单", en: "Roster" },
+  "stu.roster.title": { zh: "报名名单", en: "Roster" },
+  "stu.roster.empty": { zh: "暂无学员报名", en: "No one has joined yet" },
   "stu.schedule.err.noValidCard": { zh: "剩余课时不足，请及时充值，谢谢", en: "You don't have enough classes left — please top up soon, thank you" },
   "stu.schedule.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
   "stu.schedule.err.generic": { zh: "操作失败，请重试", en: "Something went wrong — please try again" },
-  "stu.schedule.confirmSameDay": { zh: "当日或课前 12 小时内的接龙不能取消，是否继续？", en: "Bookings can't be cancelled on the class day or within 12h of the start — continue anyway?" },
-  "stu.bookings.err.sameDayCancel": { zh: "当日或课前 12 小时内的接龙不能取消", en: "Bookings can't be cancelled on the class day or within 12h of the start — please contact your teacher" },
+  "stu.schedule.confirmSameDay": { zh: "当日或课前 12 小时内的报名不能取消，是否继续？", en: "Bookings can't be cancelled on the class day or within 12h of the start — continue anyway?" },
+  "stu.bookings.err.sameDayCancel": { zh: "当日或课前 12 小时内的报名不能取消", en: "Bookings can't be cancelled on the class day or within 12h of the start — please contact your teacher" },
   "ledger.consume": { zh: "消课", en: "Class" },
   "ledger.recharge": { zh: "充值", en: "Top-up" },
   "ledger.gift": { zh: "赠课", en: "Gift" },
@@ -220,20 +227,20 @@ export const dict: Dict = {
   "adm.title": { zh: "教务管理后台", en: "Admin console" },
   "adm.nav.overview": { zh: "运营总览", en: "Overview" },
   "adm.nav.schedule": { zh: "课程表", en: "Schedule" },
-  "adm.nav.studios": { zh: "舞房管理", en: "Studios" },
-  "adm.studios.add": { zh: "新增舞房", en: "Add studio" },
-  "adm.studios.code": { zh: "舞房代码", en: "Studio code" },
+  "adm.nav.studios": { zh: "教室管理", en: "Venues" },
+  "adm.studios.add": { zh: "新增教室", en: "Add venue" },
+  "adm.studios.code": { zh: "教室代码", en: "Venue code" },
   "adm.studios.name": { zh: "名称", en: "Name" },
   "adm.studios.nameEn": { zh: "英文名称", en: "English name" },
   "adm.studios.address": { zh: "地址", en: "Address" },
   "adm.studios.postalCode": { zh: "邮编", en: "Postal code" },
   "adm.studios.deleteDesc": {
-    zh: "删除后无法恢复。若该舞房仍有排课使用，将无法删除。",
-    en: "This cannot be undone. Studios still referenced by a scheduled class can't be deleted.",
+    zh: "删除后无法恢复。若该教室仍有排课使用，将无法删除。",
+    en: "This cannot be undone. Venues still referenced by a scheduled class can't be deleted.",
   },
   "adm.studios.err.invalidName": { zh: "请填写名称", en: "Name is required" },
   "adm.studios.err.invalidNameEn": { zh: "请填写英文名称", en: "English name is required" },
-  "adm.studios.err.inUse": { zh: "该舞房仍被排课使用，无法删除", en: "This studio is still used by a scheduled class and can't be deleted" },
+  "adm.studios.err.inUse": { zh: "该教室仍被排课使用，无法删除", en: "This venue is still used by a scheduled class and can't be deleted" },
   "adm.nav.students": { zh: "学员管理", en: "Students" },
   "adm.nav.cards": { zh: "营销记录", en: "Sales records" },
   "adm.sessionStats.byMonth": { zh: "课时数", en: "Sessions" },
@@ -286,12 +293,12 @@ export const dict: Dict = {
   "adm.attendance.shareLinkCopied": { zh: "链接已复制", en: "Link copied" },
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
-  "adm.attendance.history": { zh: "接龙历史", en: "Booking history" },
+  "adm.attendance.history": { zh: "报名历史", en: "Booking history" },
   "adm.attendance.historyEmpty": { zh: "暂无记录", en: "No activity yet" },
   "adm.attendance.historyTime": { zh: "时间", en: "Time" },
   "adm.attendance.historyAction": { zh: "操作", en: "Action" },
-  "adm.attendance.historyAdd": { zh: "添加接龙", en: "Added" },
-  "adm.attendance.historyCancel": { zh: "取消接龙", en: "Cancelled" },
+  "adm.attendance.historyAdd": { zh: "添加报名", en: "Added" },
+  "adm.attendance.historyCancel": { zh: "取消报名", en: "Cancelled" },
   "booking.confirmDuplicate": { zh: "该学员已经在列表中，是否继续", en: "This student is already on the list — continue anyway?" },
   "booking.confirmNegativeBalance": {
     zh: "该学员已无剩余课时，是否继续？登记后课时余额将变为负数",
@@ -330,7 +337,7 @@ export const dict: Dict = {
   "adm.chart.cashflow.yearTotal": { zh: "年度总额", en: "Year total" },
   "adm.chart.cashflow.monthDetail": { zh: "收入明细", en: "Income detail" },
   "adm.chart.cashflow.monthEmpty": { zh: "本月暂无收入记录", en: "No income this month" },
-  "adm.chart.byStyle": { zh: "各舞种课耗占比", en: "Consumption by style" },
+  "adm.chart.byCategory": { zh: "各类别课耗占比", en: "Consumption by category" },
   "adm.chart.teacherHeads": { zh: "教师上课人次", en: "Teacher attendance" },
   "adm.chart.sessionDetail": { zh: "每日课时", en: "Daily sessions" },
   "adm.chart.sessionDetail.empty": { zh: "本月暂无课耗记录", en: "No sessions consumed this month" },
@@ -342,6 +349,9 @@ export const dict: Dict = {
   "adm.schedule.swapTeacher": { zh: "换老师", en: "Swap teacher" },
   "adm.schedule.swapRoom": { zh: "换教室", en: "Change room" },
   "adm.schedule.day": { zh: "上课日", en: "Day" },
+  "adm.schedule.kind": { zh: "课程类型", en: "Session type" },
+  "adm.schedule.tournamentDate": { zh: "锦标赛日期", en: "Tournament date" },
+  "session.kind.regular": { zh: "常规课程", en: "Regular class" },
   "adm.schedule.startTime": { zh: "开始时间", en: "Start time" },
   "adm.schedule.endTime": { zh: "结束时间", en: "End time" },
   "adm.schedule.capacity": { zh: "容量", en: "Capacity" },

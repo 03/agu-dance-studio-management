@@ -6,7 +6,7 @@ import { useLanguage } from "@/lib/i18n"
 import { weekdayKeys, type UpcomingBooking, type PastBooking, type Teacher, type Room } from "@/lib/types"
 import { cancelBooking } from "@/lib/actions/bookings"
 import { parseISODate, formatAppDate } from "@/lib/schedule-dates"
-import { StyleDot } from "@/components/shared/style-dot"
+import { CategoryDot } from "@/components/shared/category-dot"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Clock, MapPin, X } from "lucide-react"
@@ -82,9 +82,9 @@ export function StudentBookings({
                 <li key={s.bookingId} className="rounded-2xl border border-border bg-card p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <StyleDot style={s.style} />
+                      <CategoryDot category={s.category} />
                       <span className="font-display text-base font-bold text-card-foreground">
-                        {t(s.style)}
+                        {t(s.category)}
                       </span>
                     </div>
                     {s.myState === "waitlist" ? (
@@ -138,9 +138,9 @@ export function StudentBookings({
                   key={s.bookingId}
                   className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 opacity-90"
                 >
-                  <StyleDot style={s.style} size={12} />
+                  <CategoryDot category={s.category} size={12} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-card-foreground">{t(s.style)}</p>
+                    <p className="font-medium text-card-foreground">{t(s.category)}</p>
                     <p className="text-xs text-muted-foreground">
                       {s.date} · {s.start} · {teacherName(s.teacherId)}
                     </p>

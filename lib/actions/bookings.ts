@@ -2,9 +2,9 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
+import { categoryDbToKey, categoryLabel, computeRemainingBalance } from "@/lib/mappers"
 import { parseISODate, toISODate, todayISO, isSessionActiveOn, studioInstant } from "@/lib/schedule-dates"
-import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
+import type { Prisma, ChessCategory } from "@/lib/generated/prisma/client"
 
 // Every exported action below returns this instead of throwing its error
 // code across the client boundary. Next.js redacts a thrown Error's message
@@ -76,13 +76,13 @@ async function pickConsumableCard(tx: Prisma.TransactionClient, studentId: strin
 // created on a different day than the class it's for (an admin
 // backfilling attendance days later, a student booking a week ahead), so
 // using `new Date()` here made 已用课时历史 and the monthly consumption
-// charts (getYearlyStyleStats/getAdminAnalytics) show when the booking was
+// charts (getYearlyCategoryStats/getAdminAnalytics) show when the booking was
 // *registered* instead of when the class actually happened.
 async function consumeCreditForBooking(
   tx: Prisma.TransactionClient,
   studentId: string,
   bookingId: string,
-  session: { style: DanceStyle; teacher: { name: string; nameEn: string } },
+  session: { category: ChessCategory; teacher: { name: string; nameEn: string } },
   occurrenceDate: Date,
   opts: { allowNegative?: boolean } = {},
 ) {
@@ -108,7 +108,7 @@ async function consumeCreditForBooking(
     ])
     if (computeRemainingBalance(cards, ledgerEntries) <= 0 && !opts.allowNegative) throw new Error("NO_VALID_CARD")
   }
-  const label = styleLabel(styleDbToKey(session.style))
+  const label = categoryLabel(categoryDbToKey(session.category))
   await tx.ledgerEntry.upsert({
     where: { bookingId },
     create: {
