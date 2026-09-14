@@ -28,18 +28,14 @@ async function main() {
     ],
   })
 
-  // ---- Class sessions (fixed demo-week schedule) ----
+  // ---- Class sessions (fixed demo-week schedule). Capacity 10 throughout —
+  // a private/small-group coaching studio, not a mass-market dance class. ----
   await prisma.classSession.createMany({
     data: [
-      { id: "c1", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "21:30", capacity: 20, levelZh: "基础班", levelEn: "Beginner+" },
-      { id: "c2", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 3, start: "19:30", end: "21:30", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
-      { id: "c3", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 5, start: "19:15", end: "21:15", capacity: 20, levelZh: "入门班", levelEn: "Beginner" },
-      { id: "c4", category: "BLITZ", teacherId: "t1", roomId: "r3", day: 6, start: "19:00", end: "21:00", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
-
-      { id: "c5", category: "BLITZ", teacherId: "t1", roomId: "r2", day: 2, start: "10:30", end: "12:30", capacity: 20, levelZh: "基础班", levelEn: "Beginner+" },
-      { id: "c6", category: "BLITZ", teacherId: "t1", roomId: "r2", day: 3, start: "10:30", end: "12:30", capacity: 20, levelZh: "入门班", levelEn: "Beginner" },
-      { id: "c7", category: "BLITZ", teacherId: "t1", roomId: "r2", day: 4, start: "10:00", end: "12:00", capacity: 20, levelZh: "零基础入门班", levelEn: "Starter" },
-      { id: "c8", category: "BLITZ", teacherId: "t1", roomId: "r3", day: 6, start: "11:30", end: "13:00", capacity: 16, levelZh: "少儿（7+）基础班", levelEn: "Teens(7+) Beginner" },
+      { id: "c1", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 1, start: "19:30", end: "21:30", capacity: 10, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c2", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 3, start: "19:30", end: "21:30", capacity: 10, levelZh: "零基础入门班", levelEn: "Starter" },
+      { id: "c3", category: "BLITZ", teacherId: "t1", roomId: "r1", day: 5, start: "19:15", end: "21:15", capacity: 10, levelZh: "入门班", levelEn: "Beginner" },
+      { id: "c4", category: "BLITZ", teacherId: "t1", roomId: "r3", day: 6, start: "19:00", end: "21:00", capacity: 10, levelZh: "零基础入门班", levelEn: "Starter" },
     ],
   })
 
@@ -76,7 +72,7 @@ async function main() {
 // Deliberately never touches the teacher/room/class_sessions/card_products/
 // admin1+teacher1 data seeded above: every id here is its own new row, and
 // every new class session below is scheduled into a day/room/time slot the
-// fixed c1-c8 schedule doesn't use (so nothing double-books a room).
+// fixed c1-c4 schedule doesn't use (so nothing double-books a room).
 async function seedDemoHistory() {
   const EXTRA_TEACHERS = [
     { id: "t2", name: "苏菲", nameEn: "Sophie", avatar: "/placeholder-user.jpg", categories: ["OPENINGS", "ENDGAME"] as const, rating: 1950 },
@@ -92,17 +88,16 @@ async function seedDemoHistory() {
     ],
   })
 
-  // New class sessions covering the categories the fixed c1-c8 schedule
-  // never uses (those are all BLITZ) — each in a day/room/time slot free of
-  // the existing schedule, so 课程表 gains variety without touching it.
+  // New class sessions covering the categories the fixed c1-c4 schedule
+  // never uses (those are all BLITZ) — one per extra coach, each in a
+  // day/room/time slot free of the existing schedule, so 课程表 gains
+  // variety without touching it. Capacity 10, same as c1-c4.
   await prisma.classSession.createMany({
     data: [
-      { id: "c9", category: "RAPID", teacherId: "t1", roomId: "r2", day: 0, start: "09:30", end: "11:00", capacity: 16, levelZh: "进阶班", levelEn: "Advanced" },
-      { id: "c10", category: "OPENINGS", teacherId: "t2", roomId: "r1", day: 0, start: "19:30", end: "21:00", capacity: 16, levelZh: "基础班", levelEn: "Beginner+" },
-      { id: "c11", category: "ENDGAME", teacherId: "t2", roomId: "r3", day: 0, start: "19:00", end: "20:30", capacity: 14, levelZh: "入门班", levelEn: "Beginner" },
-      { id: "c12", category: "CLASSICAL", teacherId: "t3", roomId: "r3", day: 2, start: "18:00", end: "19:30", capacity: 12, levelZh: "基础班", levelEn: "Beginner" },
-      { id: "c13", category: "BULLET", teacherId: "t4", roomId: "r1", day: 4, start: "19:30", end: "21:00", capacity: 14, levelZh: "基础班", levelEn: "Beginner+" },
-      { id: "c14", category: "BLITZ", teacherId: "t1", roomId: "r2", day: 5, start: "14:00", end: "15:30", capacity: 16, levelZh: "入门班", levelEn: "Beginner" },
+      { id: "c5", category: "RAPID", teacherId: "t1", roomId: "r2", day: 0, start: "09:30", end: "11:00", capacity: 10, levelZh: "进阶班", levelEn: "Advanced" },
+      { id: "c6", category: "OPENINGS", teacherId: "t2", roomId: "r1", day: 0, start: "19:30", end: "21:00", capacity: 10, levelZh: "基础班", levelEn: "Beginner+" },
+      { id: "c7", category: "CLASSICAL", teacherId: "t3", roomId: "r3", day: 2, start: "18:00", end: "19:30", capacity: 10, levelZh: "基础班", levelEn: "Beginner" },
+      { id: "c8", category: "BULLET", teacherId: "t4", roomId: "r1", day: 4, start: "19:30", end: "21:00", capacity: 10, levelZh: "基础班", levelEn: "Beginner+" },
     ],
   })
 
@@ -160,31 +155,26 @@ async function seedDemoHistory() {
     return names
   }
   // A chess coaching studio is a smaller-scale business archetype than a
-  // mass-market dance studio (private/small-group lessons, not 40-capacity
-  // classes) — 60 students across 14 recurring sessions still yields a
-  // realistic handful of sign-ups per occurrence at this smaller capacity.
-  const STUDENT_COUNT = 60
+  // mass-market dance studio (private/small-group lessons, cap 10 not 40) —
+  // 40 students across 8 recurring sessions (~5 "home" students per class,
+  // ~3-4 actually showing up at 75% attendance) stays comfortably under
+  // capacity, which is what makes a small studio look believable.
+  const STUDENT_COUNT = 40
   const DEMO_STUDENT_NAMES = generateDemoNames(STUDENT_COUNT)
 
-  // One entry per bookable recurring session (the fixed c1-c8 plus the new
-  // c9-c14 above — the one-off tournament session is handled separately
-  // below, not as a "home" session), with the category/teacher a booking
-  // against it should show in 课时消费's ledger title.
+  // One entry per bookable recurring session (c1-c8 — the one-off
+  // tournament session is handled separately below, not as a "home"
+  // session), with the category/teacher a booking against it should show
+  // in 课时消费's ledger title.
   const CLASS_SESSIONS = [
     { id: "c1", day: 1, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
     { id: "c2", day: 3, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
     { id: "c3", day: 5, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
     { id: "c4", day: 6, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c5", day: 2, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c6", day: 3, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c7", day: 4, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c8", day: 6, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c9", day: 0, category: "RAPID" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
-    { id: "c10", day: 0, category: "OPENINGS" as const, teacherName: "苏菲", teacherNameEn: "Sophie" },
-    { id: "c11", day: 0, category: "ENDGAME" as const, teacherName: "苏菲", teacherNameEn: "Sophie" },
-    { id: "c12", day: 2, category: "CLASSICAL" as const, teacherName: "马克", teacherNameEn: "Marcus" },
-    { id: "c13", day: 4, category: "BULLET" as const, teacherName: "小雨", teacherNameEn: "Yuki" },
-    { id: "c14", day: 5, category: "BLITZ" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
+    { id: "c5", day: 0, category: "RAPID" as const, teacherName: "陆帅", teacherNameEn: "Shuai Lu" },
+    { id: "c6", day: 0, category: "OPENINGS" as const, teacherName: "苏菲", teacherNameEn: "Sophie" },
+    { id: "c7", day: 2, category: "CLASSICAL" as const, teacherName: "马克", teacherNameEn: "Marcus" },
+    { id: "c8", day: 4, category: "BULLET" as const, teacherName: "小雨", teacherNameEn: "Yuki" },
   ]
   // 0 = Mon..6 = Sun (this app's day convention) for a plain JS Date.
   const toAppDay = (d: Date) => (d.getDay() + 6) % 7
@@ -230,7 +220,7 @@ async function seedDemoHistory() {
   const tournamentDay = toAppDay(tournamentDateObj)
   await prisma.classSession.create({
     data: {
-      id: "c15",
+      id: "c9",
       category: "BLITZ",
       kind: "TOURNAMENT",
       teacherId: "t1",
@@ -238,7 +228,7 @@ async function seedDemoHistory() {
       day: tournamentDay,
       start: "10:00",
       end: "17:00",
-      capacity: 30,
+      capacity: 10,
       levelZh: "五轮瑞士制，欢迎各级别棋手",
       levelEn: "5-round Swiss, all levels welcome",
       startDate: parseISODate(tournamentDateISO),
@@ -379,24 +369,26 @@ async function seedDemoHistory() {
       })
     })
 
-    // A slice of students sign up for the c15 tournament — plain
+    // A slice of students sign up for the c9 tournament — plain
     // Booking/BookingEvent rows via the same roster machinery every other
     // occurrence uses, deliberately not drawing on a lesson card/ledger
-    // entry (a tournament entry isn't a private-lesson credit).
-    if (i % 4 === 0) {
+    // entry (a tournament entry isn't a private-lesson credit). 1-in-5
+    // leaves a couple of the 10 spots open rather than exactly maxing out
+    // the cap, which reads as more realistic than a suspiciously full room.
+    if (i % 5 === 0) {
       const tournamentBookingId = `tb${n}`
       const signupAt = new Date(tournamentDateObj.getTime() - ((1 + (n % 12)) * 86_400_000))
       bookings.push({
         id: tournamentBookingId,
         studentId: students[students.length - 1].id,
-        sessionId: "c15",
+        sessionId: "c9",
         date: parseISODate(tournamentDateISO),
         checkedIn: false,
         createdAt: signupAt,
       })
       bookingEvents.push({
         id: `te${n}`,
-        sessionId: "c15",
+        sessionId: "c9",
         studentId: students[students.length - 1].id,
         bookingId: tournamentBookingId,
         date: parseISODate(tournamentDateISO),
