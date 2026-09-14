@@ -51,6 +51,7 @@ export function AppShell({
           {DEMO_MODE_ENABLED && (
             <div className="rounded-2xl border border-primary/30 bg-primary/10 px-5 py-3 text-center backdrop-blur">
               <p className="text-sm font-semibold text-primary">{t("home.demo.title")}</p>
+              <p className="text-xs text-muted-foreground">{t("home.demo.switchRoleHint")}</p>
               <p className="text-xs text-muted-foreground">{t("home.demo.credentials")}</p>
             </div>
           )}

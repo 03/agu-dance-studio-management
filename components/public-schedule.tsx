@@ -8,7 +8,7 @@ import { getOccurrencesForMonth } from "@/lib/actions/schedule"
 import { cn } from "@/lib/utils"
 import { PeriodBadge } from "@/components/shared/period-badge"
 import { PUBLIC_MONTH_VIEW_ENABLED } from "@/lib/feature-flags"
-import { MessageCircle, Sparkles, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import { ChevronLeft, ChevronRight, MapPin } from "lucide-react"
 
 type ViewMode = "week" | "month"
 
@@ -101,21 +101,6 @@ export function PublicSchedule({
       ) : (
         <WeekView sessions={sessions} bookedFor={bookedFor} ensureMonth={ensureMonth} rooms={rooms} closures={closures} />
       )}
-
-      {/* Contact */}
-      <div className="mt-14 border-t border-border pt-8">
-        <p className="mb-4 text-sm font-semibold text-foreground">{t("home.contact.title")}</p>
-        <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-primary" />
-            {t("home.contact.wechat")}: <span className="font-medium text-foreground">AguHappy</span>
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            {t("home.contact.xiaohongshu")}: <span className="font-medium text-foreground">833708881</span>
-          </span>
-        </div>
-      </div>
     </div>
   )
 }

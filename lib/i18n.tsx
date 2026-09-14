@@ -9,9 +9,13 @@ type Dict = Record<string, { zh: string; en: string }>
 // Central bilingual dictionary. Keys are grouped by prefix for readability.
 export const dict: Dict = {
   // Brand / global
-  "brand.name": { zh: "Agu 舞蹈工作室", en: "Agu Dance Studio" },
+  "brand.name": { zh: "课程预约系统", en: "ClassBook" },
   "brand.tagline": { zh: "全流程管理及预约平台", en: "Studio management & booking" },
-  "home.demo.title": { zh: "Demo 演示", en: "Demo" },
+  "home.demo.title": { zh: "可定制Demo演示", en: "Customizable — Demo" },
+  "home.demo.switchRoleHint": {
+    zh: "点击\"登录\"按钮下方的图标可以切换角色登录",
+    en: "Tap an icon below the login form to switch role",
+  },
   "home.demo.credentials": {
     zh: "学员 student1，教师 teacher1，管理员 admin1，密码均为 demo1234",
     en: "Student: student1, Teacher: teacher1, Admin: admin1 — password demo1234 for all",
@@ -34,9 +38,6 @@ export const dict: Dict = {
   "home.schedule.nextWeek": { zh: "下一周", en: "Next week" },
   "home.schedule.thisWeek": { zh: "本周", en: "This week" },
   "home.schedule.enrolled": { zh: "已报名", en: "enrolled" },
-  "home.contact.title": { zh: "联系方式", en: "Contact Us" },
-  "home.contact.wechat": { zh: "微信号", en: "WeChat" },
-  "home.contact.xiaohongshu": { zh: "小红书", en: "Xiaohongshu" },
 
   // Auth
   "auth.username": { zh: "用户名", en: "Username" },

@@ -11,8 +11,8 @@ import type { MetadataRoute } from "next"
 // this app's use case (see its own comment).
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Agu 舞蹈工作室",
-    short_name: "Agu 舞蹈",
+    name: "课程预约系统",
+    short_name: "课程预约",
     description: "课程预约、课时卡包、教务排课与运营报表一体化管理平台",
     start_url: "/",
     display: "standalone",

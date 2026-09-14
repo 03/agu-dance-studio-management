@@ -32,7 +32,7 @@ export async function sendBackupEmail(jsonContent: Buffer, filename: string): Pr
     body: JSON.stringify({
       from,
       to: [to],
-      subject: `Agu 舞蹈工作室数据备份 · ${filename}`,
+      subject: `课程预约系统数据备份 · ${filename}`,
       text: `自动备份附件：${attachmentFilename}`,
       attachments: [{ filename: attachmentFilename, content: gzipped.toString("base64") }],
     }),

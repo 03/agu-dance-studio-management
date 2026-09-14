@@ -18,16 +18,16 @@ const sora = Sora({
 })
 
 export const metadata: Metadata = {
-  title: 'Agu 舞蹈工作室 · 全流程管理及预约',
+  title: '课程预约系统 · 全流程管理及预约',
   description:
-    'Agu Dance Studio — 课程预约、课时卡包、教务排课与运营报表一体化管理平台。Booking, class cards, scheduling and studio operations in one place.',
+    'ClassBook — 课程预约、课时卡包、教务排课与运营报表一体化管理平台。Booking, class cards, scheduling and studio operations in one place.',
   // iOS ignores the web manifest for "Add to Home Screen" — this is what it
   // reads instead to launch fullscreen (no Safari chrome) from the home
   // screen icon rather than opening back into Safari.
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Agu 舞蹈',
+    title: '课程预约',
   },
 }
 
