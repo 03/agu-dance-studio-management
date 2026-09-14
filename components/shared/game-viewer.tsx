@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react"
 import { Chess } from "chess.js"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, FlipVertical } from "lucide-react"
 import { ChessBoard } from "@/components/shared/chess-board"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/i18n"
 import { sanitizePgnForParsing, extractPlyClocks, plyTimeUsedSeconds, formatSecondsShort } from "@/lib/pgn"
+import { findCheckedKingSquare } from "@/lib/chess-helpers"
 import type { GameComment } from "@/lib/types"
 
 // Replays a PGN's SAN move list once client-side and caches the FEN after
@@ -45,6 +46,7 @@ export function GameViewer({
   const replay = useMemo(() => replayPgn(pgn), [pgn])
   const clocks = useMemo(() => extractPlyClocks(pgn), [pgn])
   const [idx, setIdx] = useState(0) // index into positions; 0 = starting position
+  const [flipped, setFlipped] = useState(false)
   const [draft, setDraft] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -54,6 +56,7 @@ export function GameViewer({
   }
 
   const { moves, positions } = replay
+  const checkSquare = findCheckedKingSquare(new Chess(positions[idx]))
   const currentPly = idx - 1 // the move (0-indexed) that led to the current position, or -1 at the start
   const commentsHere = comments.filter((c) => c.ply === currentPly)
   const pliesWithComments = new Set(comments.map((c) => c.ply))
@@ -74,7 +77,13 @@ export function GameViewer({
 
   return (
     <div className="flex flex-col gap-3">
-      <ChessBoard fen={positions[idx]} />
+      <div className="flex justify-end">
+        <Button variant="ghost" size="icon-sm" aria-label={t("common.flipBoard")} onClick={() => setFlipped((f) => !f)}>
+          <FlipVertical />
+        </Button>
+      </div>
+
+      <ChessBoard fen={positions[idx]} flipped={flipped} checkSquare={checkSquare} />
 
       <div className="flex items-center justify-center gap-3">
         <Button variant="outline" size="icon-sm" disabled={idx === 0} onClick={() => setIdx((i) => Math.max(0, i - 1))}>
