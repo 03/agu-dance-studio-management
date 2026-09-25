@@ -63,11 +63,12 @@ export function StudentSchedule({
   const [duplicateConfirm, setDuplicateConfirm] = useState<(ClassSession & { myState: Occurrence["myState"] }) | null>(null)
   const [sameDayConfirm, setSameDayConfirm] = useState<(ClassSession & { myState: Occurrence["myState"] }) | null>(null)
 
-  // Browsable window: the 2 days before today through the next 2 weeks
-  // (today counted as day 1 of those two weeks) — 16 real calendar dates
-  // total, today always at a fixed offset so it's the default selection.
+  // Browsable window: the 2 days before today through the next 30 days —
+  // 33 real calendar dates total, today always at a fixed offset so it's
+  // the default selection.
   const DAYS_BEFORE = 2
-  const DAYS_TOTAL = 16
+  const DAYS_AFTER = 30
+  const DAYS_TOTAL = DAYS_BEFORE + 1 + DAYS_AFTER
   const TODAY_INDEX = DAYS_BEFORE
 
   const dates = useMemo(() => {

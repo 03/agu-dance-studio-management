@@ -14,9 +14,13 @@ type ViewMode = "week" | "month"
 
 // How far a logged-out visitor can browse away from "now" — this is the
 // public landing page, not the logged-in student/admin calendars, which
-// have no such cap.
-const WEEK_OFFSET_LIMIT = 2 // this week ± 2
-const MONTH_OFFSET_LIMIT = 1 // this month ± 1
+// have no such cap. Forward and back are independent: a visitor is far
+// more likely to be checking upcoming sign-ups than digging into past
+// weeks/months, hence the wider forward range.
+const WEEK_OFFSET_BACK_LIMIT = 2
+const WEEK_OFFSET_FORWARD_LIMIT = 4
+const MONTH_OFFSET_BACK_LIMIT = 1
+const MONTH_OFFSET_FORWARD_LIMIT = 2
 
 function occurrenceMapFrom(list: Occurrence[]): Map<string, Occurrence> {
   const map = new Map<string, Occurrence>()
@@ -138,8 +142,8 @@ function WeekView({
   // Public, pre-login page — deliberately bounded (this week ± 2) rather
   // than open-ended browsing, unlike the logged-in student/admin calendars.
   const [weekOffset, setWeekOffset] = useState(0)
-  const canGoPrevWeek = weekOffset > -WEEK_OFFSET_LIMIT
-  const canGoNextWeek = weekOffset < WEEK_OFFSET_LIMIT
+  const canGoPrevWeek = weekOffset > -WEEK_OFFSET_BACK_LIMIT
+  const canGoNextWeek = weekOffset < WEEK_OFFSET_FORWARD_LIMIT
 
   // Monday..Sunday of the displayed week, in the viewer's own local
   // timezone — matches admin-attendance.tsx's identical weekDatesOf.
@@ -276,8 +280,8 @@ function MonthView({
   // Public, pre-login page — deliberately bounded (this month ± 1) rather
   // than open-ended browsing, unlike the logged-in student/admin calendars.
   const [monthOffset, setMonthOffset] = useState(0)
-  const canGoPrevMonth = monthOffset > -MONTH_OFFSET_LIMIT
-  const canGoNextMonth = monthOffset < MONTH_OFFSET_LIMIT
+  const canGoPrevMonth = monthOffset > -MONTH_OFFSET_BACK_LIMIT
+  const canGoNextMonth = monthOffset < MONTH_OFFSET_FORWARD_LIMIT
 
   const { weeks, monthLabel, year, month } = useMemo(() => {
     const now = new Date()

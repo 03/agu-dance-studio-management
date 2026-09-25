@@ -158,15 +158,15 @@ export async function getPublicRosterView(sessionId: string, dateISO: string) {
 // Everything the student app needs for one specific logged-in student —
 // deliberately excludes admin financials, the full student roster, card
 // products and notification rules, none of which student/*.tsx reads.
-// `occurrences` covers exactly the 16-day window the day-picker in
-// student-schedule.tsx offers (2 days back through 2 weeks forward) — that
+// `occurrences` covers exactly the 33-day window the day-picker in
+// student-schedule.tsx offers (2 days back through 30 days forward) — that
 // picker has no further navigation, so unlike the public month view there's
 // no on-demand fetch needed here.
 export async function getStudentAppData(studentId: string) {
   const todayIso = todayISO()
   const today = parseISODate(todayIso)
   const windowStart = parseISODate(addDays(todayIso, -2))
-  const windowEnd = parseISODate(addDays(todayIso, 14))
+  const windowEnd = parseISODate(addDays(todayIso, 31))
 
   const [
     teachers,
