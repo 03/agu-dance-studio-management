@@ -7,7 +7,7 @@ import type { UserRole } from "@/lib/generated/prisma/client"
 export { hashPassword, verifyPassword } from "@/lib/password"
 
 const SESSION_COOKIE = "session_token"
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000 // ~3 months
 
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex")
