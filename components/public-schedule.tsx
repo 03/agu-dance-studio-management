@@ -112,7 +112,7 @@ export function PublicSchedule({
         <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-primary" />
-            {t("home.contact.wechat")}: <span className="font-medium text-foreground">AguHappy</span>
+            {t("home.contact.wechat")}: <span className="font-medium text-foreground">agu7119</span>
           </span>
           <span className="inline-flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
