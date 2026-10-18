@@ -457,7 +457,7 @@ export async function getMonthlySessionDetail(year: number, month: number) {
 
 export type MonthlySessionDetail = Awaited<ReturnType<typeof getMonthlySessionDetail>>
 
-async function getAdminAnalytics() {
+export async function getAdminAnalytics() {
   const [thisMonthPayments, checkedInCount, activeStudents, monthConsumed] = await Promise.all([
     prisma.payment.findMany({ where: { paidAt: { gte: startOfMonth() } }, select: { amount: true } }),
     prisma.booking.count({ where: { checkedIn: true } }),
@@ -476,6 +476,29 @@ async function getAdminAnalytics() {
   }
 
   return { kpis }
+}
+
+const WEEKDAY_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+// Recurring class templates in plain language (style/teacher/room names, not
+// ids) — a non-sensitive read for the admin AI assistant (lib/ai/tools.ts),
+// which should never need to see a student row to describe the timetable.
+export async function getScheduleSummary() {
+  const sessions = await prisma.classSession.findMany({
+    include: { teacher: { select: { name: true } }, room: { select: { name: true } } },
+    orderBy: [{ day: "asc" }, { start: "asc" }],
+  })
+  return sessions.map((s) => ({
+    style: styleLabel(styleDbToKey(s.style)).en,
+    level: s.levelEn,
+    teacher: s.teacher.name,
+    room: s.room.name,
+    weekday: WEEKDAY_EN[s.day],
+    start: s.start,
+    end: s.end,
+    capacity: s.capacity,
+    status: s.status,
+  }))
 }
 
 export type StudentAppData = Awaited<ReturnType<typeof getStudentAppData>>

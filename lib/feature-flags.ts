@@ -14,3 +14,11 @@ export const REGISTRATION_ENABLED = false
 // still there in components/public-schedule.tsx; this just keeps both from
 // rendering. Flip back to true to bring the toggle and month view back.
 export const PUBLIC_MONTH_VIEW_ENABLED = false
+
+// Admin-only "AI 助手" tab (announcement drafting + data Q&A, see
+// lib/actions/ai-assistant.ts). Guarded in two places that must stay in
+// sync: components/admin/admin-app.tsx hides the nav entry, and the
+// server actions refuse even a direct call. The feature also needs
+// ANTHROPIC_API_KEY in the environment — without it the tab still shows
+// but reports "not configured" rather than failing.
+export const AI_ASSISTANT_ENABLED = true

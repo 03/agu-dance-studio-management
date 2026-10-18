@@ -11,6 +11,8 @@ import { AdminStudents } from "./admin-students"
 import { AdminCards } from "./admin-cards"
 import { AdminUsers } from "./admin-users"
 import { AdminBackup } from "./admin-backup"
+import { AdminAssistant } from "./admin-assistant"
+import { AdminInvoice } from "./admin-invoice"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
@@ -21,13 +23,16 @@ import {
   ShieldCheck,
   DatabaseBackup,
   ClipboardList,
+  Sparkles,
+  FileText,
   ChevronLeft,
   Menu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AdminAppData } from "@/lib/data"
+import { AI_ASSISTANT_ENABLED } from "@/lib/feature-flags"
 
-type Section = "overview" | "schedule" | "attendance" | "students" | "cards" | "users" | "backup"
+type Section = "overview" | "schedule" | "attendance" | "students" | "cards" | "users" | "backup" | "assistant" | "invoice"
 
 const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = [
   { key: "overview", labelKey: "adm.nav.overview", Icon: LayoutDashboard },
@@ -36,7 +41,11 @@ const nav: { key: Section; labelKey: string; Icon: typeof LayoutDashboard }[] = 
   { key: "cards", labelKey: "adm.nav.cards", Icon: CreditCard },
   { key: "schedule", labelKey: "adm.nav.schedule", Icon: CalendarRange },
   { key: "users", labelKey: "adm.nav.users", Icon: ShieldCheck },
+  { key: "invoice", labelKey: "adm.nav.invoice", Icon: FileText },
   { key: "backup", labelKey: "adm.nav.backup", Icon: DatabaseBackup },
+  ...(AI_ASSISTANT_ENABLED
+    ? [{ key: "assistant" as const, labelKey: "adm.nav.assistant", Icon: Sparkles }]
+    : []),
 ]
 
 export function AdminApp({
@@ -171,6 +180,8 @@ export function AdminApp({
           {section === "cards" && <AdminCards cardProducts={data.cardProducts} cashier={data.cashier} />}
           {section === "users" && <AdminUsers users={data.users} />}
           {section === "backup" && <AdminBackup backupRecords={data.backupRecords} />}
+          {section === "assistant" && <AdminAssistant />}
+          {section === "invoice" && <AdminInvoice />}
         </main>
       </div>
     </div>
