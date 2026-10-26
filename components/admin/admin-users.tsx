@@ -459,11 +459,16 @@ function EditUserForm({ user, onClose }: { user: AppUser; onClose: () => void })
   )
 }
 
+// Pre-filled so a reset is one click; the account is flagged mustChangePassword
+// by adminResetPassword, so this well-known value only works until the user's
+// next login. Must stay >= 8 characters (the action's own minimum).
+const DEFAULT_RESET_PASSWORD = "agudance"
+
 function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => void }) {
   const { t } = useLanguage()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [password, setPassword] = useState("")
+  const [password, setPassword] = useState(DEFAULT_RESET_PASSWORD)
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -499,7 +504,7 @@ function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => vo
         <div className="grid gap-2">
           <Label>{t("auth.newPassword")}</Label>
           <Input
-            type="password"
+            type="text"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => setPasswordTouched(true)}
