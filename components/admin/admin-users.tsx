@@ -196,6 +196,12 @@ function IconBtn({ children, label, onClick }: { children: React.ReactNode; labe
   )
 }
 
+// Pre-filled in both the create-account and reset-password dialogs. Both
+// actions (createUser, adminResetPassword) flag the account mustChangePassword,
+// so this well-known value only works until the user's first login. Must stay
+// >= 8 characters (the actions' own minimum).
+const DEFAULT_PASSWORD = "agudance"
+
 function CreateUserForm({ onClose }: { onClose: () => void }) {
   const { t } = useLanguage()
   const router = useRouter()
@@ -204,7 +210,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
 
   const [role, setRole] = useState<AppUserRole>("student")
   const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
+  const [password, setPassword] = useState(DEFAULT_PASSWORD)
   // The bottom-of-form `hint` below only ever shows the *first* unmet
   // requirement, so it moves off the 8-char password rule the instant a
   // later field (name, ...) becomes the new blocker — easy to miss even
@@ -309,7 +315,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           <div className="grid gap-2">
             <Label>{t("auth.password")}</Label>
             <Input
-              type="password"
+              type="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onBlur={() => setPasswordTouched(true)}
@@ -459,16 +465,11 @@ function EditUserForm({ user, onClose }: { user: AppUser; onClose: () => void })
   )
 }
 
-// Pre-filled so a reset is one click; the account is flagged mustChangePassword
-// by adminResetPassword, so this well-known value only works until the user's
-// next login. Must stay >= 8 characters (the action's own minimum).
-const DEFAULT_RESET_PASSWORD = "agudance"
-
 function ResetPasswordForm({ user, onClose }: { user: AppUser; onClose: () => void }) {
   const { t } = useLanguage()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [password, setPassword] = useState(DEFAULT_RESET_PASSWORD)
+  const [password, setPassword] = useState(DEFAULT_PASSWORD)
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
