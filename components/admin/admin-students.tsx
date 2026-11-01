@@ -386,7 +386,7 @@ export function AdminStudents({
       </div>
 
       <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent className={dialog?.mode === "ledger" ? "sm:max-w-2xl" : undefined}>
+        <DialogContent className={dialog?.mode === "ledger" ? "sm:max-w-3xl" : undefined}>
           {dialog?.mode === "card" && (
             <ActionForm
               key={`${dialog.student.id}-${dialog.action}`}
@@ -672,6 +672,7 @@ function LedgerDialog({ student, onClose }: { student: Student; onClose: () => v
                   <TableHead>{t("adm.students.ledgerType")}</TableHead>
                   <TableHead>{t("adm.students.ledgerDetail")}</TableHead>
                   <TableHead>{t("adm.students.ledgerNote")}</TableHead>
+                  <TableHead>{t("adm.students.ledgerOperator")}</TableHead>
                   <TableHead className="text-right">{t("adm.students.ledgerDelta")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -684,6 +685,7 @@ function LedgerDialog({ student, onClose }: { student: Student; onClose: () => v
                     <TableCell className="text-muted-foreground">
                       {e.note ? (lang === "zh" ? e.note.zh : e.note.en) : "—"}
                     </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{e.operator ?? "—"}</TableCell>
                     <TableCell
                       className={cn(
                         "text-right font-display font-bold",

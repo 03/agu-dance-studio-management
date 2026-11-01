@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { studentStatusKeyToDb, paymentMethodToDb, mapLedgerEntryDateOnly } from "@/lib/mappers"
+import { studentStatusKeyToDb, paymentMethodToDb, mapLedgerEntryForAdmin } from "@/lib/mappers"
 import type { Student, PaymentMethod, LedgerEntry } from "@/lib/types"
 
 export async function buyOrRenewCard(studentId: string, productId: string, method: PaymentMethod) {
@@ -36,7 +36,7 @@ export async function buyOrRenewCard(studentId: string, productId: string, metho
 export async function getStudentLedger(studentId: string): Promise<LedgerEntry[]> {
   await requireRole("ADMIN")
   const rows = await prisma.ledgerEntry.findMany({ where: { studentId }, orderBy: [{ date: "desc" }, { id: "desc" }] })
-  return rows.map(mapLedgerEntryDateOnly)
+  return rows.map(mapLedgerEntryForAdmin)
 }
 
 // Manual class-count correction; delta may be positive or negative (a
@@ -48,7 +48,7 @@ export async function getStudentLedger(studentId: string): Promise<LedgerEntry[]
 // ledger_entries (see the legacy migration and computeRemainingBalance's
 // cardlessNet handling).
 export async function adjustBalance(studentId: string, cardId: string | null, delta: number, reason: string) {
-  await requireRole("ADMIN")
+  const admin = await requireRole("ADMIN")
   if (!Number.isFinite(delta) || delta === 0) throw new Error("INVALID_DELTA")
   await prisma.$transaction(async (tx) => {
     if (cardId) {
@@ -68,6 +68,7 @@ export async function adjustBalance(studentId: string, cardId: string | null, de
         delta,
         noteZh: reason,
         noteEn: reason,
+        createdBy: admin.username,
       },
     })
   })
@@ -138,7 +139,7 @@ export async function deleteStudent(id: string) {
 // Refund closes the card out: money goes back (negative Payment) and any
 // remaining class balance is forfeited (zeroed, logged on the ledger).
 export async function refundCard(studentId: string, cardId: string, amount: number, reason: string) {
-  await requireRole("ADMIN")
+  const admin = await requireRole("ADMIN")
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("INVALID_AMOUNT")
   await prisma.$transaction(async (tx) => {
     const card = await tx.studentCard.findUniqueOrThrow({ where: { id: cardId } })
@@ -158,6 +159,7 @@ export async function refundCard(studentId: string, cardId: string, amount: numb
         delta: -forfeited,
         noteZh: reason,
         noteEn: reason,
+        createdBy: admin.username,
       },
     })
   })

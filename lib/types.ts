@@ -147,6 +147,10 @@ export type LedgerEntry = {
   date: string
   delta: number // classes; negative = consumed
   note?: { zh: string; en: string }
+  // Username of the admin who made this entry by hand — only ever populated
+  // for the admin's own ledger view (mapLedgerEntryForAdmin), never in
+  // anything a student receives.
+  operator?: string
 }
 
 export type Student = {

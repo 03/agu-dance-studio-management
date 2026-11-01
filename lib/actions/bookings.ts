@@ -84,7 +84,7 @@ async function consumeCreditForBooking(
   bookingId: string,
   session: { style: DanceStyle; teacher: { name: string; nameEn: string } },
   occurrenceDate: Date,
-  opts: { allowNegative?: boolean } = {},
+  opts: { allowNegative?: boolean; createdBy?: string } = {},
 ) {
   const card = await pickConsumableCard(tx, studentId)
   let cardId: string | null = null
@@ -120,6 +120,7 @@ async function consumeCreditForBooking(
       titleEn: `${label.en} · ${session.teacher.nameEn}`,
       date: occurrenceDate,
       delta: -1,
+      createdBy: opts.createdBy,
     },
     update: {},
   })
@@ -147,7 +148,7 @@ async function bookOccurrenceForStudent(
   sessionId: string,
   date: string,
   studentId: string,
-  opts: { forceBooked?: boolean; allowDuplicate?: boolean; allowNegativeBalance?: boolean } = {},
+  opts: { forceBooked?: boolean; allowDuplicate?: boolean; allowNegativeBalance?: boolean; createdBy?: string } = {},
 ) {
   const occurrenceDate = parseISODate(date)
   return prisma.$transaction(async (tx) => {
@@ -214,6 +215,7 @@ async function bookOccurrenceForStudent(
     if (state === "BOOKED") {
       await consumeCreditForBooking(tx, studentId, booking.id, session, occurrenceDate, {
         allowNegative: opts.allowNegativeBalance,
+        createdBy: opts.createdBy,
       })
     }
 
@@ -273,9 +275,14 @@ export async function adminBookStudent(
   allowDuplicate = false,
   allowNegativeBalance = false,
 ): Promise<ActionResult> {
-  await requireRole("ADMIN")
+  const admin = await requireRole("ADMIN")
   try {
-    await bookOccurrenceForStudent(sessionId, date, studentId, { forceBooked: true, allowDuplicate, allowNegativeBalance })
+    await bookOccurrenceForStudent(sessionId, date, studentId, {
+      forceBooked: true,
+      allowDuplicate,
+      allowNegativeBalance,
+      createdBy: admin.username,
+    })
     return { ok: true }
   } catch (e) {
     return errorResult(e)

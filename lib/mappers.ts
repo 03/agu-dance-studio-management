@@ -291,6 +291,15 @@ export const mapLedgerEntryDateOnly = (e: DbLedgerEntry): LedgerEntry => ({
   note: e.noteZh || e.noteEn ? { zh: e.noteZh ?? "", en: e.noteEn ?? "" } : undefined,
 })
 
+// Admin-only view of a ledger row: the same shape plus which admin made the
+// entry by hand. Kept out of mapLedgerEntry/mapLedgerEntryDateOnly because
+// those also feed the student's own 卡包 history, which must never carry
+// staff usernames.
+export const mapLedgerEntryForAdmin = (e: DbLedgerEntry): LedgerEntry => ({
+  ...mapLedgerEntryDateOnly(e),
+  operator: e.createdBy ?? undefined,
+})
+
 export const mapCardProduct = (p: DbCardProduct): CardProduct => ({
   id: p.id,
   type: cardTypeDbToKey(p.type),

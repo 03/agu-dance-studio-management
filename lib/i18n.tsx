@@ -396,6 +396,7 @@ export const dict: Dict = {
   "adm.students.ledgerType": { zh: "类型", en: "Type" },
   "adm.students.ledgerDetail": { zh: "内容", en: "Detail" },
   "adm.students.ledgerNote": { zh: "备注 / 原因", en: "Note / reason" },
+  "adm.students.ledgerOperator": { zh: "操作人", en: "Operator" },
   "adm.students.ledgerDelta": { zh: "课时变动", en: "Change" },
   "adm.students.ledgerAll": { zh: "全部", en: "All" },
   "adm.students.ledgerAdjustOnly": { zh: "只看调整", en: "Adjustments only" },

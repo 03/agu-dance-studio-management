@@ -281,6 +281,11 @@ model LedgerEntry {
   delta     Int // classes; negative = consumed
   noteZh    String?
   noteEn    String?
+  // Username of the admin who made this entry by hand (调整课时, 退费, 课时登记)
+  // — a plain string like BackupRecord.createdBy, so it survives that account
+  // being renamed or deleted. Null for entries nobody made manually (student
+  // self-bookings, migrated legacy rows, anything from before this column).
+  createdBy String?
 
   @@map("ledger_entries")
 }
