@@ -2,8 +2,8 @@
 
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
-import { studentStatusKeyToDb, paymentMethodToDb } from "@/lib/mappers"
-import type { Student, PaymentMethod } from "@/lib/types"
+import { studentStatusKeyToDb, paymentMethodToDb, mapLedgerEntryDateOnly } from "@/lib/mappers"
+import type { Student, PaymentMethod, LedgerEntry } from "@/lib/types"
 
 export async function buyOrRenewCard(studentId: string, productId: string, method: PaymentMethod) {
   await requireRole("ADMIN")
@@ -27,6 +27,16 @@ export async function buyOrRenewCard(studentId: string, productId: string, metho
       data: { studentId, cardId: card.id, amount: product.price, method: paymentMethodToDb(method), paidAt: new Date() },
     })
   })
+}
+
+// Every ledger row for one student, newest first (all kinds: 消课, 充值, 赠课,
+// 退费, 调整课时). Fetched on demand when the admin opens 课时明细 rather than
+// folded into getAdminAppData, which would ship every student's full history
+// in the bulk payload on every load.
+export async function getStudentLedger(studentId: string): Promise<LedgerEntry[]> {
+  await requireRole("ADMIN")
+  const rows = await prisma.ledgerEntry.findMany({ where: { studentId }, orderBy: [{ date: "desc" }, { id: "desc" }] })
+  return rows.map(mapLedgerEntryDateOnly)
 }
 
 // Manual class-count correction; delta may be positive or negative (a

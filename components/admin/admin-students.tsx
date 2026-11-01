@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import jsPDF from "jspdf"
 import html2canvas from "html2canvas"
 import { useLanguage } from "@/lib/i18n"
-import type { Student, StudentCard, CardProduct, PaymentMethod } from "@/lib/types"
+import type { Student, StudentCard, CardProduct, PaymentMethod, LedgerEntry } from "@/lib/types"
 import {
   buyOrRenewCard,
   adjustBalance,
   refundCard,
   updateStudent,
   deleteStudent,
+  getStudentLedger,
 } from "@/lib/actions/students"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,6 +60,7 @@ import {
   Trash2,
   Download,
   Columns3,
+  ScrollText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -73,6 +75,7 @@ type DialogState =
   | { mode: "edit"; student: Student }
   | { mode: "delete"; student: Student }
   | { mode: "usage"; student: Student }
+  | { mode: "ledger"; student: Student }
   | null
 
 const statusStyles: Record<Student["status"], string> = {
@@ -365,6 +368,9 @@ export function AdminStudents({
                         <RotateCcw className="h-4 w-4" />
                       </IconBtn>
                     )}
+                    <IconBtn label={t("adm.students.ledger")} onClick={() => setDialog({ mode: "ledger", student: s })}>
+                      <ScrollText className="h-4 w-4" />
+                    </IconBtn>
                     <IconBtn label={t("common.edit")} onClick={() => setDialog({ mode: "edit", student: s })}>
                       <Pencil className="h-4 w-4" />
                     </IconBtn>
@@ -380,7 +386,7 @@ export function AdminStudents({
       </div>
 
       <Dialog open={!!dialog} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent>
+        <DialogContent className={dialog?.mode === "ledger" ? "sm:max-w-2xl" : undefined}>
           {dialog?.mode === "card" && (
             <ActionForm
               key={`${dialog.student.id}-${dialog.action}`}
@@ -395,6 +401,9 @@ export function AdminStudents({
           )}
           {dialog?.mode === "delete" && (
             <DeleteStudentConfirm key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
+          )}
+          {dialog?.mode === "ledger" && (
+            <LedgerDialog key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
           )}
           {dialog?.mode === "usage" && (
             <UsageHistoryDialog key={dialog.student.id} student={dialog.student} onClose={() => setDialog(null)} />
@@ -609,6 +618,95 @@ async function downloadUsagePdf(student: Student, lang: "zh" | "en") {
   } finally {
     document.body.removeChild(iframe)
   }
+}
+
+// Full per-student ledger — unlike 已用课时 above (negative deltas only, no
+// reason column), this shows every kind of entry, including positive 调整课时
+// rows and the reason the admin typed when adjusting.
+function LedgerDialog({ student, onClose }: { student: Student; onClose: () => void }) {
+  const { t, lang } = useLanguage()
+  const [entries, setEntries] = useState<LedgerEntry[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [adjustOnly, setAdjustOnly] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    getStudentLedger(student.id)
+      .then((rows) => !cancelled && setEntries(rows))
+      .catch(() => !cancelled && setFailed(true))
+    return () => {
+      cancelled = true
+    }
+  }, [student.id])
+
+  const shown = (entries ?? []).filter((e) => !adjustOnly || e.kind === "ledger.adjust")
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="font-display">
+          {t("adm.students.ledger")} · {student.name}
+        </DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-3 py-2">
+        <div className="flex gap-2">
+          <Button size="sm" variant={adjustOnly ? "outline" : "default"} onClick={() => setAdjustOnly(false)}>
+            {t("adm.students.ledgerAll")}
+          </Button>
+          <Button size="sm" variant={adjustOnly ? "default" : "outline"} onClick={() => setAdjustOnly(true)}>
+            {t("adm.students.ledgerAdjustOnly")}
+          </Button>
+        </div>
+        {failed ? (
+          <p className="text-sm text-destructive">{t("adm.students.ledgerLoadFailed")}</p>
+        ) : entries === null ? (
+          <p className="text-sm text-muted-foreground">…</p>
+        ) : shown.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("adm.students.ledgerEmpty")}</p>
+        ) : (
+          <div className="max-h-96 overflow-auto rounded-xl border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("common.time")}</TableHead>
+                  <TableHead>{t("adm.students.ledgerType")}</TableHead>
+                  <TableHead>{t("adm.students.ledgerDetail")}</TableHead>
+                  <TableHead>{t("adm.students.ledgerNote")}</TableHead>
+                  <TableHead className="text-right">{t("adm.students.ledgerDelta")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{e.date}</TableCell>
+                    <TableCell className="whitespace-nowrap text-card-foreground">{t(e.kind)}</TableCell>
+                    <TableCell className="text-card-foreground">{lang === "zh" ? e.title.zh : e.title.en}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {e.note ? (lang === "zh" ? e.note.zh : e.note.en) : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right font-display font-bold",
+                        e.delta > 0 ? "text-chart-5" : "text-muted-foreground",
+                      )}
+                    >
+                      {e.delta > 0 ? "+" : ""}
+                      {e.delta}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+      </DialogFooter>
+    </>
+  )
 }
 
 function UsageHistoryDialog({ student, onClose }: { student: Student; onClose: () => void }) {

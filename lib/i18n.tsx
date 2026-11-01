@@ -160,6 +160,7 @@ export const dict: Dict = {
   "ledger.recharge": { zh: "充值", en: "Top-up" },
   "ledger.gift": { zh: "赠课", en: "Gift" },
   "ledger.refund": { zh: "退费", en: "Refund" },
+  "ledger.adjust": { zh: "调整", en: "Adjustment" },
 
   // Teacher
   "tea.title": { zh: "教师工作台", en: "Teacher console" },
@@ -391,6 +392,15 @@ export const dict: Dict = {
   "adm.students.usedSessions": { zh: "已用课时", en: "Used sessions" },
   "adm.students.totalSessions": { zh: "总课时", en: "Total sessions" },
   "adm.students.usageClass": { zh: "班级", en: "Class" },
+  "adm.students.ledger": { zh: "课时明细", en: "Session ledger" },
+  "adm.students.ledgerType": { zh: "类型", en: "Type" },
+  "adm.students.ledgerDetail": { zh: "内容", en: "Detail" },
+  "adm.students.ledgerNote": { zh: "备注 / 原因", en: "Note / reason" },
+  "adm.students.ledgerDelta": { zh: "课时变动", en: "Change" },
+  "adm.students.ledgerAll": { zh: "全部", en: "All" },
+  "adm.students.ledgerAdjustOnly": { zh: "只看调整", en: "Adjustments only" },
+  "adm.students.ledgerEmpty": { zh: "暂无课时变动记录", en: "No ledger entries yet" },
+  "adm.students.ledgerLoadFailed": { zh: "加载失败，请重试", en: "Failed to load — please try again" },
   "adm.students.noUsage": { zh: "暂无课时使用记录", en: "No sessions used yet" },
   "adm.students.downloadPdf": { zh: "下载 PDF", en: "Download PDF" },
   "adm.students.deleteDesc": {
