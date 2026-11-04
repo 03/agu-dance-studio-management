@@ -2,10 +2,10 @@
 
 import { prisma } from "@/lib/db"
 import { requireAnyRole, requireRole } from "@/lib/auth"
-import { parseISODate } from "@/lib/schedule-dates"
+import { parseISODate, addDays } from "@/lib/schedule-dates"
 import { computeRemainingBalance, formatLedgerDate } from "@/lib/mappers"
 import { decodeCheckInPayload } from "@/lib/checkin"
-import type { RosterEntry, BookingEventEntry } from "@/lib/types"
+import type { RosterEntry, BookingEventEntry, LastWeekRosterEntry } from "@/lib/types"
 
 async function assertOwnsSession(sessionId: string) {
   const session = await requireAnyRole(["TEACHER", "ADMIN"])
@@ -31,6 +31,7 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
   })
   return bookings.map((b) => ({
     id: b.id,
+    studentId: b.studentId,
     name: b.student.name,
     checkedIn: b.checkedIn,
     proxy: b.proxy,
@@ -38,6 +39,37 @@ export async function getRosterForSession(sessionId: string, date: string): Prom
     createdAt: formatLedgerDate(b.createdAt),
     note: b.student.note,
   }))
+}
+
+// The same class one week earlier (`date` - 7 days, same session), one entry
+// per student — the baseline for 课时登记's "对比上周未报名" list, which the
+// client diffs against the current roster by studentId. Uses the same
+// BOOKED + WAITLIST definition of "registered" as getRosterForSession so the
+// two lists are comparable, and de-duplicates a student who 接龙'd twice
+// (bringing a friend under one account) so they show up once. Admin-only.
+export async function getLastWeekRoster(
+  sessionId: string,
+  date: string,
+): Promise<{ dateISO: string; entries: LastWeekRosterEntry[] }> {
+  await requireRole("ADMIN")
+  const dateISO = addDays(date, -7)
+  const bookings = await prisma.booking.findMany({
+    where: { sessionId, date: parseISODate(dateISO), state: { in: ["BOOKED", "WAITLIST"] } },
+    include: { student: { select: { name: true, cards: true, ledgerEntries: true } } },
+    orderBy: { createdAt: "asc" },
+  })
+  const seen = new Set<string>()
+  const entries: LastWeekRosterEntry[] = []
+  for (const b of bookings) {
+    if (seen.has(b.studentId)) continue
+    seen.add(b.studentId)
+    entries.push({
+      studentId: b.studentId,
+      name: b.student.name,
+      remainingSessions: computeRemainingBalance(b.student.cards, b.student.ledgerEntries),
+    })
+  }
+  return { dateISO, entries }
 }
 
 // 接龙历史 — add/cancel log for one class occurrence, newest first, shown

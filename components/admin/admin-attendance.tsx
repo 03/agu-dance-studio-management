@@ -13,10 +13,11 @@ import {
   type RosterEntry,
   type ClassClosure,
   type BookingEventEntry,
+  type LastWeekRosterEntry,
 } from "@/lib/types"
 import { toAppDay, toISODate, parseISODate, occurrenceKey, formatAppDate, isSessionActiveOn } from "@/lib/schedule-dates"
 import { getOccurrencesForMonth } from "@/lib/actions/schedule"
-import { getRosterForSession, getBookingHistoryForSession } from "@/lib/actions/rollcall"
+import { getRosterForSession, getBookingHistoryForSession, getLastWeekRoster } from "@/lib/actions/rollcall"
 import { adminBookStudent, adminCancelBooking } from "@/lib/actions/bookings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -347,6 +348,7 @@ function RosterDialog({
   const dateISO = toISODate(date)
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [history, setHistory] = useState<BookingEventEntry[]>([])
+  const [lastWeek, setLastWeek] = useState<{ dateISO: string; entries: LastWeekRosterEntry[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -391,6 +393,23 @@ function RosterDialog({
   useEffect(() => {
     load()
   }, [load])
+
+  // Last week's list is past data, so it's fetched once per occurrence rather
+  // than polled; the diff against the live roster below recomputes on its own
+  // whenever the roster changes (including right after an add from this dialog).
+  useEffect(() => {
+    let cancelled = false
+    getLastWeekRoster(session.id, dateISO).then((r) => !cancelled && setLastWeek(r))
+    return () => {
+      cancelled = true
+    }
+  }, [session.id, dateISO])
+
+  const notSignedUp = useMemo(() => {
+    if (!lastWeek) return []
+    const current = new Set(roster.map((r) => r.studentId))
+    return lastWeek.entries.filter((e) => !current.has(e.studentId))
+  }, [lastWeek, roster])
 
   // Someone else can add/remove a booking on this exact roster while it's
   // open here — a student self-booking or cancelling from their own phone,
@@ -602,6 +621,57 @@ function RosterDialog({
                 </TableBody>
               </Table>
             </div>
+          )}
+        </div>
+
+        <div>
+          <Label>
+            {t("adm.attendance.missing")}
+            {lastWeek && lastWeek.entries.length > 0 ? ` (${notSignedUp.length})` : ""}
+          </Label>
+          {lastWeek === null || loading ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">{t("common.loading")}…</p>
+          ) : lastWeek.entries.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">{t("adm.attendance.missingNoLastWeek")}</p>
+          ) : notSignedUp.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">{t("adm.attendance.missingNone")}</p>
+          ) : (
+            <>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("adm.attendance.missingDesc").replace("{date}", lastWeek.dateISO)}
+              </p>
+              <div className="mt-2 max-h-48 overflow-x-auto overflow-y-auto rounded-xl border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("common.name")}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t("adm.attendance.remainingSessions")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {notSignedUp.map((e) => (
+                      <TableRow key={e.studentId}>
+                        <TableCell className="max-w-[12rem] truncate text-card-foreground" title={e.name}>
+                          {e.name}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={cn(
+                              "rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                              e.remainingSessions <= 2
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-secondary text-muted-foreground",
+                            )}
+                          >
+                            {e.remainingSessions}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </div>
 

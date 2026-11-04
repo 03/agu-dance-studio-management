@@ -202,9 +202,18 @@ export type CashierEntry = {
   paidAt: string // display date, e.g. "12.08 14:20"
 }
 
+// One student on the same class's roster a week earlier — what 课时登记's
+// "对比上周未报名" list is diffed against the current roster by studentId.
+export type LastWeekRosterEntry = {
+  studentId: string
+  name: string
+  remainingSessions: number
+}
+
 // Roster for teacher roll-call view / admin attendance registration
 export type RosterEntry = {
   id: string
+  studentId: string
   name: string
   checkedIn: boolean
   proxy?: boolean
