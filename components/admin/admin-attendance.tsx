@@ -213,10 +213,8 @@ export function AdminAttendance({
           </Button>
         </div>
 
-        {/* Phones stack the seven days top-to-bottom so the whole week reads by
-            scrolling down; from md up it's the original seven columns. */}
-        <div className="md:overflow-x-auto">
-          <div className="grid grid-cols-1 gap-2 md:min-w-[700px] md:grid-cols-7 md:gap-1">
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[700px] grid-cols-7 gap-1">
             {weekDates.map((d, i) => {
               const dow = toAppDay(d)
               const dISO = toISODate(d)
@@ -225,27 +223,24 @@ export function AdminAttendance({
                 <div
                   key={i}
                   className={cn(
-                    "flex flex-col gap-1 rounded-lg border border-transparent p-1.5 md:min-h-[220px] md:items-center",
+                    "flex min-h-[220px] flex-col items-center gap-1 rounded-lg border border-transparent p-1.5",
                     isToday(d) && "border-primary bg-primary/5",
                   )}
                 >
-                  <div className="mb-1 flex w-full items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 md:block md:px-0 md:text-center">
-                    <p className="text-xs font-semibold text-secondary-foreground md:text-[11px]">{t(weekdayKeys[dow])}</p>
-                    <p className={cn("text-xs md:text-[11px]", isToday(d) ? "font-bold text-primary" : "text-muted-foreground")}>
+                  <div className="mb-1 w-full rounded-lg bg-secondary py-1.5 text-center">
+                    <p className="text-[11px] font-semibold text-secondary-foreground">{t(weekdayKeys[dow])}</p>
+                    <p className={cn("text-[11px]", isToday(d) ? "font-bold text-primary" : "text-muted-foreground")}>
                       {formatAppDate(d)}
                     </p>
                   </div>
                   <div className="flex w-full flex-col gap-1">
-                    {daySessions.length === 0 && (
-                      <p className="px-1 text-xs text-muted-foreground md:hidden">{t("adm.attendance.noClasses")}</p>
-                    )}
                     {daySessions.map((s) => {
                       const booked = bookedFor(s.id, d)
                       return (
                         <button
                           key={s.id}
                           onClick={() => setSelected({ session: s, date: d })}
-                          className="w-full rounded-md border-l-2 bg-secondary/50 px-2 py-1.5 text-left text-xs leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-0.5 md:truncate md:px-1.5 md:py-1 md:text-[10px]"
+                          className="w-full truncate rounded-md border-l-2 bg-secondary/50 px-1.5 py-1 text-left text-[10px] leading-tight font-medium text-card-foreground transition-colors hover:bg-secondary"
                           style={{ borderLeftColor: styleColors[s.style] }}
                           title={`${s.start} · ${t(s.style)} · ${lang === "zh" ? s.level.zh : s.level.en} · ${teacherName(s.teacherId)} · ${booked}/${s.capacity}`}
                         >
@@ -257,8 +252,7 @@ export function AdminAttendance({
                           <span className="block truncate text-muted-foreground">
                             {lang === "zh" ? s.level.zh : s.level.en}
                           </span>
-                          <span className="block truncate text-muted-foreground md:hidden">{teacherName(s.teacherId)}</span>
-                          <span className="block text-muted-foreground max-md:ml-auto">
+                          <span className="block text-muted-foreground">
                             {booked}/{s.capacity}
                           </span>
                         </button>

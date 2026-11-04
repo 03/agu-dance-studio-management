@@ -254,7 +254,6 @@ export const dict: Dict = {
   "adm.attendance.shareLinkCopied": { zh: "链接已复制", en: "Link copied" },
   "adm.attendance.err.noValidCard": { zh: "该学员没有有效课时卡，无法登记", en: "This student has no valid card to register with" },
   "adm.attendance.err.sessionNotActive": { zh: "该课程这天不开课", en: "This class isn't running on that date" },
-  "adm.attendance.noClasses": { zh: "本日无课", en: "No classes" },
   "adm.attendance.missing": { zh: "对比上周未报名", en: "Not signed up vs. last week" },
   "adm.attendance.missingDesc": { zh: "上周（{date}）报名、本周还没报名的学员", en: "Signed up last week ({date}) but not yet this week" },
   "adm.attendance.missingNone": { zh: "上周报名的学员本周都已报名", en: "Everyone from last week has signed up" },
