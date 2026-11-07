@@ -224,7 +224,6 @@ function WeekView({
               {sessions
                 .filter((s) => s.day === day && isSessionActiveOn(s, closures, dateISO))
                 .map((s) => {
-                  const booked = bookedFor(s.id, d)
                   const nameEn = roomNameEn(s.roomId)
                   return (
                     <div
@@ -246,9 +245,6 @@ function WeekView({
                           <span className="truncate">{nameEn}</span>
                         </p>
                       )}
-                      <p className="text-[11px] text-muted-foreground">
-                        {booked} {t("home.schedule.enrolled")}
-                      </p>
                     </div>
                   )
                 })}
@@ -370,7 +366,6 @@ function MonthView({
                 </span>
                 <div className="flex w-full flex-col gap-1">
                   {daySessions.map((s) => {
-                    const booked = bookedFor(s.id, d)
                     const nameEn = roomNameEn(s.roomId)
                     return (
                       <div
@@ -392,9 +387,6 @@ function MonthView({
                             <span className="truncate">{nameEn}</span>
                           </p>
                         )}
-                        <p className="text-[9px] text-muted-foreground">
-                          {booked} {t("home.schedule.enrolled")}
-                        </p>
                       </div>
                     )
                   })}
