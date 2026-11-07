@@ -293,10 +293,15 @@ export function StudentSchedule({
                       <MapPin className="h-3.5 w-3.5" />
                       {roomName(s.roomId)}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      {s.booked} {t("home.schedule.enrolled")}
-                    </span>
+                    {/* Headcount is only shown to a student who is on this class
+                        (booked or waitlisted) — once they cancel, it disappears
+                        again. The count itself still drives isFull above. */}
+                    {st !== "none" && (
+                      <span className="inline-flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5" />
+                        {s.booked} {t("home.schedule.enrolled")}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-xs font-medium text-foreground/80">
                     {teacherName(s.teacherId)}
@@ -326,10 +331,12 @@ export function StudentSchedule({
                         ? t("common.waitlist")
                         : t("common.book")}
                   </Button>
-                  <Button size="sm" variant="ghost" className="gap-1" onClick={() => openRoster(s.id)}>
-                    <ListOrdered className="h-3.5 w-3.5" />
-                    {t("stu.roster.button")}
-                  </Button>
+                  {st !== "none" && (
+                    <Button size="sm" variant="ghost" className="gap-1" onClick={() => openRoster(s.id)}>
+                      <ListOrdered className="h-3.5 w-3.5" />
+                      {t("stu.roster.button")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </li>
