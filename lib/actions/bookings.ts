@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireRole } from "@/lib/auth"
 import { styleDbToKey, styleLabel, computeRemainingBalance } from "@/lib/mappers"
-import { parseISODate, toISODate, todayISO, isSessionActiveOn, studioInstant } from "@/lib/schedule-dates"
+import { parseISODate, toISODate, todayISO, isSessionActiveOn, studioInstant, isInStudentVisibleWindow } from "@/lib/schedule-dates"
 import type { Prisma, DanceStyle } from "@/lib/generated/prisma/client"
 
 // Every exported action below returns this instead of throwing its error
@@ -320,19 +320,14 @@ async function promoteFromWaitlist(tx: Prisma.TransactionClient, sessionId: stri
 // Names only, in the order students joined — matches the "接龙" (group
 // sign-up chain) mental model students already have from chat groups.
 //
-// A student only gets the list for a class they're themselves on (booked or
-// waitlisted) — the schedule UI hides the 接龙名单 button otherwise, and this
-// enforces the same rule on the server so the action can't be called directly
-// for someone else's class. Cancelling takes the access away again.
+// Any student may see the list for a class today or later, never a past one
+// (isInStudentVisibleWindow) — the schedule UI only offers the button for those
+// dates, and this enforces the same rule on the server so the action can't be
+// called directly for a past date.
 export async function getBookedNamesForSession(sessionId: string, date: string): Promise<string[]> {
-  const { studentId } = await requireRole("STUDENT")
-  if (!studentId) return []
+  await requireRole("STUDENT")
+  if (!isInStudentVisibleWindow(date)) return []
   const occurrenceDate = parseISODate(date)
-  const mine = await prisma.booking.findFirst({
-    where: { studentId, sessionId, date: occurrenceDate, state: { in: ["BOOKED", "WAITLIST"] } },
-    select: { id: true },
-  })
-  if (!mine) return []
   const bookings = await prisma.booking.findMany({
     where: { sessionId, date: occurrenceDate, state: { in: ["BOOKED", "WAITLIST"] } },
     include: { student: { select: { name: true } } },

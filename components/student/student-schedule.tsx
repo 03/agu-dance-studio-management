@@ -87,6 +87,9 @@ export function StudentSchedule({
   const selectedDateISO = toISODate(selectedDate)
   const selectedDayOfWeek = toAppDay(selectedDate)
   const isPastDay = selectedIndex < TODAY_INDEX
+  // Headcounts and the 接龙名单 are visible from today onward; past days show
+  // neither (same rule as isInStudentVisibleWindow on the server).
+  const showCount = selectedIndex >= TODAY_INDEX
 
   // Occurrence data (booked count, my own booking state) is fetched
   // separately from the recurring session templates and only makes sense
@@ -293,10 +296,9 @@ export function StudentSchedule({
                       <MapPin className="h-3.5 w-3.5" />
                       {roomName(s.roomId)}
                     </span>
-                    {/* Headcount is only shown to a student who is on this class
-                        (booked or waitlisted) — once they cancel, it disappears
-                        again. The count itself still drives isFull above. */}
-                    {st !== "none" && (
+                    {/* Headcount shows from today onward (see showCount); on past
+                        days it's hidden, though the count still drives isFull. */}
+                    {showCount && (
                       <span className="inline-flex items-center gap-1">
                         <Users className="h-3.5 w-3.5" />
                         {s.booked} {t("home.schedule.enrolled")}
@@ -331,7 +333,7 @@ export function StudentSchedule({
                         ? t("common.waitlist")
                         : t("common.book")}
                   </Button>
-                  {st !== "none" && (
+                  {showCount && (
                     <Button size="sm" variant="ghost" className="gap-1" onClick={() => openRoster(s.id)}>
                       <ListOrdered className="h-3.5 w-3.5" />
                       {t("stu.roster.button")}

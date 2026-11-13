@@ -133,6 +133,15 @@ export function occurrenceHasEnded(dateISO: string, endHM: string, now: Date = n
   return nowHM >= endHM
 }
 
+// Whether a student may see headcounts / the 接龙名单 for this occurrence:
+// today or any later date, never a past one, in the studio's timezone. The
+// student schedule UI (components/student/student-schedule.tsx) applies the
+// same rule to what it draws; this is the server-side check for the name list.
+// ISO dates compare correctly as plain strings.
+export function isInStudentVisibleWindow(dateISO: string, today: string = todayISO()): boolean {
+  return dateISO >= today
+}
+
 // `iso` shifted by `days` calendar days (may be negative). Pure calendar-date
 // arithmetic on the Y-M-D triple — no timezone conversion involved, since a
 // day-count offset between two calendar dates doesn't depend on where the
