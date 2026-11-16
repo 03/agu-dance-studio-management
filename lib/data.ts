@@ -400,18 +400,22 @@ export type YearlyStyleStats = Awaited<ReturnType<typeof getYearlyStyleStats>>
 export async function getYearlyCashFlow(year: number) {
   const { start, end } = yearRange(year)
   const [payments, earliest] = await Promise.all([
-    prisma.payment.findMany({ where: { paidAt: { gte: start, lt: end } }, select: { amount: true, paidAt: true } }),
+    prisma.payment.findMany({ where: { paidAt: { gte: start, lt: end } }, select: { amount: true, paidAt: true, method: true } }),
     prisma.payment.aggregate({ _min: { paidAt: true } }),
   ])
 
   const months = Array.from({ length: 12 }, (_, i) => ({ month: `${i + 1}月`, en: MONTH_EN[i], value: 0 }))
+  // The year's total split by how it was paid — shown next to 年度总额, and
+  // always adding up to the sum of `months` since both come from these rows.
+  const methodTotals = { transfer: 0, cash: 0 }
   for (const p of payments) {
     months[studioDateParts(p.paidAt).month - 1].value += p.amount
+    methodTotals[p.method === "CASH" ? "cash" : "transfer"] += p.amount
   }
 
   const minYear = earliest._min.paidAt ? studioDateParts(earliest._min.paidAt).year : year
   const maxYear = Number(todayISO().split("-")[0])
-  return { year, months, minYear, maxYear }
+  return { year, months, methodTotals, minYear, maxYear }
 }
 
 export type YearlyCashFlow = Awaited<ReturnType<typeof getYearlyCashFlow>>

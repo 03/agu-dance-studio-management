@@ -40,20 +40,37 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
     })
   }
 
+  // Per-method totals for the open month, summed from the same rows the list
+  // below shows (so they always add up to that month's bar).
+  const methodTotals = (detail ?? []).reduce(
+    (acc, c) => {
+      acc[c.method] += c.amount
+      return acc
+    },
+    { "payment.transfer": 0, "payment.cash": 0 } as Record<"payment.transfer" | "payment.cash", number>,
+  )
+
   const maxFlow = Math.max(1, ...cashFlow.months.map((c) => c.value))
   const yearTotal = cashFlow.months.reduce((sum, c) => sum + c.value, 0)
 
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-baseline gap-3">
-          <h2 className="font-display text-base font-bold text-card-foreground">{t("adm.chart.cashflow")}</h2>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="shrink-0 whitespace-nowrap font-display text-base font-bold text-card-foreground">{t("adm.chart.cashflow")}</h2>
           <span className="text-xs text-muted-foreground">
             {t("adm.chart.cashflow.yearTotal")}:{" "}
             <span className="font-display font-bold text-foreground">
               {t("unit.currency")}
               {yearTotal.toLocaleString()}
             </span>
+            {lang === "zh" ? "（" : " ("}
+            {t("payment.transfer")} {t("unit.currency")}
+            {cashFlow.methodTotals.transfer.toLocaleString()}
+            {lang === "zh" ? "，" : ", "}
+            {t("payment.cash")} {t("unit.currency")}
+            {cashFlow.methodTotals.cash.toLocaleString()}
+            {lang === "zh" ? "）" : ")"}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -82,16 +99,18 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
           )}
         </div>
       </div>
-      <div className="flex h-52 items-end justify-between gap-2">
+      <div className="flex h-52 items-end justify-between gap-2 max-sm:h-64">
         {cashFlow.months.map((c, i) => (
           <button
             key={c.month}
             type="button"
             onClick={() => openMonth(i, c.month, c.en)}
-            className="flex flex-1 flex-col items-center gap-2 rounded-lg py-1 transition-colors hover:bg-secondary/50"
+            className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-lg py-1 transition-colors hover:bg-secondary/50"
           >
-            <span className="text-[11px] font-medium text-foreground">
-              {c.value > 0 ? `${t("unit.currency")}${(c.value / 1000).toFixed(0)}k` : ""}
+            {/* Exact amount; on phones it's rotated so a long figure can't widen its
+                column (all twelve months must stay the same width). */}
+            <span className="whitespace-nowrap text-[10px] font-medium text-foreground max-sm:rotate-180 max-sm:[writing-mode:vertical-rl] sm:text-[11px]">
+              {c.value > 0 ? `${t("unit.currency")}${c.value.toLocaleString()}` : ""}
             </span>
             <div
               className="w-full rounded-t-lg bg-primary transition-all"
@@ -114,7 +133,19 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
           ) : !detail || detail.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{t("adm.chart.cashflow.monthEmpty")}</p>
           ) : (
-            <ul className="max-h-96 overflow-y-auto rounded-2xl border border-border">
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {(["payment.transfer", "payment.cash"] as const).map((m) => (
+                  <div key={m} className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">{t(m)}</p>
+                    <p className="font-display text-lg font-bold text-card-foreground">
+                      {t("unit.currency")}
+                      {methodTotals[m].toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <ul className="max-h-96 overflow-y-auto rounded-2xl border border-border">
               {detail.map((c, i) => (
                 <li
                   key={c.id}
@@ -132,7 +163,8 @@ export function CashFlowChart({ initial }: { initial: YearlyCashFlow }) {
                   </span>
                 </li>
               ))}
-            </ul>
+              </ul>
+            </>
           )}
         </DialogContent>
       </Dialog>
