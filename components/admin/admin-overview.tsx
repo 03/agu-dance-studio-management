@@ -267,9 +267,7 @@ function SessionStatsSection({
                   {detail.revenue.paid.amount.toLocaleString()}
                 </p>
                 <p>
-                  {t("adm.chart.sessionDetail.estimated")}（{t("unit.currency")}
-                  {detail.revenue.estimated.rate}/{t("adm.chart.sessionDetail.perClass")}）：{detail.revenue.estimated.sessions}{" "}
-                  {t("unit.classesUnit")} = {t("unit.currency")}
+                  {t("adm.chart.sessionDetail.estimated")}：{detail.revenue.estimated.sessions} {t("unit.classesUnit")} = {t("unit.currency")}
                   {detail.revenue.estimated.amount.toLocaleString()}
                 </p>
                 <p>
