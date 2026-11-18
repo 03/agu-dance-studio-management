@@ -13,12 +13,6 @@ import type { AdminAppData, YearlyCashFlow, YearlyStyleStats, MonthlySessionDeta
 
 const styleKeys = Object.keys(styleColors) as StyleKey[]
 
-// A flat per-session rate for the "每日课时" dialog's back-of-envelope
-// revenue estimate — real pricing varies per card/product, so this is
-// deliberately just illustrative, not a substitute for the real numbers
-// the 现金流 chart already shows from actual Payment rows.
-const ESTIMATED_RATE_PER_SESSION = 40
-
 export function AdminOverview({
   admin,
   teachers,
@@ -262,16 +256,27 @@ function SessionStatsSection({
             <DialogTitle className="font-display">
               {t("adm.chart.sessionDetail")} · {stats.year} {lang === "zh" ? detailMonth?.label : detailMonth?.labelEn}
             </DialogTitle>
-            {detail &&
-              (() => {
-                const monthTotal = detail.days.reduce((sum, d) => sum + d.total, 0)
-                return (
-                  <p className="text-xs text-muted-foreground">
-                    {t("adm.chart.sessionDetail.estimate")}：{ESTIMATED_RATE_PER_SESSION} × {monthTotal} = {t("unit.currency")}
-                    {(ESTIMATED_RATE_PER_SESSION * monthTotal).toLocaleString()}
-                  </p>
-                )
-              })()}
+            {detail && (
+              <div className="space-y-1 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-card-foreground">
+                  {t("adm.chart.sessionDetail.amount")}：{t("unit.currency")}
+                  {detail.revenue.total.toLocaleString()}
+                </p>
+                <p>
+                  {t("adm.chart.sessionDetail.paid")}：{detail.revenue.paid.sessions} {t("unit.classesUnit")} = {t("unit.currency")}
+                  {detail.revenue.paid.amount.toLocaleString()}
+                </p>
+                <p>
+                  {t("adm.chart.sessionDetail.estimated")}（{t("unit.currency")}
+                  {detail.revenue.estimated.rate}/{t("adm.chart.sessionDetail.perClass")}）：{detail.revenue.estimated.sessions}{" "}
+                  {t("unit.classesUnit")} = {t("unit.currency")}
+                  {detail.revenue.estimated.amount.toLocaleString()}
+                </p>
+                <p>
+                  {t("adm.chart.sessionDetail.gift")}：{detail.revenue.gift.sessions} {t("unit.classesUnit")} = {t("unit.currency")}0
+                </p>
+              </div>
+            )}
           </DialogHeader>
           {detailLoading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}…</p>

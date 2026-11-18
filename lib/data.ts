@@ -439,24 +439,92 @@ export async function getMonthlyCashFlowDetail(year: number, month: number) {
 
 export type MonthlyCashFlowDetail = Awaited<ReturnType<typeof getMonthlyCashFlowDetail>>
 
+// Flat per-class rate for consumption with no card behind it — legacy-migrated
+// students, whose card history lives only in ledger_entries, and admin
+// over-the-balance bookings. Everything else is priced from the real card.
+export const ESTIMATED_RATE_PER_SESSION = 40
+
 // One calendar month's daily consumed-class-hours totals, day 1..N in
 // order (N = however many days that month actually has) — backs the admin
 // overview's "click a 课时数 month bar to see a daily bar chart" feature.
 // Every day is present (0 if nothing was consumed that day) so the chart
 // has a consistent, gap-free x-axis rather than only the days with data.
+//
+// Also prices the month's consumption (`revenue`), in three buckets:
+//  - paid: classes drawn from a purchased card, at that card's real unit
+//    price (what was paid for it ÷ its `total` classes).
+//  - gift: classes beyond a card's purchased `total` — they only exist
+//    because of a 调整课时/赠课 top-up, so no money came in; worth 0.
+//  - estimated: cardless consumption, at ESTIMATED_RATE_PER_SESSION.
+// Within a card, its first `total` classes (by class date) are the paid
+// ones and any later ones are the gifted ones, so a month that straddles
+// that boundary is split correctly.
 export async function getMonthlySessionDetail(year: number, month: number) {
   const { start, end } = monthRange(year, month)
   const entries = await prisma.ledgerEntry.findMany({
     where: { kind: "CONSUME", date: { gte: start, lt: end } },
-    select: { delta: true, date: true },
+    select: { id: true, delta: true, date: true, cardId: true },
   })
+
+  const cardIds = [...new Set(entries.map((e) => e.cardId).filter((id): id is string => !!id))]
+  const [cards, paymentSums, cardHistory] = cardIds.length
+    ? await Promise.all([
+        prisma.studentCard.findMany({ where: { id: { in: cardIds } }, select: { id: true, total: true, isUnlimited: true } }),
+        prisma.payment.groupBy({ by: ["cardId"], where: { cardId: { in: cardIds } }, _sum: { amount: true } }),
+        prisma.ledgerEntry.findMany({
+          where: { kind: "CONSUME", cardId: { in: cardIds } },
+          select: { id: true, cardId: true, delta: true },
+          orderBy: [{ date: "asc" }, { id: "asc" }],
+        }),
+      ])
+    : [[], [], []]
+
+  const paidByCard = new Map(paymentSums.map((p) => [p.cardId, p._sum.amount ?? 0]))
+  // Per consumption entry: how many of its classes fall inside the card's
+  // purchased quota (the rest are gifted). Walks each card's whole history
+  // in order, since position within the card — not the month — decides it.
+  const usedByCard = new Map<string, number>()
+  const quotaSplit = new Map<string, number>()
+  const cardById = new Map(cards.map((c) => [c.id, c]))
+  for (const h of cardHistory) {
+    const card = cardById.get(h.cardId!)
+    const qty = Math.abs(h.delta)
+    const used = usedByCard.get(h.cardId!) ?? 0
+    const quota = card?.total ?? 0
+    quotaSplit.set(h.id, Math.min(qty, Math.max(0, quota - used)))
+    usedByCard.set(h.cardId!, used + qty)
+  }
 
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const days = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, total: 0 }))
+  const paid = { sessions: 0, amount: 0 }
+  const estimated = { sessions: 0, amount: 0 }
+  let giftSessions = 0
   for (const e of entries) {
-    days[studioDateParts(e.date).day - 1].total += Math.abs(e.delta)
+    const qty = Math.abs(e.delta)
+    days[studioDateParts(e.date).day - 1].total += qty
+
+    const card = e.cardId ? cardById.get(e.cardId) : undefined
+    const cardPaid = e.cardId ? paidByCard.get(e.cardId) : undefined
+    // Priced from the card only when it's a real bought, limited card;
+    // anything else (no card, unlimited, never paid for) is the flat estimate.
+    if (card && !card.isUnlimited && card.total && cardPaid !== undefined) {
+      const inQuota = quotaSplit.get(e.id) ?? 0
+      paid.sessions += inQuota
+      paid.amount += inQuota * (cardPaid / card.total)
+      giftSessions += qty - inQuota
+    } else {
+      estimated.sessions += qty
+      estimated.amount += qty * ESTIMATED_RATE_PER_SESSION
+    }
   }
-  return { year, month, days }
+  const revenue = {
+    paid: { sessions: paid.sessions, amount: Math.round(paid.amount) },
+    estimated: { sessions: estimated.sessions, amount: estimated.amount, rate: ESTIMATED_RATE_PER_SESSION },
+    gift: { sessions: giftSessions },
+    total: Math.round(paid.amount + estimated.amount),
+  }
+  return { year, month, days, revenue }
 }
 
 export type MonthlySessionDetail = Awaited<ReturnType<typeof getMonthlySessionDetail>>
